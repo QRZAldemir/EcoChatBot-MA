@@ -1,0 +1,66 @@
+.canal-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f4f0ed;
+}
+
+.canal-bar {
+  height: 44px;
+  background: #c8102e;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.btn-voltar {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #fff;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.14s;
+}
+.btn-voltar:hover { background: rgba(255,255,255,0.25); }
+
+.canal-nome {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* O iframe ocupa todo o espaço restante — o HTML do canal vive aqui */
+.canal-frame {
+  flex: 1;
+  width: 100%;
+  border: none;
+}
+
+.loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #78716c;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e5ddd8;
+  border-top-color: #c8102e;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

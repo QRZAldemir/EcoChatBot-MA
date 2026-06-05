@@ -1,0 +1,32 @@
+# Node
+node_modules/
+npm-debug.log*
+dist/
+.angular/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+*.egg-info/
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+
+# IDE
+.vscode/settings.json
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/

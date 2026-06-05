@@ -1,0 +1,33 @@
+<div class="page">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-icon purple"><i class="fas fa-shield-halved"></i></div>
+      <h3>Níveis de Acesso</h3>
+    </div>
+    <div class="pb">
+      <div class="niveis-grid">
+        <div *ngFor="let n of niveis" class="nivel-card" [class.selecionado]="nivelSelecionado?.id === n.id" (click)="selecionar(n)">
+          <div class="nivel-top">
+            <span class="nivel-badge" [class]="n.codigo">{{ n.nome }}</span>
+            <i class="fas fa-chevron-down" [class.up]="nivelSelecionado?.id === n.id"></i>
+          </div>
+          <p>{{ n.descricao }}</p>
+
+          <div class="permissoes" *ngIf="nivelSelecionado?.id === n.id">
+            <table class="tbl">
+              <thead><tr><th>Módulo</th><th>Leitura</th><th>Escrita</th><th>Exclusão</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let p of n.permissoes">
+                  <td>{{ p.modulo }}</td>
+                  <td><i class="fas" [class.fa-check]="p.leitura" [class.fa-xmark]="!p.leitura" [style.color]="p.leitura ? '#22c55e' : '#ef4444'"></i></td>
+                  <td><i class="fas" [class.fa-check]="p.escrita" [class.fa-xmark]="!p.escrita" [style.color]="p.escrita ? '#22c55e' : '#ef4444'"></i></td>
+                  <td><i class="fas" [class.fa-check]="p.exclusao" [class.fa-xmark]="!p.exclusao" [style.color]="p.exclusao ? '#22c55e' : '#ef4444'"></i></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

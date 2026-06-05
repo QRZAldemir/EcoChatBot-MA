@@ -1,0 +1,88 @@
+<div class="page">
+
+  <!-- *ngIf é uma diretiva estrutural. Esta div só existirá se a variável 'alerta' não for nula. -->
+  <!-- [class.success] é um "Class Binding". O Angular adiciona a classe CSS 'success' somente se a condição interna for verdadeira -->
+  <div *ngIf="alerta" class="alert" [class.success]="alerta.tipo==='sucesso'" [class.error]="alerta.tipo==='erro'">
+    <i class="fas" [class.fa-check-circle]="alerta.tipo==='sucesso'" [class.fa-exclamation-circle]="alerta.tipo==='erro'"></i>
+    <!-- Interpolation: As chaves duplas {{ }} exibem o valor da variável do TypeScript diretamente na tela -->
+    {{ alerta.msg }}
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-icon green"><i class="fas fa-project-diagram"></i></div>
+      <h3>Canais de Atendimento</h3>
+      <!-- (click) é um "Event Binding". Quando o botão for clicado, o Angular executará o método abrirNovo() no TypeScript -->
+      <button class="btn primary" (click)="abrirNovo()">
+        <i class="fas fa-plus"></i> Novo Canal
+      </button>
+    </div>
+
+    <!-- CARDS DE CANAIS -->
+    <div class="canais-grid">
+      <!-- *ngFor é um laço de repetição. Ele replica a div 'canal-card' inteira para cada canal 'c' dentro do array 'canais' -->
+      <div class="canal-card" *ngFor="let c of canais">
+        <div class="canal-icon">{{ c.icone }}</div>
+        <div class="canal-info">
+          <strong>{{ c.nome }}</strong>
+          <p>{{ c.descricao }}</p>
+          <code class="arquivo-ref">→ {{ c.arquivoMenu }}</code>
+        </div>
+        <div class="canal-actions">
+          <span class="status-dot" [class.ativo]="c.ativo">{{ c.ativo ? '🟢' : '🔴' }}</span>
+          <button class="btn-icon" (click)="visualizarMenu(c)" title="Visualizar menu"><i class="fas fa-eye"></i></button>
+          <button class="btn-icon" (click)="abrirEditar(c)" title="Editar"><i class="fas fa-edit"></i></button>
+          <button class="btn-icon danger" (click)="deletar(c.id)" title="Excluir"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+
+      <div *ngIf="canais.length === 0" class="empty">Nenhum canal cadastrado</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="overlay" [class.open]="modalAberto" (click.self)="fecharModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>{{ modo === 'novo' ? 'Novo Canal' : 'Editar Canal' }}</h2>
+      <button class="close-btn" (click)="fecharModal()">✕</button>
+    </div>
+
+    <div class="form-grid">
+      <div class="fg">
+        <label>Nome do Canal *</label>
+        <!-- [(ngModel)] é o "Two-Way Data Binding". Ele sincroniza automaticamente o que é digitado no input com a variável 'form.nome' do backend, e vice-versa -->
+        <input type="text" [(ngModel)]="form.nome" placeholder="Ex: Atendimento-Cliente">
+      </div>
+      <div class="fg">
+        <label>Ícone (emoji)</label>
+        <input type="text" [(ngModel)]="form.icone" placeholder="📞">
+      </div>
+      <div class="fg full">
+        <label>Descrição</label>
+        <input type="text" [(ngModel)]="form.descricao" placeholder="Descrição do canal">
+      </div>
+      <div class="fg full">
+        <label>Arquivo de Menu *</label>
+        <select [(ngModel)]="form.arquivoMenu">
+          <option value="">Selecione o arquivo...</option>
+          <option *ngFor="let a of arquivosMenu" [value]="a.arquivo">{{ a.label }} — {{ a.arquivo }}</option>
+        </select>
+        <small class="helper">O arquivo contém as perguntas e fluxo que o cliente verá</small>
+      </div>
+      <div class="fg">
+        <label>Status</label>
+        <select [(ngModel)]="form.ativo">
+          <option [ngValue]="true">🟢 Ativo</option>
+          <option [ngValue]="false">🔴 Inativo</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn secondary" (click)="fecharModal()">Cancelar</button>
+      <button class="btn primary" (click)="salvar()"><i class="fas fa-save"></i> Salvar</button>
+    </div>
+  </div>
+</div>

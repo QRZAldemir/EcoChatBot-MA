@@ -1,0 +1,27 @@
+<div class="canal-wrapper">
+
+  <div *ngIf="carregando" class="loading">
+    <div class="spinner"></div>
+    <p>Carregando atendimento...</p>
+  </div>
+
+  <ng-container *ngIf="!carregando && canal">
+    <!-- Barra mínima com botão voltar (não interfere com a interface do chat) -->
+    <div class="canal-bar">
+      <button class="btn-voltar" (click)="voltar()">
+        <i class="fas fa-arrow-left"></i> Menu
+      </button>
+      <span class="canal-nome">{{ canal.icone }} {{ canal.nome }}</span>
+    </div>
+
+    <!-- O HTML do canal (1atendimento-mackenzie.html, etc.) é carregado aqui -->
+    <iframe
+      [src]="iframeUrl"
+      class="canal-frame"
+      frameborder="0"
+      allowfullscreen
+      title="{{ canal.nome }}"
+    ></iframe>
+  </ng-container>
+
+</div>

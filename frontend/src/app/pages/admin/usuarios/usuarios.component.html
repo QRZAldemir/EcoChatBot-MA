@@ -1,0 +1,189 @@
+<div class="page">
+
+  <!-- ALERTA -->
+  <div *ngIf="alerta" class="alert" [class.success]="alerta.tipo==='sucesso'" [class.error]="alerta.tipo==='erro'">
+    <i class="fas" [class.fa-check-circle]="alerta.tipo==='sucesso'" [class.fa-exclamation-circle]="alerta.tipo==='erro'"></i>
+    {{ alerta.msg }}
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-card red">
+      <div class="stat-num">{{ usuarios.length }}</div>
+      <div class="stat-lbl">Usuários Cadastrados</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-num">{{ departamentos.length }}</div>
+      <div class="stat-lbl">Departamentos</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-num">{{ canais.length }}</div>
+      <div class="stat-lbl">Canais Ativos</div>
+    </div>
+  </div>
+
+  <!-- PAINEL LISTA -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-icon blue"><i class="fas fa-users"></i></div>
+      <h3>Usuários por Departamento</h3>
+      <button class="btn primary" (click)="abrirNovo()">
+        <i class="fas fa-plus"></i> Novo Usuário
+      </button>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="toolbar">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" [(ngModel)]="filtroNome" placeholder="Pesquisar nome..." (ngModelChange)="carregarUsuarios()">
+      </div>
+      <select [(ngModel)]="filtroDepartamentoId" (ngModelChange)="carregarUsuarios()">
+        <option [ngValue]="null">Todos os Departamentos</option>
+        <option *ngFor="let d of departamentos" [ngValue]="d.id">{{ d.nome }}</option>
+      </select>
+      <select [(ngModel)]="filtroCanalId" (ngModelChange)="carregarUsuarios()">
+        <option [ngValue]="null">Todos os Canais</option>
+        <option *ngFor="let c of canais" [ngValue]="c.id">{{ c.icone }} {{ c.nome }}</option>
+      </select>
+      <select [(ngModel)]="filtroNivel" (ngModelChange)="carregarUsuarios()">
+        <option value="">Todos os Níveis</option>
+        <option value="atendente">Atendente</option>
+        <option value="supervisor">Supervisor</option>
+        <option value="gerente">Gerente</option>
+        <option value="administrador">Administrador</option>
+      </select>
+      <select [(ngModel)]="filtroStatus" (ngModelChange)="carregarUsuarios()">
+        <option value="">Todos os Status</option>
+        <option value="ativo">🟢 Ativo</option>
+        <option value="inativo">🔴 Inativo</option>
+      </select>
+    </div>
+
+    <!-- TABELA AGRUPADA POR DEPARTAMENTO -->
+    <div class="table-wrap">
+      <div *ngIf="usuariosFiltrados.length === 0" class="empty">Nenhum usuário encontrado</div>
+
+      <ng-container *ngFor="let depto of deptosOrdenados">
+        <div class="dept-header">
+          <i class="fas fa-building"></i> {{ depto }}
+          <span class="badge">{{ usuariosPorDepto.get(depto)?.length }}</span>
+        </div>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Canal</th>
+              <th>Nível</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let u of usuariosPorDepto.get(depto)">
+              <td><strong>{{ u.nome }}</strong><br><small>{{ u.dataCadastro }}</small></td>
+              <td>{{ u.email }}</td>
+              <td>
+                <span class="canal-badge">
+                  {{ u.canalNome }}
+                  <small *ngIf="u.canalArquivo" class="arquivo-ref">→ {{ u.canalArquivo }}</small>
+                </span>
+              </td>
+              <td><span class="nivel-badge" [class]="u.nivel">{{ u.nivel }}</span></td>
+              <td><span [class.ativo]="u.status==='ativo'" [class.inativo]="u.status==='inativo'">
+                {{ u.status === 'ativo' ? '🟢 Ativo' : '🔴 Inativo' }}
+              </span></td>
+              <td>
+                <button class="btn-icon" (click)="abrirEditar(u)" title="Editar"><i class="fas fa-edit"></i></button>
+                <button class="btn-icon danger" (click)="deletar(u.id)" title="Excluir"><i class="fas fa-trash"></i></button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </ng-container>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CADASTRO / EDIÇÃO -->
+<div class="overlay" [class.open]="modalAberto" (click.self)="fecharModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>{{ modo === 'novo' ? 'Novo Usuário' : 'Editar Usuário' }}</h2>
+      <button class="close-btn" (click)="fecharModal()">✕</button>
+    </div>
+
+    <div class="form-grid">
+      <div class="fg full">
+        <label>Nome Completo *</label>
+        <input type="text" [(ngModel)]="form.nome" placeholder="Ex: João Silva">
+      </div>
+      <div class="fg">
+        <label>E-mail *</label>
+        <input type="email" [(ngModel)]="form.email" placeholder="joao@mackenzie.com">
+      </div>
+      <div class="fg">
+        <label>Telefone</label>
+        <input type="tel" [(ngModel)]="form.telefone" placeholder="(67) 99999-9999">
+      </div>
+      <div class="fg" *ngIf="modo === 'novo'">
+        <label>Senha *</label>
+        <input type="password" [(ngModel)]="form.senha">
+      </div>
+      <div class="fg" *ngIf="modo === 'novo'">
+        <label>Confirmar Senha *</label>
+        <input type="password" [(ngModel)]="form['senhaConfirm']">
+      </div>
+
+      <!-- DEPARTAMENTO -->
+      <div class="fg">
+        <label>Departamento *</label>
+        <select [(ngModel)]="form.departamentoId">
+          <option [ngValue]="null">Selecione...</option>
+          <option *ngFor="let d of departamentos" [ngValue]="d.id">{{ d.nome }}</option>
+        </select>
+        <small class="helper">Ex: Call-Center, Recepção, Ouvidoria</small>
+      </div>
+
+      <!-- CANAL (referencia o arquivo de menu) -->
+      <div class="fg">
+        <label>Canal de Atendimento *</label>
+        <select [(ngModel)]="form.canalId">
+          <option [ngValue]="null">Selecione...</option>
+          <option *ngFor="let c of canais" [ngValue]="c.id">{{ c.icone }} {{ c.nome }}</option>
+        </select>
+        <small class="helper" *ngIf="form.canalId">
+          Menu: {{ canais | canalById: form.canalId }}
+        </small>
+      </div>
+
+      <!-- NÍVEL -->
+      <div class="fg">
+        <label>Nível de Usuário *</label>
+        <select [(ngModel)]="form.nivel">
+          <option value="atendente">Atendente</option>
+          <option value="supervisor">Supervisor</option>
+          <option value="gerente">Gerente</option>
+          <option value="administrador">Administrador</option>
+        </select>
+      </div>
+
+      <!-- STATUS -->
+      <div class="fg">
+        <label>Status</label>
+        <select [(ngModel)]="form.status">
+          <option value="ativo">🟢 Ativo</option>
+          <option value="inativo">🔴 Inativo</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn secondary" (click)="fecharModal()">Cancelar</button>
+      <button class="btn primary" (click)="salvar()">
+        <i class="fas fa-save"></i> Salvar
+      </button>
+    </div>
+  </div>
+</div>

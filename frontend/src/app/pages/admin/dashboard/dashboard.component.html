@@ -1,0 +1,30 @@
+<div class="dash">
+
+  <div class="welcome">
+    <div class="welcome-logo">M</div>
+    <div>
+      <h1>EcoChat <span>Mackenzie</span></h1>
+      <p>Sistema de Atendimento Configurável</p>
+    </div>
+  </div>
+
+  <div class="atalhos">
+    <a *ngFor="let a of atalhos" [routerLink]="a.rota" class="atalho-card" [class]="a.cor">
+      <i class="fas" [class]="'fa ' + a.icone"></i>
+      <span>{{ a.label }}</span>
+    </a>
+  </div>
+
+  <div class="info-box">
+    <i class="fas fa-info-circle"></i>
+    <div>
+      <strong>Como funciona o EcoChat</strong>
+      <p>
+        Cada <b>Canal</b> (ex: Portaria, Agendamento) possui um <b>arquivo de menu HTML</b> com as perguntas e opções apresentadas ao paciente.
+        O <b>hub_menu</b> exibe os canais ativos — o paciente <b>clica</b> nas opções em vez de digitar.
+        Usuários são vinculados a um <b>Departamento</b> e a um <b>Canal</b> específico.
+      </p>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,25 @@
+<!-- Interface do cliente: clica nas opções, não digita -->
+<div class="hub-container">
+  <div class="hub-header">
+    <div class="logo">M</div>
+    <h1>Mackenzie</h1>
+    <p>Selecione o atendimento desejado</p>
+  </div>
+
+  <div class="opcoes-grid">
+    <button
+      class="opcao-btn"
+      *ngFor="let c of canais"
+      (click)="selecionarCanal(c)"
+    >
+      <span class="opcao-icon">{{ c.icone }}</span>
+      <span class="opcao-nome">{{ c.nome }}</span>
+      <span class="opcao-desc">{{ c.descricao }}</span>
+      <i class="fas fa-chevron-right arrow"></i>
+    </button>
+  </div>
+
+  <div *ngIf="canais.length === 0" class="sem-canais">
+    Carregando opções de atendimento...
+  </div>
+</div>

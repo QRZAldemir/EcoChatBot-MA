@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menu Principal — Hospital Presbiteriano Mackenzie</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --mac-red:       #c8102e;
+    --mac-red-dark:  #a00d24;
+    --mac-red-light: #e8102e;
+    --mac-red-pale:  #fff5f6;
+    --mac-red-hover: #ffe0e4;
+    --wa-bg:         #f0ece8;
+    --bubble-bot:    #ffffff;
+    --bubble-user:   #ffd6d9;
+    --wa-text:       #111b21;
+    --wa-meta:       #667781;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  body {
+    font-family: var(--font);
+    background: #cfc8c4;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .phone-wrap {
+    width: 100%;
+    max-width: 420px;
+    height: 90vh;
+    max-height: 820px;
+    background: #111;
+    border-radius: 40px;
+    padding: 10px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.55), inset 0 0 0 2px #2a2a2a;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .screen {
+    flex: 1; background: var(--wa-bg);
+    border-radius: 32px; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--mac-red);
+    padding: 10px 14px 10px 12px;
+    display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+  .mac-logo {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: #fff; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; border: 2.5px solid rgba(255,255,255,0.45);
+  }
+  .mac-logo-ring {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 3px solid var(--mac-red);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mac-logo-ring span {
+    font-family: 'Times New Roman', Georgia, serif;
+    font-size: 19px; font-weight: 900; color: var(--mac-red);
+    line-height: 1; margin-top: 1px;
+  }
+  .header-info { flex: 1; min-width: 0; }
+  .header-name {
+    color: #fff; font-weight: 700; font-size: 12.5px;
+    line-height: 1.25; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .header-sub  { color: rgba(255,255,255,0.75); font-size: 10px; line-height: 1.2; margin-top: 1px; }
+  .header-status { color: rgba(255,255,255,0.62); font-size: 10.5px; margin-top: 2px; }
+  .header-actions { display: flex; gap: 16px; flex-shrink: 0; }
+  .header-actions svg { width: 20px; height: 20px; fill: rgba(255,255,255,0.85); cursor: pointer; }
+
+  /* ── Chat ── */
+  .chat-area {
+    flex: 1; overflow-y: auto;
+    padding: 12px 10px;
+    display: flex; flex-direction: column; gap: 3px;
+    scroll-behavior: smooth;
+    background-image: url("data:image/svg+xml,%3Csvg width='52' height='52' viewBox='0 0 52 52' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='26' cy='26' r='11' fill='none' stroke='%23c8102e' stroke-width='1' stroke-opacity='0.055'/%3E%3C/svg%3E");
+  }
+  .chat-area::-webkit-scrollbar { width: 4px; }
+  .chat-area::-webkit-scrollbar-thumb { background: rgba(200,16,46,0.18); border-radius: 2px; }
+
+  .date-divider { text-align: center; margin: 8px 0; }
+  .date-divider span {
+    background: rgba(255,255,255,0.88); color: var(--wa-meta);
+    font-size: 11.5px; padding: 4px 12px;
+    border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  }
+
+  /* ── Bubbles ── */
+  .msg-row { display: flex; flex-direction: column; margin-bottom: 2px; }
+  .msg-row.bot  { align-items: flex-start; }
+  .msg-row.user { align-items: flex-end; }
+  .bubble {
+    max-width: 85%; padding: 8px 11px 6px;
+    border-radius: 8px; font-size: 14px; line-height: 1.5;
+    color: var(--wa-text); word-break: break-word;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+    opacity: 0; transform: translateY(6px);
+    animation: fadeUp 0.25s ease forwards;
+  }
+  @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+  .msg-row.bot  .bubble { background: var(--bubble-bot);  border-top-left-radius: 2px; }
+  .msg-row.user .bubble { background: var(--bubble-user); border-top-right-radius: 2px; }
+  .bubble-time {
+    font-size: 10.5px; color: var(--wa-meta);
+    margin-top: 2px; display: flex; align-items: center; gap: 3px;
+  }
+  .msg-row.user .bubble-time { justify-content: flex-end; }
+  .check-icon { color: var(--mac-red); font-size: 12px; }
+
+  /* ── Typing ── */
+  .typing-row { display: flex; align-items: flex-start; margin-bottom: 4px; }
+  .typing-bubble {
+    background: var(--bubble-bot); border-radius: 8px; border-top-left-radius: 2px;
+    padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    display: flex; gap: 5px; align-items: center;
+  }
+  .typing-dot {
+    width: 7px; height: 7px; background: #ccc; border-radius: 50%;
+    animation: bounce 1.2s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%,80%,100% { transform: translateY(0); background: #ccc; }
+    40%         { transform: translateY(-5px); background: var(--mac-red); }
+  }
+
+  /* ── Options ── */
+  .options-wrap {
+    display: flex; flex-direction: column; gap: 5px;
+    margin-top: 4px; opacity: 0;
+    animation: fadeUp 0.3s ease 0.1s forwards;
+  }
+  .opt-btn {
+    background: var(--mac-red-pale);
+    border: 1.5px solid var(--mac-red);
+    color: var(--mac-red-dark);
+    padding: 9px 14px; border-radius: 20px;
+    font-size: 13.5px; font-family: var(--font); font-weight: 500;
+    cursor: pointer; text-align: left;
+    transition: background 0.15s, transform 0.1s; line-height: 1.3;
+  }
+  .opt-btn:hover  { background: var(--mac-red-hover); transform: scale(1.01); }
+  .opt-btn:active { transform: scale(0.98); }
+  .opt-btn:disabled { opacity: 0.42; pointer-events: none; }
+
+  /* ── Info card gradient ── */
+  .info-card {
+    background: linear-gradient(135deg, var(--mac-red-dark), var(--mac-red-light));
+    color: #fff; border-radius: 14px;
+    padding: 14px 16px; margin-top: 8px;
+    font-size: 13.5px; line-height: 1.85;
+    box-shadow: 0 4px 14px rgba(200,16,46,0.38);
+  }
+  .info-card .card-title {
+    font-size: 14px; font-weight: 700; margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.3);
+    padding-bottom: 6px;
+  }
+  .info-card a { color: #ffd6d9; font-weight: 600; }
+
+  /* ── Info box borda ── */
+  .info-box {
+    background: #fff8f8;
+    border-left: 3px solid var(--mac-red);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 12px; margin-top: 6px;
+    font-size: 13px; line-height: 1.75; color: #333;
+  }
+  .info-box b { color: var(--mac-red-dark); }
+
+  /* ── Input ── */
+  .input-area {
+    background: #ede8e4; padding: 8px 10px;
+    display: flex; align-items: flex-end; gap: 8px;
+    flex-shrink: 0; border-top: 1px solid #ddd;
+  }
+  .input-box-wrap {
+    flex: 1; background: #fff; border-radius: 22px;
+    display: flex; align-items: flex-end;
+    padding: 6px 14px; gap: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+  .input-emoji { font-size: 20px; cursor: pointer; line-height: 1; padding-bottom: 1px; }
+  #userInput {
+    flex: 1; border: none; outline: none;
+    font-family: var(--font); font-size: 14.5px;
+    color: var(--wa-text); resize: none;
+    max-height: 100px; background: transparent;
+    line-height: 1.45; padding: 0;
+  }
+  #userInput::placeholder { color: #bbb; }
+  .attach-icon { font-size: 20px; cursor: pointer; opacity: 0.45; }
+  .send-btn {
+    width: 46px; height: 46px; background: var(--mac-red);
+    border: none; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+    transition: background 0.15s, transform 0.1s;
+    box-shadow: 0 2px 8px rgba(200,16,46,0.45);
+  }
+  .send-btn:hover  { background: var(--mac-red-dark); transform: scale(1.05); }
+  .send-btn:active { transform: scale(0.95); }
+  .send-btn svg { width: 22px; height: 22px; fill: #fff; }
+</style>
+</head>
+<body>
+
+<div class="phone-wrap">
+  <div class="screen">
+
+    <!-- HEADER -->
+    <div class="header">
+      <div class="mac-logo">
+        <div class="mac-logo-ring"><span>M</span></div>
+      </div>
+      <div class="header-info">
+        <div class="header-name">Hospital Presbiteriano Mackenzie</div>
+        <div class="header-sub">Dr. e Sra. Goldsby King — Dourados/MS</div>
+        <div class="header-status">● online</div>
+      </div>
+      <div class="header-actions">
+        <svg viewBox="0 0 24 24"><path d="M15.9 14.3H15l-.3-.3c1-1.1 1.6-2.7 1.6-4.3 0-3.7-3-6.7-6.7-6.7S3 5.9 3 9.7s3 6.7 6.7 6.7c1.6 0 3.1-.6 4.3-1.6l.3.3v.8l5.1 5.1 1.5-1.5-5-5.2zm-6.2 0C7 14.3 4.7 12 4.7 9.2S7 4.1 9.7 4.1s5.1 2.3 5.1 5.1-2.3 5.1-5.1 5.1z"/></svg>
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+      </div>
+    </div>
+
+    <!-- CHAT -->
+    <div class="chat-area" id="chatArea">
+      <div class="date-divider"><span>Hoje</span></div>
+    </div>
+
+    <!-- INPUT -->
+    <div class="input-area">
+      <div class="input-box-wrap">
+        <span class="input-emoji">😊</span>
+        <textarea id="userInput" rows="1" placeholder="Escolha uma opção acima" disabled></textarea>
+        <span class="attach-icon">📎</span>
+      </div>
+      <button class="send-btn" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+const state = {
+  step: 'BOOT',
+  nomeCliente: '',
+  aguardandoTexto: false
+};
+
+// ═══════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════
+const now   = () => new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+const chat  = () => document.getElementById('chatArea');
+const getEl = id  => document.getElementById(id);
+
+function scrollBottom() {
+  setTimeout(() => { const c = chat(); c.scrollTop = c.scrollHeight; }, 60);
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER HELPERS
+// ═══════════════════════════════════════════════
+function addBotBubble(html, delay = 0) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      row.innerHTML = `<div class="bubble">${html}</div><div class="bubble-time">${now()}</div>`;
+      chat().appendChild(row); scrollBottom(); resolve();
+    }, delay);
+  });
+}
+
+function addUserBubble(text) {
+  const row = document.createElement('div');
+  row.className = 'msg-row user';
+  row.innerHTML = `<div class="bubble">${text}</div>
+    <div class="bubble-time">${now()} <span class="check-icon">✓✓</span></div>`;
+  chat().appendChild(row); scrollBottom();
+}
+
+function addOptions(opts, delay = 0) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      const wrap = document.createElement('div');
+      wrap.className = 'options-wrap';
+      opts.forEach(o => {
+        const btn = document.createElement('button');
+        btn.className = 'opt-btn';
+        btn.innerHTML = o.label;
+        btn.onclick = () => {
+          wrap.querySelectorAll('.opt-btn').forEach(b => { b.disabled = true; b.style.opacity = '0.5'; });
+          addUserBubble(o.label);
+          o.action();
+        };
+        wrap.appendChild(btn);
+      });
+      chat().appendChild(wrap); scrollBottom(); resolve();
+    }, delay);
+  });
+}
+
+function showTyping(ms = 1000) {
+  return new Promise(resolve => {
+    const row = document.createElement('div');
+    row.className = 'typing-row'; row.id = 'typingRow';
+    row.innerHTML = `<div class="typing-bubble">
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+    </div>`;
+    chat().appendChild(row); scrollBottom();
+    setTimeout(() => { const el = getEl('typingRow'); if (el) el.remove(); resolve(); }, ms);
+  });
+}
+
+function enableInput(ph = 'Digite sua resposta...') {
+  const inp = getEl('userInput');
+  inp.disabled = false; inp.placeholder = ph; inp.focus();
+  state.aguardandoTexto = true;
+}
+
+function disableInput() {
+  const inp = getEl('userInput');
+  inp.disabled = true; inp.placeholder = 'Escolha uma opção acima';
+  state.aguardandoTexto = false;
+}
+
+// ═══════════════════════════════════════════════
+//  SEND / KEY
+// ═══════════════════════════════════════════════
+function sendMessage() {
+  if (!state.aguardandoTexto) return;
+  const inp = getEl('userInput');
+  const txt = inp.value.trim(); if (!txt) return;
+  inp.value = ''; inp.style.height = 'auto';
+  disableInput(); addUserBubble(txt); handleTextInput(txt);
+}
+getEl('userInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+getEl('userInput').addEventListener('input', function () {
+  this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px';
+});
+
+// ═══════════════════════════════════════════════
+//  TEXT ROUTER
+// ═══════════════════════════════════════════════
+async function handleTextInput(txt) {
+  await showTyping(900);
+  switch (state.step) {
+
+    case 'AGUARDAR_NOME':
+      state.nomeCliente = txt.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+      state.step = 'MENU';
+      await addBotBubble(`Obrigado, <b>${state.nomeCliente}</b> Seja muito bem-vindo(a). 😊`);
+      await showTyping(600);
+      await exibirMenuPrincipal();
+      break;
+
+    default:
+      await addBotBubble('Por favor, utilize as opções do menu. 😊');
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  ETAPA 1 — BOAS-VINDAS
+// ═══════════════════════════════════════════════
+async function iniciarBot() {
+  await showTyping(1000);
+  await addBotBubble(
+    '👋 <b>Olá! Seja bem-vindo ao</b><br>' +
+    '<b>Hospital Presbiteriano Mackenzie</b><br>' +
+    '<i style="font-size:12.5px;opacity:.8">Dr. e Sra. Goldsby King — Dourados/MS</i>'
+  );
+  await showTyping(900);
+  await addBotBubble(
+    'Sou seu assistente virtual e estou aqui para iniciar seu atendimento com agilidade. 🤝'
+  );
+  await showTyping(1100);
+  await etapaLGPD();
+}
+
+// ═══════════════════════════════════════════════
+//  ETAPA 2 — LGPD
+//  Atendimento TRAVA aqui até o aceite
+// ═══════════════════════════════════════════════
+async function etapaLGPD() {
+  await addBotBubble(
+    'Para continuarmos com segurança e transparência, precisamos do seu consentimento ' +
+    'para tratamento de dados, conforme a <b>Lei Geral de Proteção de Dados (LGPD)</b>.' +
+    '<div class="info-card">' +
+      '<div class="card-title">🔒 Política de Privacidade</div>' +
+      'Leia nossa Política de Privacidade antes de prosseguir:<br><br>' +
+      '<a href="https://bit.ly/3QJXkWw" target="_blank">🔗 https://bit.ly/3QJXkWw</a>' +
+    '</div>'
+  );
+  await showTyping(700);
+  await addBotBubble('Você declara que leu e <b>CONCORDA</b> com os termos para prosseguir?');
+  await addOptions([
+    { label: '✅ Sim, Li e Concordo',   action: aceitarLGPD  },
+    { label: '❌ Não concordo / Sair',  action: recusarLGPD  },
+  ], 200);
+}
+
+async function aceitarLGPD() {
+  await showTyping(700);
+  await addBotBubble('Obrigado pela confiança! 🙏');
+  await showTyping(500);
+  state.step = 'AGUARDAR_NOME';
+  await addBotBubble('Por gentileza nos informe seu nome?');
+  enableInput('Seu nome...');
+}
+
+async function recusarLGPD() {
+  await showTyping(700);
+  await addBotBubble(
+    'Entendemos. Sem o aceite não podemos prosseguir pelo canal digital.<br><br>' +
+    'Agradecemos o contato! Se mudar de ideia, é só nos chamar novamente. 💙'
+  );
+}
+
+// ═══════════════════════════════════════════════
+//  ETAPA 3 — MENU PRINCIPAL (Hub de Atendimento)
+// ═══════════════════════════════════════════════
+async function exibirMenuPrincipal() {
+  state.step = 'MENU';
+  await addBotBubble(
+    'Selecione o departamento com o qual deseja falar:' +
+    '<div class="info-box">' +
+      '1️⃣ <b>Atendimento ao Cliente</b><br>' +
+      '<span style="font-size:12px;opacity:.75">Informações Gerais, Guias, Quadro Médico</span><br><br>' +
+      '2️⃣ <b>Agendamentos</b><br>' +
+      '<span style="font-size:12px;opacity:.75">Marcar, Verificar, Reagendar, Cancelar</span><br><br>' +
+      '3️⃣ <b>Exames e Diagnósticos</b><br>' +
+      '<span style="font-size:12px;opacity:.75">Resultados, Preparos, Agendamento de Exames</span><br><br>' +
+      '4️⃣ <b>Tesouraria</b><br>' +
+      '<span style="font-size:12px;opacity:.75">Financeiro, Pagamentos, Notas Fiscais</span><br><br>' +
+      '5️⃣ <b>Orçamentos e Internação</b><br>' +
+      '<span style="font-size:12px;opacity:.75">Cirurgias, Procedimentos, Valores Particulares</span><br><br>' +
+      '6️⃣ <b>Portaria e Recepção</b><br>' +
+      '<span style="font-size:12px;opacity:.75">Visitas, Localização, Informações do PS</span><br><br>' +
+      '7️⃣ <b>Outras Informações</b><br>' +
+      '<span style="font-size:12px;opacity:.75">Manual do Paciente, Dúvidas Técnicas</span><br><br>' +
+      '8️⃣ <b>Ouvidoria</b><br>' +
+      '<span style="font-size:12px;opacity:.75">Elogios, Sugestões, Reclamações</span>' +
+    '</div>'
+  );
+  await addOptions([
+    { label: '1️⃣ Atendimento ao Cliente',   action: () => opcaoEmBreve('Atendimento ao Cliente')  },
+    { label: '2️⃣ Agendamentos',             action: irParaAgendamentos                             },
+    { label: '3️⃣ Exames e Diagnósticos',    action: () => opcaoEmBreve('Exames e Diagnósticos')   },
+    { label: '4️⃣ Tesouraria',              action: () => opcaoEmBreve('Tesouraria')               },
+    { label: '5️⃣ Orçamentos e Internação',  action: () => opcaoEmBreve('Orçamentos e Internação') },
+    { label: '6️⃣ Portaria e Recepção',      action: () => opcaoEmBreve('Portaria e Recepção')     },
+    { label: '7️⃣ Outras Informações',       action: () => opcaoEmBreve('Outras Informações')      },
+    { label: '8️⃣ Ouvidoria',               action: () => opcaoEmBreve('Ouvidoria')               },
+  ], 300);
+}
+
+// ═══════════════════════════════════════════════
+//  OPÇÃO 2 — abre agendamento-mackenzie.html
+//  (arquivo na mesma pasta — navegação direta)
+// ═══════════════════════════════════════════════
+async function irParaAgendamentos() {
+  await showTyping(800);
+  await addBotBubble(
+    '📅 <b>Agendamentos</b><br><br>' +
+    'Redirecionando para o módulo completo de Agendamentos...'
+  );
+  await showTyping(700);
+  await addBotBubble('✅ Abrindo o sistema de Agendamentos. Aguarde! 🚀');
+
+  // Navega para o arquivo na mesma pasta
+  setTimeout(() => { window.location.href = 'agendamento-mackenzie.html'; }, 900);
+}
+
+// ═══════════════════════════════════════════════
+//  DEMAIS OPÇÕES — placeholder
+// ═══════════════════════════════════════════════
+async function opcaoEmBreve(setor) {
+  await showTyping(800);
+  await addBotBubble(
+    `🔧 O módulo de <b>${setor}</b> está em processo de implantação e em breve estará disponível!<br><br>` +
+    'Posso transferir você para um atendente humano agora. 😊'
+  );
+  await addOptions([
+    { label: '🗣️ Falar com Atendente',      action: falarComAtendente },
+    { label: '🔙 Voltar ao Menu Principal',  action: voltarMenu        },
+  ], 200);
+}
+
+async function falarComAtendente() {
+  await showTyping(800);
+  await addBotBubble(
+    '🗣️ <b>Transferindo para Atendente</b><br><br>' +
+    'Em breve um de nossos atendentes entrará em contato.<br>' +
+    'Por favor, <b>aguarde</b>. 😊'
+  );
+}
+
+async function voltarMenu() {
+  await showTyping(500);
+  await addBotBubble('🔙 Retornando ao Menu Principal...');
+  await showTyping(400);
+  await exibirMenuPrincipal();
+}
+
+// ═══════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════
+window.onload = () => setTimeout(iniciarBot, 700);
+</script>
+</body>
+</html>
