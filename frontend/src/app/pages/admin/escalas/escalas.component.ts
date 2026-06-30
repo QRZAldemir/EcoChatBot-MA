@@ -1,18 +1,21 @@
 import { Component } from '@angular/core';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-escalas',
   standalone: true,
+  imports: [CommonModule],
   template: `
-    <div style="height:calc(100vh - 92px)">
-      <iframe [src]="url" style="width:100%;height:100%;border:none;border-radius:10px" title="Painel de Escalas"></iframe>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-icon teal"><i class="fas fa-calendar-alt"></i></div>
+        <h3>Painel de Escalas</h3>
+      </div>
+      <div class="pb" style="padding:40px;text-align:center;color:#78716c">
+        <i class="fas fa-calendar-alt" style="font-size:48px;margin-bottom:16px;display:block;opacity:0.3"></i>
+        <p>O painel de escalas será exibido aqui após integração com o módulo de RH.</p>
+      </div>
     </div>
   `
 })
-export class EscalasComponent {
-  url: SafeResourceUrl;
-  constructor(s: DomSanitizer) {
-    this.url = s.bypassSecurityTrustResourceUrl('/assets/menus/../../../Painel_Escalas_Mackenzie.html');
-  }
-}
+export class EscalasComponent {}

@@ -28,11 +28,11 @@ export class CanaisComponent implements OnInit {
 
   // Arquivos de menu disponíveis no sistema
   arquivosMenu = [
-    { arquivo: '1atendimento-mackenzie.html',       label: '📞 Atendimento ao Cliente' },
-    { arquivo: '2agendamento-mackenzie.html',        label: '📅 Agendamento Ambulatório' },
-    { arquivo: '3examesdiagnostico-mackenzie.html',  label: '🩺 Exames Diagnóstico' },
-    { arquivo: '7portaria-mackenzie.html',           label: '🚪 Portaria' },
-    { arquivo: '8ouvidoria-mackenzie.html',          label: '📢 Ouvidoria' },
+    { arquivo: '1atendimento-ma.html',       label: '📞 Atendimento ao Cliente' },
+    { arquivo: '2agendamento-ma.html',        label: '📅 Agendamento Ambulatório' },
+    { arquivo: '3examesdiagnostico-ma.html',  label: '🩺 Exames Diagnóstico' },
+    { arquivo: '7portaria-ma.html',           label: '🚪 Portaria' },
+    { arquivo: '8ouvidoria-ma.html',          label: '📢 Ouvidoria' },
   ];
 
   constructor(private canalService: CanalService) {}
@@ -40,6 +40,10 @@ export class CanaisComponent implements OnInit {
   // ngOnInit roda automaticamente assim que o componente termina de carregar na tela.
   // O método .subscribe() "ouve" o retorno assíncrono (Observable) do backend e popula a variável canais.
   ngOnInit(): void {
+    this.carregar();
+  }
+
+  carregar(): void {
     this.canalService.listar().subscribe(c => this.canais = c);
   }
 
@@ -61,7 +65,7 @@ export class CanaisComponent implements OnInit {
       : this.canalService.atualizar(this.form.id!, this.form);
 
     op.subscribe({
-      next: () => { this.mostrarAlerta('sucesso', 'Canal salvo com sucesso!'); this.fecharModal(); this.ngOnInit(); },
+      next: () => { this.mostrarAlerta('sucesso', 'Canal salvo com sucesso!'); this.fecharModal(); this.carregar(); },
       error: () => this.mostrarAlerta('erro', 'Erro ao salvar canal.')
     });
   }
@@ -69,7 +73,7 @@ export class CanaisComponent implements OnInit {
   deletar(id: number): void {
     if (!confirm('Excluir este canal?')) return;
     this.canalService.deletar(id).subscribe({
-      next: () => { this.mostrarAlerta('sucesso', 'Canal excluído.'); this.ngOnInit(); },
+      next: () => { this.mostrarAlerta('sucesso', 'Canal excluído.'); this.carregar(); },
       error: () => this.mostrarAlerta('erro', 'Erro ao excluir.')
     });
   }

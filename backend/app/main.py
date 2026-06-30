@@ -7,7 +7,7 @@ import os
 load_dotenv()
 
 # Importar routers
-from app.routers import usuarios, departamentos, canais, ia
+from app.routers import usuarios, departamentos, canais, ia, mensagem, menus, atendimento, webhook
 
 # Criar aplicação FastAPI
 app = FastAPI(
@@ -30,6 +30,10 @@ app.include_router(usuarios.router, prefix="/api/usuarios", tags=["Usuários"])
 app.include_router(departamentos.router, prefix="/api/departamentos", tags=["Departamentos"])
 app.include_router(canais.router, prefix="/api/canais", tags=["Canais"])
 app.include_router(ia.router, prefix="/api/ia", tags=["Inteligência Artificial"])
+app.include_router(mensagem.router, prefix="/api/mensagem", tags=["Mensagens"])
+app.include_router(menus.router, prefix="/api/menus", tags=["Menus"])
+app.include_router(atendimento.router, prefix="/api/atendimento", tags=["Atendimento"])
+app.include_router(webhook.router,    prefix="/api/webhook",     tags=["Webhook"])
 
 @app.get("/")
 def read_root():

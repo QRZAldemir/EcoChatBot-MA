@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portaria/Recepção — Hospital Presbiteriano Mackenzie</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --mac-red: #c8102e; --mac-red-dark: #a00d24; --mac-red-light: #e8102e;
+    --mac-red-pale: #fff5f6; --mac-red-hover: #ffe0e4;
+    --green: #25a244; --green-pale: #f0fff4; --green-dark: #1a7a33;
+    --blue: #1565c0; --blue-pale: #e8f0fe; --blue-dark: #0d47a1;
+    --yellow: #e6a817; --yellow-pale: #fffbea; --yellow-dark: #b07d0a;
+    --purple: #7b1fa2; --purple-pale: #f9f0ff; --purple-dark: #4a0072;
+    --wa-bg: #f0ece8; --bubble-bot: #ffffff; --bubble-user: #ffd6d9;
+    --wa-text: #111b21; --wa-meta: #667781;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  body { font-family: var(--font); background: #cfc8c4; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+  .phone-wrap { width: 100%; max-width: 420px; height: 90vh; max-height: 820px; background: #111; border-radius: 40px; padding: 10px; box-shadow: 0 30px 80px rgba(0,0,0,0.55), inset 0 0 0 2px #2a2a2a; display: flex; flex-direction: column; }
+  .screen { flex: 1; background: var(--wa-bg); border-radius: 32px; overflow: hidden; display: flex; flex-direction: column; }
+  .header { background: var(--mac-red); padding: 10px 14px 10px 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+  .mac-logo { width: 42px; height: 42px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 2.5px solid rgba(255,255,255,0.45); }
+  .mac-logo-ring { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--mac-red); display: flex; align-items: center; justify-content: center; }
+  .mac-logo-ring span { font-family: 'Times New Roman', Georgia, serif; font-size: 19px; font-weight: 900; color: var(--mac-red); line-height: 1; margin-top: 1px; }
+  .header-info { flex: 1; min-width: 0; }
+  .header-name { color: #fff; font-weight: 700; font-size: 12.5px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .header-sub { color: rgba(255,255,255,0.75); font-size: 10px; line-height: 1.2; margin-top: 1px; }
+  .header-status { color: rgba(255,255,255,0.62); font-size: 10.5px; margin-top: 2px; }
+  .header-actions { display: flex; gap: 16px; flex-shrink: 0; }
+  .header-actions svg { width: 20px; height: 20px; fill: rgba(255,255,255,0.85); cursor: pointer; }
+  .chat-area { flex: 1; overflow-y: auto; padding: 12px 10px; display: flex; flex-direction: column; gap: 3px; scroll-behavior: smooth; background-image: url("data:image/svg+xml,%3Csvg width='52' height='52' viewBox='0 0 52 52' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='26' cy='26' r='11' fill='none' stroke='%23c8102e' stroke-width='1' stroke-opacity='0.055'/%3E%3C/svg%3E"); }
+  .chat-area::-webkit-scrollbar { width: 4px; }
+  .chat-area::-webkit-scrollbar-thumb { background: rgba(200,16,46,0.18); border-radius: 2px; }
+  .date-divider { text-align: center; margin: 8px 0; }
+  .date-divider span { background: rgba(255,255,255,0.88); color: var(--wa-meta); font-size: 11.5px; padding: 4px 12px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+  .msg-row { display: flex; flex-direction: column; margin-bottom: 2px; }
+  .msg-row.bot { align-items: flex-start; }
+  .msg-row.user { align-items: flex-end; }
+  .bubble { max-width: 85%; padding: 8px 11px 6px; border-radius: 8px; font-size: 14px; line-height: 1.5; color: var(--wa-text); word-break: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.12); opacity: 0; transform: translateY(6px); animation: fadeUp 0.25s ease forwards; }
+  @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+  .msg-row.bot .bubble { background: var(--bubble-bot); border-top-left-radius: 2px; }
+  .msg-row.user .bubble { background: var(--bubble-user); border-top-right-radius: 2px; }
+  .bubble-time { font-size: 10.5px; color: var(--wa-meta); margin-top: 2px; display: flex; align-items: center; gap: 3px; }
+  .msg-row.user .bubble-time { justify-content: flex-end; }
+  .check-icon { color: var(--mac-red); font-size: 12px; }
+  .typing-row { display: flex; align-items: flex-start; margin-bottom: 4px; }
+  .typing-bubble { background: var(--bubble-bot); border-radius: 8px; border-top-left-radius: 2px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); display: flex; gap: 5px; align-items: center; }
+  .typing-dot { width: 7px; height: 7px; background: #ccc; border-radius: 50%; animation: bounce 1.2s infinite; }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,80%,100% { transform: translateY(0); background: #ccc; } 40% { transform: translateY(-5px); background: var(--mac-red); } }
+  .options-wrap { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; opacity: 0; animation: fadeUp 0.3s ease 0.1s forwards; }
+  .opt-btn { padding: 10px 15px; border-radius: 20px; font-size: 13.5px; font-family: var(--font); font-weight: 500; border: 1.5px solid; cursor: pointer; text-align: left; transition: all 0.2s ease; line-height: 1.3; }
+  .opt-btn:active { transform: scale(0.97); }
+  .opt-btn:disabled { opacity: 0.42; pointer-events: none; }
+  .opt-btn.verde { background: var(--green-pale); border-color: var(--green); color: var(--green-dark); }
+  .opt-btn.verde:hover { background: #d4f5de; transform: translateX(2px); }
+  .opt-btn.azul { background: var(--blue-pale); border-color: var(--blue); color: var(--blue-dark); }
+  .opt-btn.azul:hover { background: #c3d8fd; transform: translateX(2px); }
+  .opt-btn.vermelho { background: var(--mac-red-pale); border-color: var(--mac-red); color: var(--mac-red-dark); }
+  .opt-btn.vermelho:hover { background: var(--mac-red-hover); transform: translateX(2px); }
+  .opt-btn.amarelo { background: var(--yellow-pale); border-color: var(--yellow); color: var(--yellow-dark); }
+  .opt-btn.amarelo:hover { background: #fff0c2; transform: translateX(2px); }
+  .opt-btn.roxo { background: var(--purple-pale); border-color: var(--purple); color: var(--purple-dark); }
+  .opt-btn.roxo:hover { background: #edd9f7; transform: translateX(2px); }
+  .opt-btn.default { background: var(--mac-red-pale); border-color: var(--mac-red); color: var(--mac-red-dark); }
+  .opt-btn.default:hover { background: var(--mac-red-hover); transform: translateX(2px); }
+  .info-box { background: #fff8f8; border-left: 3px solid var(--mac-red); border-radius: 0 6px 6px 0; padding: 10px 12px; margin-top: 6px; font-size: 13px; line-height: 1.6; color: #333; }
+  .info-box b { color: var(--mac-red-dark); }
+  .input-area { background: #ede8e4; padding: 8px 10px; display: flex; align-items: flex-end; gap: 8px; flex-shrink: 0; border-top: 1px solid #ddd; }
+  .input-box-wrap { flex: 1; background: #fff; border-radius: 22px; display: flex; align-items: flex-end; padding: 6px 14px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+  .input-emoji { font-size: 20px; cursor: pointer; line-height: 1; padding-bottom: 1px; }
+  #userInput { flex: 1; border: none; outline: none; font-family: var(--font); font-size: 14.5px; color: var(--wa-text); resize: none; max-height: 100px; background: transparent; line-height: 1.45; padding: 0; }
+  #userInput::placeholder { color: #bbb; }
+  .attach-icon { font-size: 20px; cursor: pointer; opacity: 0.45; }
+  .send-btn { width: 46px; height: 46px; background: var(--mac-red); border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background 0.15s, transform 0.1s; box-shadow: 0 2px 8px rgba(200,16,46,0.45); }
+  .send-btn:hover { background: var(--mac-red-dark); transform: scale(1.05); }
+  .send-btn:active { transform: scale(0.95); }
+  .send-btn svg { width: 22px; height: 22px; fill: #fff; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 9999; animation: slideUp 0.3s ease; }
+  @keyframes slideUp { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+</style>
+</head>
+<body>
+<div class="phone-wrap">
+  <div class="screen">
+    <div class="header">
+      <div class="mac-logo"><div class="mac-logo-ring"><span>M</span></div></div>
+      <div class="header-info">
+        <div class="header-name">Portaria/Recepção — H. P. Mackenzie</div>
+        <div class="header-sub">Dourados/MS — Controle de Acesso</div>
+        <div class="header-status">● online</div>
+      </div>
+      <div class="header-actions">
+        <svg viewBox="0 0 24 24"><path d="M15.9 14.3H15l-.3-.3c1-1.1 1.6-2.7 1.6-4.3 0-3.7-3-6.7-6.7-6.7S3 5.9 3 9.7s3 6.7 6.7 6.7c1.6 0 3.1-.6 4.3-1.6l.3.3v.8l5.1 5.1 1.5-1.5-5-5.2zm-6.2 0C7 14.3 4.7 12 4.7 9.2S7 4.1 9.7 4.1s5.1 2.3 5.1 5.1-2.3 5.1-5.1 5.1z"/></svg>
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+      </div>
+    </div>
+    <div class="chat-area" id="chatArea">
+      <div class="date-divider"><span>Hoje</span></div>
+    </div>
+    <div class="input-area">
+      <div class="input-box-wrap">
+        <span class="input-emoji">😊</span>
+        <textarea id="userInput" rows="1" placeholder="Escolha uma opção acima" disabled></textarea>
+        <span class="attach-icon">📎</span>
+      </div>
+      <button class="send-btn" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+<script>
+const state={step:'',dados:{},aguardandoTexto:false,menuAtual:null};
+const now=()=>new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+const chat=()=>document.getElementById('chatArea');
+const getEl=id=>document.getElementById(id);
+function gerarProtocolo(p='PRT'){const d=new Date();return`HPM-${p}-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(Math.floor(Math.random()*9000)+1000)}`;}
+function formatCPF(c){if(!c||c.length<11)return c||'';return c.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4');}
+function normalizeText(txt){return txt.trim().replace(/\s+/g,' ').toUpperCase();}
+function calcularIdade(dataNascimento){
+  if(!dataNascimento||!/^\d{2}\/\d{2}\/\d{4}$/.test(dataNascimento))return null;
+  const [dia,mes,ano]=dataNascimento.split('/').map(Number);
+  const hoje=new Date();
+  const dataNasc=new Date(ano,mes-1,dia);
+  let idade=hoje.getFullYear()-dataNasc.getFullYear();
+  const mesAtual=hoje.getMonth();
+  const diaAtual=hoje.getDate();
+  if(mesAtual<mes-1||(mesAtual===mes-1&&diaAtual<dia))idade--;
+  return idade>0?idade:null;
+}
+
+
+/* ► Tratamento de datas */
+function dtHr(){return new Date().toLocaleString('pt-BR', { timeZone: 'America/Campo_Grande' });}
+function scrollBottom(){const c=chat();c.scrollTo({top:c.scrollHeight,behavior:'smooth'});}
+
+function validarDataVisita(txt){
+  const txtNorm=normalizeText(txt);
+  const hoje=new Date();
+  hoje.setHours(0,0,0,0);
+  
+  // Aceita "HOJE", "AMANHÃ", "PRÓXIMA SEGUNDA"
+  if(txtNorm==='HOJE'||txtNorm==='HOJE À TARDE'||txtNorm==='HOJE DE MANHÃ'){return {valido:true,mensagem:'',data:'Hoje'};}
+  if(txtNorm==='AMANHÃ'||txtNorm==='AMANHÃ DE MANHÃ'||txtNorm==='AMANHÃ À TARDE'){const amanha=new Date(hoje);amanha.setDate(amanha.getDate()+1);return {valido:true,mensagem:'',data:'Amanhã'};}
+  if(txtNorm.includes('PRÓXIMA')||txtNorm.includes('PROXIMASEGUNDA')){return {valido:true,mensagem:'',data:'Próxima segunda'};}
+  
+  // Valida formato DD/MM/YYYY
+  if(!/^\d{2}\/\d{2}\/\d{4}$/.test(txt.trim())){return {valido:false,mensagem:'⚠️ Formato inválido. Use DD/MM/YYYY (ex: 15/04/2026)',data:null};}
+  
+  const [dia,mes,ano]=txt.trim().split('/').map(Number);
+  
+  // Valida se mes está entre 1-12
+  if(mes<1||mes>12){return {valido:false,mensagem:'⚠️ Mês inválido. Use um mês entre 01 e 12 (ex: 05 para maio)',data:null};}
+  
+  // Valida se dia é válido para o mês
+  const diasPorMes=[31,28,31,30,31,30,31,31,30,31,30,31];
+  if((ano%4===0&&ano%100!==0)||(ano%400===0))diasPorMes[1]=29;// Fevereiro em ano bissexto
+  if(dia<1||dia>diasPorMes[mes-1]){return {valido:false,mensagem:`⚠️ Dia inválido. O mês ${mes} tem apenas ${diasPorMes[mes-1]} dias.`,data:null};}
+  
+  const dataVisita=new Date(ano,mes-1,dia);
+  dataVisita.setHours(0,0,0,0);
+  
+  // Verifica se a data é no passado
+  if(dataVisita<hoje){return {valido:false,mensagem:'⚠️ ❌ Data no passado! Por favor, escolha uma data de hoje em diante.',data:null};}
+  
+  return {valido:true,mensagem:'',data:`${dia}/${mes}/${ano}`};
+}
+async function addBotBubble(html,delay=0){return new Promise(r=>{setTimeout(()=>{const row=document.createElement('div');row.className='msg-row bot';row.innerHTML=`<div class="bubble">${html}</div><div class="bubble-time">${now()}</div>`;chat().appendChild(row);scrollBottom();r();},delay);});}
+function addUserBubble(text){const row=document.createElement('div');row.className='msg-row user';row.innerHTML=`<div class="bubble">${text}</div><div class="bubble-time">${now()} <span class="check-icon">✓✓</span></div>`;chat().appendChild(row);scrollBottom();}
+function addOptions(opts,delay=0){return new Promise(r=>{setTimeout(()=>{const wrap=document.createElement('div');wrap.className='options-wrap';opts.forEach(o=>{const btn=document.createElement('button');btn.className=`opt-btn ${o.cor||'default'}`;btn.innerHTML=o.label;btn.onclick=()=>{wrap.querySelectorAll('.opt-btn').forEach(b=>{b.disabled=true;b.style.opacity='0.5';});addUserBubble(o.label);o.action();};wrap.appendChild(btn);});chat().appendChild(wrap);scrollBottom();r();},delay);});}
+function showTyping(ms=1000){return new Promise(r=>{const row=document.createElement('div');row.className='typing-row';row.id='typingRow';row.innerHTML='<div class="typing-bubble"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';chat().appendChild(row);scrollBottom();setTimeout(()=>{const el=getEl('typingRow');if(el)el.remove();r();},ms);});}
+function enableInput(ph='Digite sua resposta...'){const inp=getEl('userInput');inp.disabled=false;inp.placeholder=ph;inp.focus();state.aguardandoTexto=true;}
+function disableInput(){const inp=getEl('userInput');inp.disabled=true;inp.placeholder='Escolha uma opção acima';state.aguardandoTexto=false;}
+function sendMessage(){if(!state.aguardandoTexto)return;const inp=getEl('userInput');const txt=inp.value.trim();if(!txt)return;inp.value='';inp.style.height='auto';disableInput();addUserBubble(txt);handleTextInput(txt);}
+getEl('userInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}});
+getEl('userInput').addEventListener('input',function(){this.style.height='auto';this.style.height=this.scrollHeight+'px';});
+
+async function handleTextInput(txt){
+  // ► Atalho universal: palavras-chave para atendente
+  if(/atendente|humano|pessoa real|falar com/i.test(txt)){await showTyping(700);await falarComAtendente();return;}
+  
+  // ► ROTEADOR DE MENUS: se o step atual é um menu (começa com 'MENU_'), interpreta entrada como número de opção
+  if(state.step&&state.step.startsWith('MENU_')&&state.menuAtual){
+    const num=txt.trim().replace(/[^\d]/g,'');
+    if(state.menuAtual[num]){
+      const acao=state.menuAtual[num];
+      state.menuAtual=null;// limpa para evitar re-uso
+      await showTyping(500);
+      await acao();
+      return;
+    }
+    await showTyping(400);
+    const opcoes=Object.keys(state.menuAtual).sort().join(', ');
+    await addBotBubble(`⚠️ <b>Opção inválida.</b><br>Por favor, digite um dos números: <b>${opcoes}</b><br>ou toque em uma das opções acima. 😊`);
+    enableInput('Digite o número da opção...');
+    return;
+  }
+  
+  await showTyping(900);
+  switch(state.step){
+    case 'ID_NOME':
+      const nome=normalizeText(txt);
+      if(nome.length<3){await addBotBubble('⚠️ Por favor, informe seu <b>nome completo</b> (mínimo 3 caracteres):');enableInput('Digite seu nome completo...');return;}
+      state.dados.nome=nome;state.dados.protocolo=gerarProtocolo('PRT');await confirmarIdentidade();break;
+    case 'VIS_DATA_NASC':
+      if(!/^\d{2}\/\d{2}\/\d{4}$/.test(txt)){await addBotBubble('⚠️ Data inválida. Por favor, use o formato DD/MM/AAAA (ex: 12/02/1990).');enableInput('Ex: 12/02/1990');return;}
+      state.dados.vis_data_nasc=txt;
+      const idade=calcularIdade(txt);
+      state.dados.vis_idade=idade;
+      state.step='VIS_SEXO';
+      await addBotBubble('👥 <b>2. Qual é seu sexo?</b>');
+      await addOptions([{label:'1️⃣ Masculino',action:()=>setSexoVis('M')},{label:'2️⃣ Feminino',action:()=>setSexoVis('F')},{label:'3️⃣ Outro',action:()=>setSexoVis('O')}],150);break;
+    case 'VIS_DOCUMENTO':
+      const doc=txt.replace(/\D/g,'');if(doc.length<11){await addBotBubble('⚠️ CPF/RG inválido. Por favor, informe os dígitos corretamente (mínimo 11 números):');enableInput('Apenas números...');return;}
+      state.dados.vis_cpf=doc;state.step='VIS_TELEFONE';
+      await addBotBubble('📞 <b>4. Qual seu telefone para contato?</b><br><i>Ex: (67) 99999-9999</i>');enableInput('Ex: (67) 99999-9999');break;
+    case 'VIS_TELEFONE':
+      state.dados.vis_telefone=txt;state.step='VIS_EMPRESA';
+      await addBotBubble('🏢 <b>5. Qual empresa você trabalha?</b><br><i>Ex: ABC Comerciante / Autônomo / Desempregado</i>');enableInput('Nome da empresa ou ocupação...');break;
+    case 'VIS_EMPRESA':
+      state.dados.vis_empresa=normalizeText(txt);state.step='VIS_TIPO_VISITANTE';
+      await addBotBubble('🎫 <b>6. Que tipo de visitante você é?</b>');
+      await addOptions([{label:'1️⃣ Visitante',action:()=>setTipoVisitante('Visitante')},{label:'2️⃣ Acompanhante',action:()=>setTipoVisitante('Acompanhante')}],150);break;
+    case 'VIS_PACIENTE':
+      if(txt.trim().length<3){await addBotBubble('⚠️ Por favor, informe o <b>nome completo</b> do paciente (mínimo 3 caracteres):');enableInput('Nome completo...');return;}
+      state.dados.vis_nome_paciente=normalizeText(txt);state.step='VIS_PARENTESCO';
+      await addBotBubble('👨‍👩‍👦 <b>8. Qual seu grau de parentesco com o paciente?</b><br><i>Ex: Pai, Filho, Cônjuge, Amigo, Irmão</i>');enableInput('Ex: Filho, Amigo...');break;
+    case 'VIS_PARENTESCO':
+      state.dados.vis_parentesco=normalizeText(txt);state.step='VIS_DATA_VISITA';
+      await addBotBubble('📅 <b>9. Qual a data prevista da visita?</b><br><i>Ex: 15/04/2026, Hoje, Amanhã, Próxima segunda</i>');enableInput('Ex: 15/04/2026 ou Hoje...');break;
+    case 'VIS_DATA_VISITA':
+      const validacaoData=validarDataVisita(txt);
+      if(!validacaoData.valido){await addBotBubble(validacaoData.mensagem);enableInput('Ex: 15/04/2026 ou Hoje...');return;}
+      state.dados.vis_data_visita=validacaoData.data;state.step='VIS_HORA_VISITA';
+      await addBotBubble('🕐 <b>10. Qual horário previsto para a visita?</b><br><i>Ex: 14:00, 3 da tarde, Manhã</i>');enableInput('Ex: 14:00 ou 3 da tarde...');break;
+    case 'VIS_HORA_VISITA':
+      state.dados.vis_hora_visita=normalizeText(txt);await exibirChecklistVisita();break;
+    case 'AP_TIPO_VISITANTE':
+      const tipoVis=txt.trim().toUpperCase();
+      if(tipoVis.includes('PACIENTE')){state.dados.ap_tipo_visitante='Paciente';}
+      else if(tipoVis.includes('VISITANTE')||tipoVis.includes('VISITA')){state.dados.ap_tipo_visitante='Visitante';}
+      else if(tipoVis.includes('ACOMPANHANTE')){state.dados.ap_tipo_visitante='Acompanhante';}
+      else{await addBotBubble('⚠️ Por favor, selecione: 1) Paciente, 2) Visitante, ou 3) Acompanhante');return;}
+      state.step='AP_DATA_OCORRIDO';
+      await addBotBubble('📅 <b>2️⃣ Em que data você acha que perdeu?</b><br><i>Ex: Hoje, Ontem, 10/04/2026</i>');enableInput('Ex: Hoje ou Ontem...');break;
+    case 'AP_DATA_OCORRIDO':
+      if(txt.trim().length<3){await addBotBubble('⚠️ Por favor, informe a data (ex: Hoje, Ontem, 10/04/2026):');enableInput('Ex: Hoje...');return;}
+      state.dados.ap_data_ocorrido=normalizeText(txt);state.step='AP_DESCRICAO';
+      await addBotBubble('📦 <b>3️⃣ Descreva o objeto perdido:</b><br><i>Tipo, cor, marca e modelo. Ex: Relógio preto, Óculos dourado, Carteira marrom</i>');enableInput('Descreva em detalhes...');break;
+    case 'AP_DESCRICAO':
+      if(txt.trim().length<5){await addBotBubble('⚠️ Por favor, descreva o objeto com mais detalhes (cor, marca, modelo):');enableInput('Descreva o objeto...');return;}
+      state.dados.descricao_objeto=txt.trim();state.step='AP_LOCAL';
+      await addBotBubble('📍 <b>4️⃣ Onde especificamente você perdeu?</b><br><i>Ex: Banheiro 2º andar, Recepção, Sala de espera</i>');enableInput('Local específico...');break;
+    case 'AP_LOCAL':
+      state.dados.local_perda=normalizeText(txt);state.step='AP_CONTATO';
+      await addBotBubble('📞 <b>5️⃣ Qual é seu telefone para contato?</b><br><i>Usaremos se encontrarmos o objeto.</i>');enableInput('Ex: (67) 99999-9999...');break;
+    case 'AP_CONTATO':
+      state.dados.contato_retorno=txt;await encerrarAchadosPerdidos();break;
+    case 'AT_MOTIVO':
+      state.dados.resumo_assunto=normalizeText(txt);await confirmarFilaAtendimento();break;
+    default:
+      await addBotBubble('Desculpe, não entendi. Por favor, escolha uma das opções do menu. 😊');await mostrarMenuPortaria(300);
+  }
+}
+
+async function iniciarBot(){
+  await showTyping(800);
+  await addBotBubble('🏥 <b>Bem-vindo(a) à Portaria e Recepção Central</b><br><b>Hospital Presbiteriano Mackenzie</b><br><small>Dr. e Sra. Goldsby King — Dourados/MS</small><br><br>Estou aqui para facilitar o seu acesso e tirar suas dúvidas! 😊');
+  await showTyping(900);
+  await addBotBubble('<div class="lgpd-banner">🔒 <b>Aviso de Privacidade (LGPD):</b> Para melhor atender você, coletamos <b>seu nome</b> e informações de contato. Seus dados são protegidos conforme a <b>Lei nº 13.709/2018</b> e usados exclusivamente para fins de atendimento hospitalar.</div>');
+  await showTyping(700);
+  await addBotBubble('👤 Para prosseguir, precisamos identificá-lo.<br><br>Por favor, <b>informe seu nome completo</b>:');
+  state.step='ID_NOME';enableInput('Digite seu nome completo...');
+}
+
+async function confirmarIdentidade(){
+  await showTyping(1000);
+  await addBotBubble('✅ <b>Bem-vindo(a)!</b>'+'<div class="summary-card verde"><div class="card-title">🔖 Sessão Iniciada — Portaria/Recepção</div>'+`<div class="row">👤 <b>Nome:</b> <span>${state.dados.nome}</span></div>`+`<div class="row">📋 <b>Protocolo:</b> <span class="badge">${state.dados.protocolo}</span></div>`+`<div class="row">⏰ <b>Início:</b> <span>${dtHr()}</span></div>`+'</div>');
+  await showTyping(700);await mostrarMenuPortaria();
+}
+
+async function mostrarMenuPortaria(delay=400){
+  state.step='MENU_PORTARIA';
+  state.menuAtual={'1':fluxoVisitas,'2':fluxoLocalizacao,'3':fluxoAchadosPerdidos,'4':fluxoProntoSocorro,'5':fluxoVoltarMenuPrincipal,'9':falarComAtendente};
+  await showTyping(700);
+  await addBotBubble('🏛️ <b>Portaria e Recepção Central</b><br><br>Como posso te ajudar hoje?<br><i>Toque na opção ou digite o número:</i>');
+  await addOptions([
+    {label:'<b>1</b> 🟢 Visitas, Acompanhantes e Acesso',cor:'verde',action:fluxoVisitas},
+    {label:'<b>2</b> 🔵 Localização e Estacionamento',cor:'azul',action:fluxoLocalizacao},
+    {label:'<b>3</b> 🔴 Achados e Perdidos',cor:'vermelho',action:fluxoAchadosPerdidos},
+    {label:'<b>4</b> 🟡 Chegada ao Pronto Socorro',cor:'amarelo',action:fluxoProntoSocorro},
+    {label:'<b>5</b> 🟣 Voltar ao Menu Principal',cor:'roxo',action:fluxoVoltarMenuPrincipal},
+    {label:'<b>9</b> 📞 Falar com atendente',cor:'default',action:falarComAtendente},
+  ],delay);
+  enableInput('Digite o número da opção...');
+}
+
+async function fluxoVisitas(){
+  await showTyping(900);
+  await addBotBubble('🟢 <b>Visitas, Acompanhantes e Acesso</b><div class="info-box verde">Olá! 👋 Estou aqui para tirar suas dúvidas sobre <b>visitação no Hospital Mackenzie</b>.<br><br>Posso te informar sobre <b>horários, regras e padrão de vestimenta</b>, além de adiantar seu <b>pré-cadastro de visitante</b>.</div>');
+  await showTyping(600);
+  await addBotBubble('⚠️ <div class="info-box warning"><b>Atenção:</b> Não tenho acesso ao prontuário dos pacientes. 🩺<br><br>Para informações sobre <b>estado de saúde, leito ou alta</b>, fale diretamente com a equipe técnica ou médica:<br>📞 <b>(67) 3416-7800</b> — Plantão Portaria/Recepção<br>🏥 Ou compareça ao hospital com documento.</div>');
+  await showTyping(700);
+  await addBotBubble('👇 <b>O que você precisa?</b>');
+  state.step='MENU_VISITAS';
+  state.menuAtual={'1':infoRegrasVisita,'2':infoGuiaVisitas,'3':infoVestimenta,'4':iniciarCadastroVisita,'5':infoSobrePaciente,'0':()=>mostrarMenuPortaria(),'9':falarComAtendente};
+  await addOptions([
+    {label:'<b>1</b> ⏰ Horários e Regras de Visita',cor:'verde',action:infoRegrasVisita},
+    {label:'<b>2</b> 📖 Guia de Visitas e Acompanhantes',cor:'verde',action:infoGuiaVisitas},
+    {label:'<b>3</b> 👕 Padrão de Vestimenta',cor:'amarelo',action:infoVestimenta},
+    {label:'<b>4</b> 📝 Adiantar meu Pré-cadastro',cor:'azul',action:iniciarCadastroVisita},
+    {label:'<b>5</b> 🩺 Informações sobre o Paciente',cor:'vermelho',action:infoSobrePaciente},
+    {label:'<b>0</b> 🔙 Voltar ao Menu Portaria',cor:'roxo',action:()=>mostrarMenuPortaria()},
+    {label:'<b>9</b> 📞 Falar com atendente',cor:'default',action:falarComAtendente},
+  ],200);
+  enableInput('Digite o número da opção...');
+}
+
+async function infoRegrasVisita(){
+  await showTyping(900);
+  await addBotBubble('⏰ <b>Horários e Regras de Visita</b><div class="info-box verde"><b>📅 HORÁRIOS POR ALA</b><br><br>🟢 <b>Leitos Pares</b><br>🔹 Ala I: <b>15h às 16h</b><br>🔹 Ala II: <b>16h às 17h</b><br>🔹 Ala III: <b>16h às 17h</b><br>🔹 UTI Adulto: <b>15h às 15h30</b><br>🔹 UTI Neonatal: <b>15h30 às 16h</b><br><br>🔵 <b>Leitos Ímpares</b><br>🔹 Ala I: <b>09h às 10h</b><br>🔹 Ala II: <b>11h às 12h</b><br>🔹 Ala III: <b>11h às 12h</b><br>🔹 UTI Adulto: <b>10h às 10h30</b><br>🔹 UTI Neonatal: <b>09h30 às 10h</b></div>');
+  await showTyping(800);
+  await addBotBubble('📌 <b>Regras Importantes</b><div class="info-box vermelho">🚫 Sem alimentos<br>🚫 Menores de 12 anos não entram<br>🚫 Sem circular sem autorização<br>👥 1 visitante por vez (máx. 2 por horário)<br>🎒 Hospital não se responsabiliza por pertences<br>🅿️ Sem estacionamento privado — seu carro, sua responsabilidade<br>🌙 Sem visitas no período noturno<br>🧴 Acompanhante traz seus itens (escova, cobertor…)<br>👕 Roupas adequadas à visitação obrigatórias</div>');
+  await showTyping(700);
+  await addBotBubble('👶 <b>Acompanhantes Obrigatórios</b><div class="info-box azul">✅ Menores de 18 anos<br>✅ Maiores de 60 anos<br>✅ UTI Neonatal — acompanhante permitido</div>');
+  await showTyping(500);
+  await addBotBubble('📞 <b>Ouvidoria:</b> (67) 3416-7800');
+  await showTyping(500);
+  await addBotBubble('👇 <b>Posso ajudar com mais alguma coisa?</b>');
+  state.step='MENU_INFO_REGRAS';
+  state.menuAtual={'1':iniciarCadastroVisita,'2':infoGuiaVisitas,'3':infoVestimenta,'0':fluxoVisitas,'9':falarComAtendente};
+  await addOptions([
+    {label:'<b>1</b> 📝 Adiantar meu Pré-cadastro',cor:'verde',action:iniciarCadastroVisita},
+    {label:'<b>2</b> 📖 Ver Guia de Visitas',cor:'verde',action:infoGuiaVisitas},
+    {label:'<b>3</b> 👕 Ver Padrão de Vestimenta',cor:'amarelo',action:infoVestimenta},
+    {label:'<b>0</b> 🔙 Voltar — Menu Visitas',cor:'roxo',action:fluxoVisitas},
+    {label:'<b>9</b> 📞 Falar com atendente',cor:'default',action:falarComAtendente},
+  ],200);
+  enableInput('Digite o número da opção...');
+}
+
+async function infoGuiaVisitas(){
+  await showTyping(900);
+  await addBotBubble('📖 <b>Guia de Visitas e Acompanhantes</b><div class="info-box verde">📋 <b>Manual Completo:</b><br><a href="https://bit.ly/3SWiqnC" style="color:var(--green-dark);font-weight:600;" target="_blank">👉 Clique aqui para acessar o Manual Completo</a></div>');
+  await showTyping(700);
+  await addBotBubble('🕐 <b>Horários Recomendados</b><div class="info-box verde">• 🌅 <b>Manhã:</b> Evitar — reservado para assistência médica, medicação, higiene e refeições<br>• 🌇 <b>Tarde:</b> 14h às 17h — período mais tranquilo e indicado<br>• 🌙 <b>Noite:</b> 19h às 21h — apenas acompanhantes autorizados</div>');
+  await showTyping(700);
+  await addBotBubble('🛏️ <b>Tipos de Quarto</b><div class="info-box azul"><b>Apartamento (individual):</b><br>• Identifique-se na recepção antes de entrar ✅<br>• 🚫 Não é permitida a entrada de menores de 12 anos<br><br><b>Semi Apartamento (compartilhado):</b><br>• Máx. 2 pessoas por paciente, sendo 1 visitante por vez 👥<br>• 🚫 Não é permitida a entrada de menores de 12 anos</div>');
+  await showTyping(700);
+  await addBotBubble('🧴 <b>Itens e Cuidados</b><div class="info-box verde">✅ <b>Itens recomendados:</b> pente, escova de dente, creme dental, chinelos<br>🤲 <b>Higiene:</b> use álcool em gel ao entrar e sair dos quartos<br>🤫 <b>Silêncio:</b> outros pacientes precisam de descanso 🙏</div>');
+  await showTyping(500);
+  await addBotBubble('👇 <b>Posso ajudar com mais alguma coisa?</b>');
+  state.step='MENU_INFO_GUIA';
+  state.menuAtual={'1':iniciarCadastroVisita,'2':infoRegrasVisita,'3':infoVestimenta,'0':fluxoVisitas,'9':falarComAtendente};
+  await addOptions([
+    {label:'<b>1</b> 📝 Adiantar meu Pré-cadastro',cor:'verde',action:iniciarCadastroVisita},
+    {label:'<b>2</b> ⏰ Ver Horários e Regras',cor:'verde',action:infoRegrasVisita},
+    {label:'<b>3</b> 👕 Ver Padrão de Vestimenta',cor:'amarelo',action:infoVestimenta},
+    {label:'<b>0</b> 🔙 Voltar — Menu Visitas',cor:'roxo',action:fluxoVisitas},
+    {label:'<b>9</b> 📞 Falar com atendente',cor:'default',action:falarComAtendente},
+  ],200);
+  enableInput('Digite o número da opção...');
+}
+
+async function infoVestimenta(){
+  await showTyping(900);
+  await addBotBubble('👕 <b>Padrão de Vestimenta</b><div class="info-box amarelo">Por respeito ao ambiente hospitalar e ao bem-estar dos pacientes, pedimos que <b>evite os itens abaixo</b>.<br><i>*Exceto em casos de urgência</i></div>');
+  await showTyping(800);
+  await addBotBubble('🚫 <b>NÃO é permitido entrar usando:</b><div class="info-box vermelho"><b>👗 Vestimentas curtas:</b><br>• Minissaia<br>• Short<br>• Bermuda<br><br><b>👚 Roupas inadequadas:</b><br>• Blusa curta ou decotada<br>• Roupa transparente<br>• Camiseta sem manga (regata)<br><br><b>👟 Calçados e acessórios:</b><br>• Chinelo / calçados abertos<br>• Boné<br><br><b>🍔 Itens proibidos:</b><br>• Entrada de alimentos para o paciente</div>');
+  await showTyping(600);
+  await addBotBubble('💡 <div class="info-box verde"><b>Dica:</b> opte por calças, camisetas com manga, sapatos fechados e roupas discretas. 🙏</div>');
+  await showTyping(500);
+  await addBotBubble('👇 <b>Posso ajudar com mais alguma coisa?</b>');
+  state.step='MENU_INFO_VESTIMENTA';
+  state.menuAtual={'1':iniciarCadastroVisita,'2':infoRegrasVisita,'3':infoGuiaVisitas,'0':fluxoVisitas,'9':falarComAtendente};
+  await addOptions([
+    {label:'<b>1</b> 📝 Adiantar meu Pré-cadastro',cor:'verde',action:iniciarCadastroVisita},
+    {label:'<b>2</b> ⏰ Ver Horários e Regras',cor:'verde',action:infoRegrasVisita},
+    {label:'<b>3</b> 📖 Ver Guia de Visitas',cor:'verde',action:infoGuiaVisitas},
+    {label:'<b>0</b> 🔙 Voltar — Menu Visitas',cor:'roxo',action:fluxoVisitas},
+    {label:'<b>9</b> 📞 Falar com atendente',cor:'default',action:falarComAtendente},
+  ],200);
+  enableInput('Digite o número da opção...');
+}
+
+async function infoSobrePaciente(){
+  await showTyping(900);
+  await addBotBubble('🩺 <b>Informações sobre o Paciente</b><div class="info-box vermelho"><b>⚠️ Atenção importante:</b><br><br>Este atendimento digital <b>não tem acesso ao prontuário</b> dos pacientes. 🤖<br><br>Por sigilo médico e proteção de dados (LGPD), informações sobre <b>estado de saúde, exames, leito ou previsão de alta</b> só podem ser dadas por:<br><br>👨‍⚕️ <b>Equipe médica</b> (presencialmente)<br>🏥 <b>Equipe técnica de enfermagem</b><br>📞 <b>Portaria/Recepção</b> (via telefone)</div>');
+  await showTyping(800);
+  await addBotBubble('✅ <b>Como obter informações:</b><div class="info-box azul"><b>📞 Por telefone (orientação geral):</b><br>(67) 3416-7800 — Portaria/Recepção<br><i>Solicite falar com o setor onde o paciente está internado.</i><br><br><b>🏥 Presencialmente (informação clínica):</b><br>Rua Hilda Bergo Duarte, 81 — Centro, Dourados/MS<br>Compareça <b>com documento com foto</b>, dentro do horário de visita da ala correspondente.</div>');
+  await showTyping(700);
+  await addBotBubble('💡 <div class="info-box amarelo"><b>Dica:</b> Aproveite para já adiantar seu <b>pré-cadastro de visitante</b>! Assim, na recepção, é só a confirmação por foto e você recebe seu crachá. ⚡</div>');
+  await showTyping(500);
+  await addBotBubble('👇 <b>O que deseja fazer agora?</b>');
+  state.step='MENU_INFO_PACIENTE';
+  state.menuAtual={'1':iniciarCadastroVisita,'2':falarComAtendente,'3':infoRegrasVisita,'0':fluxoVisitas,'9':falarComAtendente};
+  await addOptions([
+    {label:'<b>1</b> 📝 Adiantar meu Pré-cadastro',cor:'verde',action:iniciarCadastroVisita},
+    {label:'<b>2</b> 📞 Falar com a Portaria agora',cor:'azul',action:falarComAtendente},
+    {label:'<b>3</b> ⏰ Ver Horários de Visita',cor:'verde',action:infoRegrasVisita},
+    {label:'<b>0</b> 🔙 Voltar — Menu Visitas',cor:'roxo',action:fluxoVisitas},
+    {label:'<b>9</b> 📞 Falar com atendente',cor:'default',action:falarComAtendente},
+  ],200);
+  enableInput('Digite o número da opção...');
+}
+
+async function fluxoDuvidasVisita(){
+  // Mantida como apelido para infoRegrasVisita por compatibilidade
+  await infoRegrasVisita();
+}
+
+async function iniciarCadastroVisita(){
+  await showTyping(700);
+  await addBotBubble('📝 <b>Pré-cadastro de Visitante</b><br><br>Ótimo! Vou coletar seus dados para fazer um pré-cadastro rápido.<br><br>Precisarei de algumas informações suas:');
+  await showTyping(500);
+  await addBotBubble('📅 <b>1. Qual sua data de nascimento?</b><br><i>Ex: 15/03/1990</i>');
+  state.step='VIS_DATA_NASC';enableInput('Ex: 15/03/1990');
+}
+
+async function exibirChecklistVisita(){
+  await showTyping(1000);
+  const prot=gerarProtocolo('VIS');state.dados.vis_protocolo=prot;
+  const sexoLabel=state.dados.vis_sexo==='M'?'Masculino':state.dados.vis_sexo==='F'?'Feminino':'Outro';
+  const idadeLabel=state.dados.vis_idade?`${state.dados.vis_idade} anos`:'—';
+  await addBotBubble('📋 <b>Dados coletados para Pré-cadastro:</b><div class="summary-card verde"><div class="card-title">🟢 Dados do Visitante</div>'+`<div class="row">👤 <b>Nome:</b> <span>${state.dados.nome}</span></div>`+`<div class="row">📅 <b>Data Nasc:</b> <span>${state.dados.vis_data_nasc}</span></div>`+`<div class="row">🎂 <b>Idade:</b> <span>${idadeLabel}</span></div>`+`<div class="row">👥 <b>Sexo:</b> <span>${sexoLabel}</span></div>`+`<div class="row">🪪 <b>CPF/RG:</b> <span>${state.dados.vis_cpf}</span></div>`+`<div class="row">📞 <b>Telefone:</b> <span>${state.dados.vis_telefone}</span></div>`+`<div class="row">🏢 <b>Empresa:</b> <span>${state.dados.vis_empresa}</span></div>`+`<div class="row">🎫 <b>Tipo:</b> <span>${state.dados.vis_tipo}</span></div><br><div class="card-title">🏥 Dados da Visita</div>`+`<div class="row">🛏️ <b>Paciente:</b> <span>${state.dados.vis_nome_paciente}</span></div>`+`<div class="row">👨‍👩‍👦 <b>Parentesco:</b> <span>${state.dados.vis_parentesco}</span></div>`+`<div class="row">📅 <b>Data:</b> <span>${state.dados.vis_data_visita}</span></div>`+`<div class="row">🕐 <b>Hora:</b> <span>${state.dados.vis_hora_visita}</span></div>`+`<div class="row">🔖 <b>Protocolo:</b> <span class="badge">${prot}</span></div>`+'</div>');
+  await showTyping(700);
+  await addBotBubble('✅ <b>Os dados estão corretos?</b><br><i>Um atendente vai finalizar seu pré-cadastro.</i>');
+  state.step='MENU_CONFIRMA_DADOS';
+  state.menuAtual={'1':transferirParaAtendenteCadastro,'2':()=>mostrarMenuPortaria()};
+  await addOptions([
+    {label:'<b>1</b> ✅ Sim, dados corretos — transferir!',cor:'verde',action:transferirParaAtendenteCadastro},
+    {label:'<b>2</b> ❌ Não, desejo corrigir',cor:'vermelho',action:()=>mostrarMenuPortaria()},
+  ],200);
+  enableInput('Digite 1 ou 2...');
+}
+async function setSexoVis(sexo){state.dados.vis_sexo=sexo;state.step='VIS_DOCUMENTO';await showTyping(600);await addBotBubble('🪪 <b>3. Qual seu CPF ou RG?</b><br><i>Apenas números ou deixe em branco</i>');enableInput('Apenas números...');}
+async function setTipoVisitante(tipo){state.dados.vis_tipo=tipo;state.step='VIS_PACIENTE';await showTyping(600);await addBotBubble('🛏️ <b>7. Qual o nome completo do paciente</b> que você irá visitar?');enableInput('Nome completo do paciente...');}
+async function transferirParaAtendenteCadastro(){
+  await showTyping(800);
+  await addBotBubble('🗣️ <b>Perfeito! Transferindo para um atendente...</b><br><br>Seu pré-cadastro será finalizado por um de nossos colaboradores. Na recepção, você passará por uma rápida confirmação de sua visita com autenticação por foto e receberá seu crachá de acesso. 🏥');
+  await showTyping(600);
+  const resumoTransferencia=`👤 *CADASTRO DE VISITANTE - WARELINE*\n\n📋 *DADOS DO VISITANTE:*\nNome: ${state.dados.nome}\nData Nasc: ${state.dados.vis_data_nasc}\nIdade: ${state.dados.vis_idade?state.dados.vis_idade+' anos':'—'}\nSexo: ${state.dados.vis_sexo==='M'?'Masculino':state.dados.vis_sexo==='F'?'Feminino':'Outro'}\nCPF/RG: ${state.dados.vis_cpf}\nTelefone: ${state.dados.vis_telefone}\nEmpresa: ${state.dados.vis_empresa}\nTipo: ${state.dados.vis_tipo}\n\n🏥 *DADOS DA VISITA:*\nPaciente: ${state.dados.vis_nome_paciente}\nParentesco: ${state.dados.vis_parentesco}\nData Visita: ${state.dados.vis_data_visita}\nHora Visita: ${state.dados.vis_hora_visita}\n\n🔖 Protocolo: ${state.dados.vis_protocolo}\n📍 Horário Registro: ${dtHr()}`;
+  state.dados.resumo_assunto=`Pré-cadastro Visitante - ${state.dados.nome}`;
+  state.dados.resumo_transferencia=resumoTransferencia;
+  state.step='AT_TRANSFERENCIA';
+  setTimeout(()=>{falarComAtendente();},1000);
+}
+
+async function opcoesPosVisita(){
+  await showTyping(500);
+  await addBotBubble('👇 <b>Posso ajudar com mais alguma coisa?</b>');
+  state.step='MENU_POS_VISITA';
+  state.menuAtual={'0':()=>mostrarMenuPortaria(),'9':falarComAtendente};
+  await addOptions([
+    {label:'<b>0</b> 🔙 Voltar ao Menu Portaria',cor:'verde',action:()=>mostrarMenuPortaria()},
+    {label:'<b>9</b> 📞 Falar com atendente',cor:'default',action:falarComAtendente}
+  ],200);
+  enableInput('Digite 0 ou 9...');
+}
+
+async function fluxoLocalizacao(){
+  await showTyping(900);
+  await addBotBubble('🔵 <b>Localização e Estacionamento</b><div class="info-box azul">📍 <b>Endereço:</b><br>Rua Hilda Bergo Duarte, 81 — Centro, Dourados/MS<br><br>🗺️ <a href="https://maps.google.com/?q=Rua+Hilda+Bergo+Duarte+81+Dourados+MS" target="_blank" style="color:var(--blue-dark);font-weight:600;">Abrir no Google Maps</a></div>');
+  await showTyping(700);
+  await addBotBubble('<div class="info-box azul">🚗 <b>Estacionamento:</b><br><br>⚠️ O hospital <b>não possui estacionamento privativo</b>.<br><br>✅ <b>Opções próximas recomendadas:</b><br>• Vias laterais à Rua Hilda Bergo Duarte<br>• Estacionamentos rotativos no centro de Dourados<br><br>🚫 O hospital <b>não se responsabiliza</b> por danos, furtos ou objetos em veículos.<br><br>♿ <b>Acessibilidade:</b> Rampas e acesso adaptado disponíveis na entrada principal.</div>');
+  await showTyping(500);
+  await addBotBubble('👇 <b>Posso ajudar com mais alguma coisa?</b>');
+  state.step='MENU_LOCALIZACAO';
+  state.menuAtual={'0':()=>mostrarMenuPortaria(),'9':falarComAtendente};
+  await addOptions([
+    {label:'<b>0</b> 🔙 Voltar ao Menu Portaria',cor:'azul',action:()=>mostrarMenuPortaria()},
+    {label:'<b>9</b> 📞 Falar com atendente',cor:'default',action:falarComAtendente}
+  ],200);
+  enableInput('Digite 0 ou 9...');
+}
+
+async function fluxoAchadosPerdidos(){
+  await showTyping(900);
+  await addBotBubble('🔴 <b>Achados e Perdidos</b><br><br>Sentimos muito! Vamos registrar sua ocorrência para que nossa equipe possa ajudar. 🙏<br><br><div class="info-box warning">💡 <b>Dica importante:</b> Quanto mais detalhes, maiores as chances de localizarmos seu objeto!</div>');
+  await showTyping(600);
+  await addBotBubble('👥 <b>Você é:</b>');
+  state.step='MENU_AP_TIPO';
+  state.menuAtual={'1':()=>setTipoVisitanteAP('Paciente'),'2':()=>setTipoVisitanteAP('Visitante'),'3':()=>setTipoVisitanteAP('Acompanhante'),'0':()=>mostrarMenuPortaria(),'9':falarComAtendente};
+  await addOptions([
+    {label:'<b>1</b> 👤 Paciente',cor:'azul',action:()=>setTipoVisitanteAP('Paciente')},
+    {label:'<b>2</b> 👥 Visitante',cor:'verde',action:()=>setTipoVisitanteAP('Visitante')},
+    {label:'<b>3</b> 🤝 Acompanhante',cor:'roxo',action:()=>setTipoVisitanteAP('Acompanhante')},
+    {label:'<b>0</b> 🔙 Voltar ao Menu Portaria',cor:'vermelho',action:()=>mostrarMenuPortaria()},
+  ],300);
+  enableInput('Digite o número da opção...');
+}
+
+async function setTipoVisitanteAP(tipo){
+  state.dados.ap_tipo_visitante=tipo;
+  state.step='AP_DATA_OCORRIDO';
+  await showTyping(600);
+  await addBotBubble('📅 <b>2️⃣ Em que data você acha que perdeu?</b><br><i>Ex: Hoje, Ontem, 09/04/2026</i>');
+  enableInput('Ex: Hoje ou Ontem...');
+}
+
+async function encerrarAchadosPerdidos(){
+  await showTyping(1000);
+  const prot=gerarProtocolo('AP');state.dados.ap_protocolo=prot;
+  await addBotBubble('✅ <b>Ocorrência registrada com sucesso!</b><div class="summary-card vermelho"><div class="card-title">🔴 Registro — Achados e Perdidos</div>'+`<div class="row">🔖 <b>Protocolo:</b> <span class="badge">${prot}</span></div>`+`<div class="row">👤 <b>Nome:</b> <span>${state.dados.nome}</span></div>`+`<div class="row">� <b>Condição:</b> <span><b>${state.dados.ap_tipo_visitante||'—'}</b></span></div>`+`<div class="row">📅 <b>Data Ocorrido:</b> <span>${state.dados.ap_data_ocorrido||'—'}</span></div>`+`<div class="row">📦 <b>Relato do ${state.dados.ap_tipo_visitante||'Usuário'}:</b></div>`+`<div class="row" style="margin-left:15px;font-style:italic;color:#555;">❝ ${state.dados.descricao_objeto||'—'} ❞</div>`+`<div class="row">📍 <b>Local:</b> <span>${state.dados.local_perda||'—'}</span></div>`+`<div class="row">📞 <b>Telefone:</b> <span>${state.dados.contato_retorno||'—'}</span></div>`+`<div class="row">⏰ <b>Registrado em:</b> <span>${dtHr()}</span></div>`+'</div>');
+  await showTyping(800);
+  await addBotBubble('😊 <b>Nossa equipe já recebeu o registro e iniciará as buscas.</b><br><br>Se o objeto for localizado, entraremos em contato pelo número informado. 🏥<br><br>📞 Também pode ligar: <b>(67) 3416-7800</b> e mencionar o protocolo <b>'+prot+'</b>.');
+  await showTyping(500);
+  await addBotBubble('👇 <b>Posso ajudar com mais alguma coisa?</b>');
+  state.step='MENU_AP_FIM';
+  state.menuAtual={'0':()=>mostrarMenuPortaria(),'9':falarComAtendente};
+  await addOptions([
+    {label:'<b>0</b> 🔙 Voltar ao Menu Portaria',cor:'vermelho',action:()=>mostrarMenuPortaria()},
+    {label:'<b>9</b> 📞 Falar com atendente',cor:'default',action:falarComAtendente}
+  ],200);
+  enableInput('Digite 0 ou 9...');
+}
+
+async function fluxoProntoSocorro(){
+  await showTyping(500);
+  await addBotBubble('<div class="alert-emergency"><span class="big-icon">🚨</span><b>ATENÇÃO — EMERGÊNCIA MÉDICA</b><br><br>Se esta é uma emergência médica,<br><b>NÃO aguarde atendimento por aqui!</b><br><br>🏃 <b>Dirija-se IMEDIATAMENTE à:</b><br><b>Entrada de Emergência — Lateral Esquerda</b></div>');
+  await showTyping(700);
+  await addBotBubble('<div class="info-box amarelo">🆘 <b>Números de emergência:</b><br>📞 <b>SAMU:</b> 192<br>🚒 <b>Bombeiros:</b> 193<br>👮 <b>Polícia:</b> 190<br><br>🏥 <b>Pronto Socorro — Hospital Mackenzie:</b><br>• Entrada pela <b>Lateral Esquerda</b> do prédio<br>• Funcionamento: <b>24 horas, 7 dias por semana</b><br>• Plantão 24h: Clínico Geral, Pediatria e Obstetrícia<br><br>📞 <b>Telefone: (67) 3416-7800</b></div>');
+  await showTyping(500);
+  await addBotBubble('<div class="info-box warning">⚠️ <b>Lembre-se:</b> Em caso de risco de vida, ligue imediatamente para o <b>SAMU: 192</b> ou dirija-se à entrada de emergência sem aguardar.</div>');
+  await showTyping(400);
+  await addBotBubble('👇 <b>Posso ajudar com mais alguma coisa?</b>');
+  state.step='MENU_PS_FIM';
+  state.menuAtual={'0':()=>mostrarMenuPortaria(),'9':falarComAtendente};
+  await addOptions([
+    {label:'<b>0</b> 🔙 Voltar ao Menu Portaria',cor:'amarelo',action:()=>mostrarMenuPortaria()},
+    {label:'<b>9</b> 📞 Falar com atendente',cor:'default',action:falarComAtendente}
+  ],200);
+  enableInput('Digite 0 ou 9...');
+}
+
+async function fluxoVoltarMenuPrincipal(){
+  await showTyping(600);
+  await addBotBubble('🟣 <b>Encerrando o atendimento da Portaria/Recepção.</b><br><br>Obrigado por utilizar nosso atendimento digital! 😊<br><br><div class="info-box roxo">📞 <b>Contato direto:</b> (67) 3416-7800<br><i>Solicite o Plantão da Recepção do Hospital Mackenzie.</i><br><br>📍 <b>Endereço:</b> Rua Hilda Bergo Duarte, 81 — Centro, Dourados/MS</div>');
+  await showTyping(400);
+  state.step='MENU_ENCERRAMENTO';
+  state.menuAtual={'1':()=>mostrarMenuPortaria(),'9':falarComAtendente};
+  await addOptions([
+    {label:'<b>1</b> 🏛️ Portaria/Recepção (reiniciar)',cor:'roxo',action:()=>mostrarMenuPortaria()},
+    {label:'<b>9</b> 📞 Falar com atendente',cor:'default',action:falarComAtendente}
+  ],300);
+  enableInput('Digite 1 ou 9...');
+}
+
+async function falarComAtendente(){
+  if(state.step==='AT_TRANSFERENCIA'){
+    await showTyping(800);
+    await addBotBubble('� <b>Você será atendido em breve por um de nossos colaboradores.</b><br><br>Seu pré-cadastro será finalizado por um deles. ✅');
+    await showTyping(700);
+    const sumCardAtend='<div class="summary-card roxo"><div class="card-title">📋 Pré-cadastro — Transferência ao Atendente</div>'+`<div class="row">🔖 <b>Protocolo:</b> <span class="badge">${state.dados.vis_protocolo}</span></div>`+`<div class="row">👤 <b>Visitante:</b> <span>${state.dados.nome}</span></div>`+`<div class="row">🛏️ <b>Paciente:</b> <span>${state.dados.vis_nome_paciente}</span></div>`+`<div class="row">💬 <b>Serviço:</b> <span>Pré-cadastro Visitante </span></div>`+`<div class="row">⏰ <b>Horário:</b> <span>${dtHr()}</span></div>`+'</div>';
+    await addBotBubble(sumCardAtend);return;
+  }
+  await showTyping(800);
+  await addBotBubble('🗣️ <b>Perfeito. Vou te transferir para um atendente da Portaria.</b><br><br>Para que ele já receba seu caso com contexto completo, <b>descreva brevemente sua dúvida ou necessidade:</b>');
+  state.step='AT_MOTIVO';enableInput('Descreva sua dúvida ou necessidade...');
+}
+
+async function confirmarFilaAtendimento(){
+  const prot=state.dados.protocolo||gerarProtocolo('AT');
+  await showTyping(700);
+  await addBotBubble(`✅ <b>Anotei:</b> "<i>${state.dados.resumo_assunto||'Portaria Geral'}</i>".<br><br>Você está na nossa <b>fila de atendimento prioritária</b>. 🙏`);
+  await showTyping(1000);
+  await addBotBubble('<div class="summary-card roxo"><div class="card-title">📋 Resumo Enviado ao Atendente</div>'+`<div class="row">🔖 <b>Protocolo:</b> <span class="badge">${prot}</span></div>`+`<div class="row">👤 <b>Nome:</b> <span>${state.dados.nome||'—'}</span></div>`+`<div class="row">📌 <b>Assunto:</b> <span>${getResumoAssunto()}</span></div>`+`<div class="row">💬 <b>Detalhes:</b> <span>${state.dados.resumo_assunto||'—'}</span></div>`+`<div class="row">⏰ <b>Horário:</b> <span>${dtHr()}</span></div>`+'</div>');
+  await showTyping(1100);
+  await addBotBubble('⏳ <b>Gestão de Fila:</b><div class="info-box roxo">Nossa equipe está finalizando os atendimentos em andamento.<br>Tempo estimado: <b>até 15 minutos</b>.<br><br>Você será atendido assim que um especialista estiver disponível. ✅<br><br>📞 Prefere ligar? <b>(67) 3416-7800</b> — Portaria/Recepção</div>');
+  await showTyping(700);
+  await addBotBubble('💬 <b>Por favor, não feche esta conversa</b> enquanto aguarda. Caso não seja atendido em breve, nossa equipe enviará uma atualização. 😊');
+  state.step='MENU_FILA_ATEND';
+  state.menuAtual={'0':()=>mostrarMenuPortaria()};
+  await addOptions([{label:'<b>0</b> 🏛️ Voltar ao Menu Portaria',cor:'roxo',action:()=>mostrarMenuPortaria()}],300);
+  enableInput('Digite 0...');
+}
+
+function getResumoAssunto(){
+  if(state.dados.nome_paciente_visita)return`Visita — Paciente: ${state.dados.nome_paciente_visita}`;
+  if(state.dados.descricao_objeto)return`Achados/Perdidos — ${state.dados.descricao_objeto}`;
+  return'Portaria/Recepção Geral';
+}
+
+window.onload=()=>setTimeout(iniciarBot,700);
+</script>
+</body>
+</html>

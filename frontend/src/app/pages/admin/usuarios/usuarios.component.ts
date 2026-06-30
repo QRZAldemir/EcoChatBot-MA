@@ -7,11 +7,12 @@ import { Canal } from '../../../core/models/canal.model';
 import { UsuarioService } from '../../../core/services/usuario.service';
 import { DepartamentoService } from '../../../core/services/departamento.service';
 import { CanalService } from '../../../core/services/canal.service';
+import { CanalByIdPipe } from '../../../core/pipes/canal-by-id.pipe';
 
 @Component({
   selector: 'app-usuarios',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CanalByIdPipe],
   templateUrl: './usuarios.component.html',
   styleUrls: ['./usuarios.component.css']
 })

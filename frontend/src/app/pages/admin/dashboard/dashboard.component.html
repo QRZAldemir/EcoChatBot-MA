@@ -10,7 +10,7 @@
 
   <div class="atalhos">
     <a *ngFor="let a of atalhos" [routerLink]="a.rota" class="atalho-card" [class]="a.cor">
-      <i class="fas" [class]="'fa ' + a.icone"></i>
+      <i [class]="'fas ' + a.icone"></i>
       <span>{{ a.label }}</span>
     </a>
   </div>

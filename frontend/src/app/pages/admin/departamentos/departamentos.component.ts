@@ -22,6 +22,10 @@ export class DepartamentosComponent implements OnInit {
   constructor(private departamentoService: DepartamentoService) {}
 
   ngOnInit(): void {
+    this.carregar();
+  }
+
+  carregar(): void {
     this.departamentoService.listar().subscribe(d => this.departamentos = d);
   }
 
@@ -43,7 +47,7 @@ export class DepartamentosComponent implements OnInit {
       : this.departamentoService.atualizar(this.form.id!, this.form);
 
     op.subscribe({
-      next: () => { this.mostrarAlerta('sucesso', 'Departamento salvo!'); this.fecharModal(); this.ngOnInit(); },
+      next: () => { this.mostrarAlerta('sucesso', 'Departamento salvo!'); this.fecharModal(); this.carregar(); },
       error: () => this.mostrarAlerta('erro', 'Erro ao salvar.')
     });
   }
@@ -51,7 +55,7 @@ export class DepartamentosComponent implements OnInit {
   deletar(id: number): void {
     if (!confirm('Excluir departamento?')) return;
     this.departamentoService.deletar(id).subscribe({
-      next: () => { this.mostrarAlerta('sucesso', 'Departamento excluído.'); this.ngOnInit(); },
+      next: () => { this.mostrarAlerta('sucesso', 'Departamento excluído.'); this.carregar(); },
       error: () => this.mostrarAlerta('erro', 'Erro ao excluir.')
     });
   }

@@ -30,3 +30,6 @@ Thumbs.db
 
 # Docker
 .docker/
+
+# Evolution API
+evolution-api.env

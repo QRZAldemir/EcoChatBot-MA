@@ -50,31 +50,31 @@ def init_db():
             Canal(
                 nome="Atendimento-Cliente",
                 descricao="Canal de atendimento geral ao cliente",
-                arquivo_menu="1atendimento-mackenzie.html",
+                arquivo_menu="1atendimento-ma.html",
                 departamento_id=depto_map["Call-Center"].id
             ),
             Canal(
                 nome="Agendamento-Ambulatorial",
                 descricao="Agendamento de consultas ambulatoriais",
-                arquivo_menu="2agendamento-mackenzie.html",
+                arquivo_menu="2agendamento-ma.html",
                 departamento_id=depto_map["Agendamento"].id
             ),
             Canal(
                 nome="Exames-Diagnostico",
                 descricao="Agendamento e resultados de exames",
-                arquivo_menu="3examesdiagnostico-mackenzie.html",
+                arquivo_menu="3examesdiagnostico-ma.html",
                 departamento_id=depto_map["Exames"].id
             ),
             Canal(
                 nome="Portaria",
                 descricao="Controle de acesso e informações da portaria",
-                arquivo_menu="7portaria-mackenzie.html",
+                arquivo_menu="7portaria-ma.html",
                 departamento_id=depto_map["Recepção"].id
             ),
             Canal(
                 nome="Ouvidoria",
                 descricao="Canal de ouvidoria para reclamações e sugestões",
-                arquivo_menu="8ouvidoria-mackenzie.html",
+                arquivo_menu="8ouvidoria-ma.html",
                 departamento_id=depto_map["Ouvidoria"].id
             )
         ]

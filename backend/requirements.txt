@@ -1,11 +1,33 @@
-é bfastapi==0.109.0
-uvicorn[standard]==0.27.0
-sqlalchemy==2.0.25
-psycopg2-binary==2.9.9
-pydantic==2.5.3
-python-dotenv==1.0.0
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-httpx==0.26.0
-python-multipart==0.0.6
-alembic==1.13.1
+# ─────────────────────────────────────────────────────────────
+# EcoChatBot-MA — dependências Python
+# ─────────────────────────────────────────────────────────────
+
+# ── API Web ──────────────────────────────────────────────────
+fastapi==0.111.0            # Framework web principal
+uvicorn[standard]==0.29.0   # Servidor ASGI com suporte a WebSocket e reload
+python-multipart==0.0.9     # Upload de arquivos (multipart/form-data)
+
+# ── Banco de dados ───────────────────────────────────────────
+sqlalchemy==2.0.30          # ORM principal
+alembic==1.13.1             # Migrações de schema
+psycopg2-binary==2.9.9      # Driver PostgreSQL
+
+# ── Validação e configuração ─────────────────────────────────
+pydantic==2.7.1             # Validação de dados e DTOs
+pydantic[email]==2.7.1      # Validação de email via pydantic
+pydantic-settings==2.2.1    # Gerenciamento de settings via .env
+python-dotenv==1.0.1        # Carrega variáveis do arquivo .env
+
+# ── Autenticação e segurança ─────────────────────────────────
+python-jose[cryptography]==3.3.0  # JWT (geração e validação de tokens)
+passlib[bcrypt]==1.7.4            # Hash de senhas com bcrypt
+
+# ── Clientes HTTP ────────────────────────────────────────────
+httpx==0.27.0               # Cliente HTTP assíncrono (Evolution API, DeepSeek)
+
+# ── Logs estruturados ────────────────────────────────────────
+loguru==0.7.2               # Logs estruturados com nível, cor e rotação
+
+# ── Cache (opcional — habilitar se usar Redis) ───────────────
+# redis==5.0.4
+# hiredis==2.3.2

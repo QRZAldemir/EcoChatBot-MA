@@ -17,7 +17,7 @@
            [routerLink]="item.rota"
            routerLinkActive="active"
            class="ni">
-          <i class="fas" [class]="'fa ' + item.icone"></i>
+          <i [class]="'fas ' + item.icone"></i>
           <span *ngIf="menuAberto">{{ item.label }}</span>
         </a>
       </ng-container>
