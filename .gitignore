@@ -33,3 +33,4 @@ Thumbs.db
 
 # Evolution API
 evolution-api.env
+.aider*
