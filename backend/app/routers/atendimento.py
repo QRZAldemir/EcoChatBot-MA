@@ -1,21 +1,129 @@
+# ==============================================================================
+# Autor: Aldemir Queiroz
+# Data: 24/05/2024
+# ==============================================================================
+# Arquivo: atendimento.py (Pasta: app/routers)
+#
+# DESCRIÇÃO:
+# Este arquivo define as rotas (endpoints) da API responsáveis pelas operações 
+# de "Atendimento". Ele atua como a camada de apresentação (Router/Controller),
+# recebendo as requisições HTTP, validando os dados de entrada (via Pydantic),
+# delegando a lógica de negócios para a camada de Service (AtendimentoService)
+# e retornando as respostas padronizadas no formato ZigResponse.
+#
+# CONTRATO:
+# As rotas seguem o padrão de integração com o ZigChat (listar, transferir, 
+# encerrar e gerenciar contextos).
+# ==============================================================================
+
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from typing import Optional, Any
 from sqlalchemy.orm import Session
+from datetime import datetime
+
+# Importações internas do projeto
 from app.database import get_db
 from app.services.atendimento_service import AtendimentoService
 
+# Inicializa o roteador do FastAPI. 
+# Todas as rotas definidas aqui serão registradas sob um prefixo no arquivo main.py
 router = APIRouter()
 
 
+# ==============================================================================
+# SEÇÃO 1: MODELOS DE REQUISIÇÃO E RESPOSTA (PYDANTIC SCHEMAS)
+# ==============================================================================
+# Por que usar esta seção? Em vez de criar dicionários manualmente (o que gera 
+# código duplicado e propenso a erros), usamos Schemas do Pydantic. Eles garantem
+# a validação automática dos dados que entram (Request) e formatam os dados que 
+# saem da API (Response), além de gerarem a documentação automática (Swagger/Redoc).
+
+# Modelo padrão de resposta da API (Compatível com ZigChat)
 class ZigResponse(BaseModel):
-    codigo: int
+    codigo: int              # 0 = Sucesso, 1 = Erro
     erro: Optional[str] = None
     dados: dict = {}
 
+# Modelo de resposta para um Atendimento individual.
+# MELHORIA PRINCIPAL: Com "from_attributes = True", o Pydantic consegue ler os
+# dados diretamente do objeto do Banco de Dados (SQLAlchemy), eliminando a
+# necessidade de fazer aquele mapeamento manual campo a campo (dicionário).
+class AtendimentoResponse(BaseModel):
+    """
+    Schema de resposta para atendimentos.
+
+    ==================================================================
+    CORRIGIDO (2026-07-05): Resolução de conflito de tipos
+    ==================================================================
+    Anteriormente, 'canal' poderia ser:
+    - int (tipo: 1=WhatsApp, 2=Interno)
+    - object (relacionamento com tabela canais)
+
+    Solução: Separar em dois campos:
+    - tipo_canal: int (tipo do canal)
+    - canal_id: int (foreign key para canais)
+
+    O relacionamento ORM (atendimento.canal) continua acessível no
+    código Python, mas não é exposto no JSON da API.
+    ==================================================================
+    """
+    id: int
+    protocolo: str
+    telefone: Optional[str] = None
+    nome_contato: Optional[str] = None
+
+    # Tipo de canal: 1=WhatsApp, 2=Interno
+    # CORRIGIDO: Renomeado de 'canal' para evitar conflito com relacionamento ORM
+    tipo_canal: Optional[int] = None
+
+    # ID do canal relacionado (foreign key para tabela 'canais')
+    # Adicionado para acesso explícito ao canal via API
+    canal_id: Optional[int] = None
+
+    tipo: Optional[int] = None
+    ativo: Optional[bool] = None
+    status: Optional[str] = None
+    departamento_id: Optional[int] = None
+    usuario_id: Optional[int] = None
+    cliente_id: Optional[int] = None
+    conexao_id: Optional[int] = None
+    criado_em: Optional[datetime] = None
+    atualizado_em: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True # Permite ler diretamente dos modelos ORM
+
+# Modelos de Requisição (Request Bodies) para as rotas POST
+# Garantem que o cliente da API envie exatamente os campos necessários
+class TransferirAtendimentoRequest(BaseModel):
+    atendimento_id: int
+    departamento_id: Optional[int] = None
+    atendente_usuario_id: Optional[int] = None
+
+class EncerrarAtendimentoRequest(BaseModel):
+    atendimento_id: int
+    mensagem: Optional[str] = None
+
+class DeletarContextRequest(BaseModel):
+    atendimento_id: int
+    context_key: str
+
+class CriarAlteraContextRequest(BaseModel):
+    atendimento_id: int
+    context_key: str
+    value: Any  # Aceita string JSON ou objeto, será convertido para string depois
+
+
+# ==============================================================================
+# SEÇÃO 2: ROTAS DE LEITURA / CONSULTA (GET)
+# ==============================================================================
+# Rotas responsáveis por buscar dados no sistema sem alterar o estado do servidor.
 
 @router.get("/listar", response_model=ZigResponse)
 def listar_atendimentos(
+    # Definição dos parâmetros de Query (enviados via URL: ?id=1&canal=2)
+    # O FastAPI usa isso para validar os tipos e gerar a documentação interativa
     id: Optional[int] = Query(None, description="Código do atendimento"),
     canal: Optional[int] = Query(None, description="1=WhatsApp, 2=Interno"),
     ativo: Optional[str] = Query(None, description="S=Ativo, N=Inativo"),
@@ -27,9 +135,11 @@ def listar_atendimentos(
     cliente_id: Optional[int] = Query(None),
     protocolo: Optional[str] = Query(None),
     conexao_id: Optional[int] = Query(None),
-    limit: int = Query(10, le=50),
-    page: int = Query(1, ge=1),
-    order: str = Query("desc", pattern="^(asc|desc)$"),
+    # Parâmetros de paginação e ordenação com validações embutidas
+    limit: int = Query(10, le=50),  # le=50 limita o máximo a 50 por página
+    page: int = Query(1, ge=1),     # ge=1 garante que a página seja pelo menos 1
+    order: str = Query("desc", pattern="^(asc|desc)$"), # Regex: só aceita 'asc' ou 'desc'
+    # Injeção de dependência: O FastAPI gera e injeta uma sessão do BD automaticamente
     db: Session = Depends(get_db),
 ):
     """
@@ -37,43 +147,19 @@ def listar_atendimentos(
     Contrato compatível com ZigChat GET /atendimento/listar.
     """
     try:
+        # Delega a busca complexa para o Service. O Router não deve conter regras de negócio.
         resultado = AtendimentoService.listar(
-            db=db,
-            id=id,
-            canal=canal,
-            ativo=ativo,
-            data_criacao_inicio=data_criacao_inicio,
-            data_criacao_fim=data_criacao_fim,
-            tipo=tipo,
-            departamento_id=departamento_id,
-            atendente_usuario_id=atendente_usuario_id,
-            cliente_id=cliente_id,
-            protocolo=protocolo,
-            conexao_id=conexao_id,
-            limit=limit,
-            page=page,
-            order=order,
+            db=db, id=id, canal=canal, ativo=ativo, 
+            data_criacao_inicio=data_criacao_inicio, data_criacao_fim=data_criacao_fim, 
+            tipo=tipo, departamento_id=departamento_id, atendente_usuario_id=atendente_usuario_id, 
+            cliente_id=cliente_id, protocolo=protocolo, conexao_id=conexao_id, 
+            limit=limit, page=page, order=order,
         )
 
-        registros = [
-            {
-                "id": a.id,
-                "protocolo": a.protocolo,
-                "telefone": a.telefone,
-                "nome_contato": a.nome_contato,
-                "canal": a.canal,
-                "tipo": a.tipo,
-                "ativo": a.ativo,
-                "status": a.status,
-                "departamento_id": a.departamento_id,
-                "usuario_id": a.usuario_id,
-                "cliente_id": a.cliente_id,
-                "conexao_id": a.conexao_id,
-                "criado_em": a.criado_em.isoformat() if a.criado_em else None,
-                "atualizado_em": a.atualizado_em.isoformat() if a.atualizado_em else None,
-            }
-            for a in resultado["registros"]
-        ]
+        # MELHORIA APLICADA: Em vez do "for" gigante criando dicionários, usamos o Schema.
+        # O Pydantic converte automaticamente os objetos do banco para o formato de saída,
+        # incluindo a formatação correta de datas e tipos opcionais.
+        registros = [AtendimentoResponse.model_validate(a) for a in resultado["registros"]]
 
         return ZigResponse(
             codigo=0,
@@ -82,18 +168,42 @@ def listar_atendimentos(
                 "pagina": resultado["pagina"],
                 "limit": resultado["limit"],
                 "paginas": resultado["paginas"],
-                "registros": registros,
+                "registros": registros, # Retorna os dados já validados e formatados
             },
+        )
+    except Exception as e:
+        # Em caso de falha, retorna o erro padronizado
+        return ZigResponse(codigo=1, erro=str(e))
+
+
+@router.get("/context/{atendimentoID}/{context_key}", response_model=ZigResponse)
+def consultar_context(atendimentoID: int, context_key: str, db: Session = Depends(get_db)):
+    """
+    Consulta um contexto do atendimento pela context_key.
+    Contrato compatível com ZigChat GET /atendimento/context/{atendimentoID}/{context_key}.
+    """
+    try:
+        ctx = AtendimentoService.buscar_context(db, atendimentoID, context_key)
+        if not ctx:
+            return ZigResponse(codigo=1, erro="Contexto não encontrado.")
+        
+        return ZigResponse(
+            codigo=0, 
+            dados={
+                "id": ctx.id,
+                "atendimento_id": ctx.atendimento_id,
+                "context_key": ctx.context_key,
+                "value": ctx.value,
+            }
         )
     except Exception as e:
         return ZigResponse(codigo=1, erro=str(e))
 
 
-class TransferirAtendimentoRequest(BaseModel):
-    atendimento_id: int
-    departamento_id: Optional[int] = None
-    atendente_usuario_id: Optional[int] = None
-
+# ==============================================================================
+# SEÇÃO 3: ROTAS DE ESCRITA / AÇÃO (POST)
+# ==============================================================================
+# Rotas responsáveis por criar, alterar ou deletar recursos no sistema.
 
 @router.post("/transferir", response_model=ZigResponse)
 def transferir_atendimento(body: TransferirAtendimentoRequest, db: Session = Depends(get_db)):
@@ -102,15 +212,16 @@ def transferir_atendimento(body: TransferirAtendimentoRequest, db: Session = Dep
     Contrato compatível com ZigChat POST /atendimento/transferir.
     """
     try:
+        # Validação de regra de negócio específica desta rota
         if body.departamento_id is None and body.atendente_usuario_id is None:
             return ZigResponse(codigo=1, erro="Informe ao menos departamento_id ou atendente_usuario_id.")
 
+        # Delega a transferência para o Service
         atendimento = AtendimentoService.transferir(
-            db=db,
-            atendimento_id=body.atendimento_id,
-            departamento_id=body.departamento_id,
-            atendente_usuario_id=body.atendente_usuario_id,
+            db=db, atendimento_id=body.atendimento_id, 
+            departamento_id=body.departamento_id, atendente_usuario_id=body.atendente_usuario_id,
         )
+        
         if not atendimento:
             return ZigResponse(codigo=1, erro=f"Atendimento {body.atendimento_id} não encontrado.")
 
@@ -127,16 +238,12 @@ def transferir_atendimento(body: TransferirAtendimentoRequest, db: Session = Dep
         return ZigResponse(codigo=1, erro=str(e))
 
 
-class EncerrarAtendimentoRequest(BaseModel):
-    atendimento_id: int
-    mensagem: Optional[str] = None
-
-
 @router.post("/encerrar", response_model=ZigResponse)
 async def encerrar_atendimento(body: EncerrarAtendimentoRequest, db: Session = Depends(get_db)):
     """
     Encerra um atendimento, alterando seu status para 'finalizado'.
-    Se mensagem informada, envia via Evolution API antes de encerrar.
+    Se uma mensagem for informada, envia o texto via Evolution API (WhatsApp) antes de encerrar.
+    É uma função 'async' porque precisa aguardar (await) a resposta da API externa.
     Contrato compatível com ZigChat POST /atendimento/encerrar.
     """
     try:
@@ -144,10 +251,13 @@ async def encerrar_atendimento(body: EncerrarAtendimentoRequest, db: Session = D
         if not atendimento:
             return ZigResponse(codigo=1, erro=f"Atendimento {body.atendimento_id} não encontrado.")
 
+        # Verifica se precisa enviar mensagem antes de encerrar
+        # NOTA: atendimento.canal refere-se ao RELACIONAMENTO (objeto Canal), não à coluna tipo_canal
         if body.mensagem and atendimento.canal and atendimento.telefone:
+            # Importação tardia (dentro da função) para evitar dependência circular entre módulos
             from app.services import evolution_service
             await evolution_service.enviar_texto(
-                instance=atendimento.canal.nome,
+                instance=atendimento.canal.nome, # Acesso ao relacionamento Canal e sua propriedade nome
                 number=atendimento.telefone,
                 text=body.mensagem,
             )
@@ -164,34 +274,6 @@ async def encerrar_atendimento(body: EncerrarAtendimentoRequest, db: Session = D
         return ZigResponse(codigo=1, erro=str(e))
 
 
-@router.get("/context/{atendimentoID}/{context_key}", response_model=ZigResponse)
-def consultar_context(atendimentoID: int, context_key: str, db: Session = Depends(get_db)):
-    """
-    Consulta um contexto do atendimento pela context_key.
-    Contrato compatível com ZigChat GET /atendimento/context/{atendimentoID}/{context_key}.
-    """
-    try:
-        ctx = AtendimentoService.buscar_context(db, atendimentoID, context_key)
-        if not ctx:
-            return ZigResponse(codigo=1, erro="Contexto não encontrado.")
-        return ZigResponse(
-            codigo=0,
-            dados={
-                "id": ctx.id,
-                "atendimento_id": ctx.atendimento_id,
-                "context_key": ctx.context_key,
-                "value": ctx.value,
-            },
-        )
-    except Exception as e:
-        return ZigResponse(codigo=1, erro=str(e))
-
-
-class DeletarContextRequest(BaseModel):
-    atendimento_id: int
-    context_key: str
-
-
 @router.post("/deletarContext", response_model=ZigResponse)
 def deletar_context(body: DeletarContextRequest, db: Session = Depends(get_db)):
     """
@@ -200,38 +282,29 @@ def deletar_context(body: DeletarContextRequest, db: Session = Depends(get_db)):
     """
     try:
         removido = AtendimentoService.deletar_context(
-            db=db,
-            atendimento_id=body.atendimento_id,
-            context_key=body.context_key,
+            db=db, atendimento_id=body.atendimento_id, context_key=body.context_key,
         )
         if not removido:
             return ZigResponse(codigo=1, erro="Contexto não encontrado.")
+            
         return ZigResponse(codigo=0, dados={"removido": True})
     except Exception as e:
         return ZigResponse(codigo=1, erro=str(e))
 
 
-class CriarAlteraContextRequest(BaseModel):
-    atendimento_id: int
-    context_key: str
-    value: Any          # aceita string JSON ou objeto
-
-
 @router.post("/criarAlteraContext", response_model=ZigResponse)
 def criar_altera_context(body: CriarAlteraContextRequest, db: Session = Depends(get_db)):
     """
-    Adiciona ou atualiza um contexto no atendimento.
-    Se a context_key já existir, sobrescreve o value.
+    Adiciona ou atualiza um contexto no atendimento (operação de Upsert).
+    Se a context_key já existir para aquele atendimento, sobrescreve o value.
     Contrato compatível com ZigChat POST /atendimento/criarAlteraContext.
     """
     try:
+        # Garante que o valor seja sempre salvo como string no banco de dados
         value_str = body.value if isinstance(body.value, str) else str(body.value)
 
         ctx = AtendimentoService.criar_altera_context(
-            db=db,
-            atendimento_id=body.atendimento_id,
-            context_key=body.context_key,
-            value=value_str,
+            db=db, atendimento_id=body.atendimento_id, context_key=body.context_key, value=value_str,
         )
 
         if not ctx:
@@ -246,6 +319,5 @@ def criar_altera_context(body: CriarAlteraContextRequest, db: Session = Depends(
                 "value": ctx.value,
             },
         )
-
     except Exception as e:
         return ZigResponse(codigo=1, erro=str(e))

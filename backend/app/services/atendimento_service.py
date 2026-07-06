@@ -11,7 +11,7 @@ class AtendimentoService:
     def listar(
         db: Session,
         id: Optional[int] = None,
-        canal: Optional[int] = None,
+        canal: Optional[int] = None,  # Parâmetro: tipo de canal (1=WhatsApp, 2=Interno)
         ativo: Optional[str] = None,
         data_criacao_inicio: Optional[str] = None,
         data_criacao_fim: Optional[str] = None,
@@ -25,6 +25,21 @@ class AtendimentoService:
         page: int = 1,
         order: str = "desc",
     ) -> dict:
+        """
+        Lista atendimentos com filtros opcionais.
+
+        ==================================================================
+        CORRIGIDO (2026-07-05): Filtro de canal atualizado
+        ==================================================================
+        Anteriormente: query.filter(Atendimento.canal == canal)
+        Agora: query.filter(Atendimento.tipo_canal == canal)
+
+        Motivo: A coluna 'canal' foi renomeada para 'tipo_canal' para
+        evitar conflito com o relacionamento ORM que também se chamava
+        'canal'. O parâmetro 'canal' continua sendo 1 ou 2 (tipo), mas
+        agora filtra a coluna correta.
+        ==================================================================
+        """
         limit = min(limit, 50)
         offset = (page - 1) * limit
 
@@ -33,7 +48,8 @@ class AtendimentoService:
         if id:
             query = query.filter(Atendimento.id == id)
         if canal:
-            query = query.filter(Atendimento.canal == canal)
+            # CORRIGIDO: Filtro agora usa tipo_canal (coluna renomeada)
+            query = query.filter(Atendimento.tipo_canal == canal)
         if ativo is not None:
             query = query.filter(Atendimento.ativo == (ativo.upper() == "S"))
         if tipo:

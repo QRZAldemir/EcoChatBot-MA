@@ -11,17 +11,37 @@ class Atendimento(Base):
     telefone = Column(String(20), nullable=False)
     nome_contato = Column(String(100))
     cliente_id = Column(Integer, index=True)
-    canal = Column(Integer, default=1)           # 1=WhatsApp, 2=Interno
+
+    # ==================================================================
+    # CORRIGIDO (2026-07-05): Resolução de conflito de nome de atributo
+    # ==================================================================
+    # PROBLEMA: Havia dois atributos com o mesmo nome 'canal':
+    #   1. canal = Column(Integer) - tipo do canal (1=WhatsApp, 2=Interno)
+    #   2. canal = relationship("Canal") - objeto Canal relacionado
+    # O segundo sobrescrevia o primeiro, causando conflito de tipos no
+    # schema Pydantic. O schema esperava int, mas ORM retornava objeto.
+    #
+    # SOLUÇÃO: Renomear a coluna para 'tipo_canal', mantendo o
+    # relacionamento como 'canal'. Agora não há conflito.
+    #
+    # IMPACTO:
+    # - ORM: tipo_canal (int) + canal (relationship)
+    # - Pydantic: tipo_canal (int) + canal_id (int)
+    # - Service: filtros atualizados para Atendimento.tipo_canal
+    # ==================================================================
+    tipo_canal = Column(Integer, default=1)     # Tipo de canal: 1=WhatsApp, 2=Interno
     canal_id = Column(Integer, ForeignKey("canais.id"))
     conexao_id = Column(Integer, index=True)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"))
     departamento_id = Column(Integer, ForeignKey("departamentos.id"))
-    tipo = Column(Integer, default=1)            # 1=automático, 2=manual
+    tipo = Column(Integer, default=1)            # Tipo de atendimento: 1=automático, 2=manual
     ativo = Column(Boolean, default=True)
-    status = Column(String(30), default="aberto")  # aberto, em_atendimento, finalizado
+    status = Column(String(30), default="aberto")  # Status: aberto, em_atendimento, finalizado
     criado_em = Column(DateTime, default=datetime.utcnow)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Relacionamento com tabela 'canais' (via canal_id)
+    # Uso: atendimento.canal.nome retorna o nome do canal
     canal = relationship("Canal")
     usuario = relationship("Usuario", foreign_keys=[usuario_id])
     departamento = relationship("Departamento")
