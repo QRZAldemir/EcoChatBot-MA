@@ -75,7 +75,18 @@ class AtendimentoService:
         atendimento_id: int,
         departamento_id: Optional[int] = None,
         atendente_usuario_id: Optional[int] = None,
+        canal_id: Optional[int] = None,
     ) -> Optional[Atendimento]:
+        """
+        Transfere o atendimento para outro departamento/atendente/canal.
+
+        canal_id precisa ser passado explicitamente (e não apenas inferido de
+        departamento_id) porque um departamento pode ter mais de um canal —
+        quem chama decide qual canal real herda a conversa. Sem atualizar
+        canal_id, o atendimento continuaria preso ao canal antigo para o
+        resto do sistema (bot_service, notificações etc.), mesmo após trocar
+        de departamento.
+        """
         atendimento = db.query(Atendimento).filter(Atendimento.id == atendimento_id).first()
         if not atendimento:
             return None
@@ -83,6 +94,8 @@ class AtendimentoService:
             atendimento.departamento_id = departamento_id
         if atendente_usuario_id is not None:
             atendimento.usuario_id = atendente_usuario_id
+        if canal_id is not None:
+            atendimento.canal_id = canal_id
         atendimento.status = "em_atendimento"
         db.commit()
         db.refresh(atendimento)

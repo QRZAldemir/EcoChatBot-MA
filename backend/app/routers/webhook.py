@@ -16,6 +16,7 @@ O processamento da mensagem ocorre em background para não travar o webhook.
 
 import logging
 import os
+import time
 
 from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
 from app.database import SessionLocal
@@ -25,6 +26,40 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
+
+if not WEBHOOK_SECRET:
+    logger.warning(
+        "webhook | WEBHOOK_SECRET não configurado — o endpoint aceitará "
+        "eventos de qualquer origem sem validação de assinatura."
+    )
+
+# ── Deduplicação de entregas repetidas ────────────────────────
+# A Evolution API (como a maioria dos provedores de webhook) pode reentregar
+# o mesmo evento (ex: timeout na resposta, retry de rede). Sem isso, uma
+# mesma mensagem do paciente seria processada duas vezes pela máquina de
+# estados, duplicando respostas e podendo até avançar o step indevidamente.
+# Cache em memória é suficiente aqui: o cenário real é a redelivery quase
+# imediata, não uma reentrega dias depois.
+DEDUP_TTL_SEGUNDOS = 120
+_mensagens_recentes: dict[str, float] = {}
+
+
+def _ja_processada(msg_id: str) -> bool:
+    """Retorna True se este message_id já foi processado dentro do TTL (e marca como visto)."""
+    if not msg_id:
+        return False
+
+    agora = time.time()
+    limite = agora - DEDUP_TTL_SEGUNDOS
+    for antigo_id, visto_em in list(_mensagens_recentes.items()):
+        if visto_em < limite:
+            del _mensagens_recentes[antigo_id]
+
+    if msg_id in _mensagens_recentes:
+        return True
+
+    _mensagens_recentes[msg_id] = agora
+    return False
 
 
 # ══════════════════════════════════════════════════════════════
@@ -89,6 +124,11 @@ async def _processar_mensagem(instance: str, payload: dict) -> None:
 
     remote_jid = key.get("remoteJid", "")
     if not remote_jid:
+        return
+
+    msg_id = key.get("id", "")
+    if _ja_processada(msg_id):
+        logger.debug("webhook | instancia=%s | msg=%s | reentrega duplicada ignorada", instance, msg_id)
         return
 
     push_name = data.get("pushName") or data.get("pushname") or None

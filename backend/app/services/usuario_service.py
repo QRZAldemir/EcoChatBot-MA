@@ -41,6 +41,10 @@ class UsuarioService:
         return db.query(Usuario).filter(Usuario.id == usuario_id).first()
 
     @staticmethod
+    def buscar_por_email(db: Session, email: str) -> Optional[Usuario]:
+        return db.query(Usuario).filter(Usuario.email == email).first()
+
+    @staticmethod
     def criar_usuario(db: Session, usuario: UsuarioCreate) -> Usuario:
         db_usuario = Usuario(
             nome=usuario.nome,

@@ -40,14 +40,16 @@ load_dotenv()
 # Cada módulo importado representa um domínio de negócio ou funcionalidade 
 # específica da API. O uso de parênteses permite quebrar a linha (PEP 8).
 from app.routers import (
-    usuarios, 
-    departamentos, 
-    canais, 
-    ia, 
-    mensagem, 
-    menus, 
-    atendimento, 
-    webhook
+    auth,
+    usuarios,
+    departamentos,
+    canais,
+    ia,
+    mensagem,
+    menus,
+    atendimento,
+    webhook,
+    audio
 )
 
 # ==============================================================================
@@ -90,6 +92,7 @@ app.add_middleware(
 # uma lista de tuplas. Se amanhã você precisar adicionar 10 novos módulos, 
 # basta inserir novas linhas nesta lista, mantendo o código limpo e escalável.
 ROUTERS_CONFIG: List[tuple] = [
+    (auth, "/api/auth", "Autenticação"),
     (usuarios, "/api/usuarios", "Usuários"),
     (departamentos, "/api/departamentos", "Departamentos"),
     (canais, "/api/canais", "Canais"),
@@ -97,7 +100,8 @@ ROUTERS_CONFIG: List[tuple] = [
     (mensagem, "/api/mensagem", "Mensagens"),
     (menus, "/api/menus", "Menus"),
     (atendimento, "/api/atendimento", "Atendimento"),
-    (webhook, "/api/webhook", "Webhook")
+    (webhook, "/api/webhook", "Webhook"),
+    (audio, "/api/audio", "Áudio")
 ]
 
 for router_module, prefix, tag in ROUTERS_CONFIG:

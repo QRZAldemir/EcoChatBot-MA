@@ -1,11 +1,19 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'admin/dashboard', pathMatch: 'full' },
 
+  {
+    path: 'login',
+    loadComponent: () => import('./pages/login/login.component').then(m => m.LoginComponent),
+    title: 'Login — EcoChat Mackenzie'
+  },
+
   // ── Admin (com sidebar) ────────────────────────────────────────
   {
     path: 'admin',
+    canActivate: [authGuard],
     loadComponent: () => import('./shared/components/layout/layout.component').then(m => m.LayoutComponent),
     children: [
       {

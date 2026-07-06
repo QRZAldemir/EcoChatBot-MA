@@ -29,6 +29,9 @@ httpx==0.27.0               # Cliente HTTP assíncrono (Evolution API, DeepSeek)
 # ── Logs estruturados ────────────────────────────────────────
 loguru==0.7.2               # Logs estruturados com nível, cor e rotação
 
+# ── Acessibilidade (texto → fala) ─────────────────────────────
+gTTS==2.5.1                  # Síntese de voz (Google Text-to-Speech)
+
 # ── Cache (opcional — habilitar se usar Redis) ───────────────
 # redis==5.0.4
 # hiredis==2.3.2

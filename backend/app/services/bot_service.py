@@ -12,20 +12,44 @@ Fluxo de alto nível:
     └─► OV:*  — Ouvidoria
   EM_ATENDIMENTO — bot silencioso, humano atendendo
   FINALIZADO     — reinicia no próximo contato
+
+Acessibilidade por voz:
+  O paciente pode alternar livremente entre modo texto e modo áudio a
+  qualquer momento, respondendo *ÁUDIO* ou *TEXTO* (ver _pedido_ativar_audio
+  / _pedido_desativar_audio). Com o modo áudio ligado, toda mensagem que o
+  bot envia (menus via _lista e textos via _txt) também é convertida em
+  áudio e enviada como nota de voz, sem precisar tocar nas dezenas de
+  funções de menu individuais — a conversão acontece nesses dois pontos
+  únicos de saída de mensagem.
 """
 
+import contextvars
 import logging
+import os
+import re
+import unicodedata
 import uuid
 from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import Atendimento, AtendimentoContext, Canal, Menu
-from app.services import evolution_service
+from app.models import Atendimento, AtendimentoContext, Canal, Menu, Usuario
+from app.services import audio_service, evolution_service
 
 logger = logging.getLogger(__name__)
 
 RODAPE = "Hospital Presbiteriano Mackenzie — Dourados/MS"
+
+# URL pública pela qual o Evolution API busca os áudios gerados (ver
+# app/routers/audio.py). Precisa ser alcançável pela instância da Evolution,
+# não apenas pelo backend — configure o domínio real em produção.
+BACKEND_PUBLIC_URL = os.getenv("BACKEND_PUBLIC_URL", "http://localhost:8000").rstrip("/")
+
+# Contexto ambiente (por requisição/atendimento) usado pelos helpers de
+# envio (_txt/_lista) para persistir o modo de áudio e o último texto falado
+# sem precisar alterar a assinatura das ~130 chamadas existentes a eles.
+_ctx_db: contextvars.ContextVar[Session] = contextvars.ContextVar("_ctx_db")
+_ctx_at: contextvars.ContextVar[Atendimento] = contextvars.ContextVar("_ctx_at")
 
 # ══════════════════════════════════════════════════════════════
 # CONSTANTES DE STEP
@@ -203,6 +227,137 @@ def _buscar_ou_criar(
 
 
 # ══════════════════════════════════════════════════════════════
+# ACESSIBILIDADE POR VOZ (MODO ÁUDIO)
+# ══════════════════════════════════════════════════════════════
+# O paciente liga/desliga o modo áudio a qualquer momento digitando ÁUDIO
+# ou TEXTO. O estado fica salvo em AtendimentoContext (chave "modo_audio"),
+# então persiste entre mensagens. Enquanto ligado, _txt e _lista — os dois
+# únicos pontos por onde o bot inteiro envia mensagem — também mandam uma
+# nota de voz com o mesmo conteúdo, então todo menu e todo memorando de
+# texto do bot passam a ficar disponíveis em áudio automaticamente, sem
+# precisar alterar as dezenas de funções de menu individuais.
+
+# Frases (já normalizadas: minúsculas e sem acento) que ligam/desligam o modo áudio.
+_FRASES_ATIVAR_AUDIO = {"audio", "ouvir", "escutar", "voz", "ouvir audio", "modo audio", "quero ouvir"}
+_FRASES_DESATIVAR_AUDIO = {"texto", "escrita", "modo texto", "parar audio", "sem audio", "desativar audio"}
+
+# Remove emojis (incluindo emojis-número como "1️⃣") e marcações do WhatsApp
+# (*negrito*, _itálico_, ~tachado~) para que o texto fique limpo antes de
+# virar fala — gTTS lê mal esses símbolos.
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001F300-\U0001FAFF"
+    "\U00002600-\U000027BF"
+    "\U0001F1E6-\U0001F1FF"
+    "\U00002B00-\U00002BFF"
+    "\U0000FE0F"
+    "\U000020E3"
+    "]+",
+    flags=re.UNICODE,
+)
+_MARKDOWN_RE = re.compile(r"[*_~`]")
+
+
+def _normalizar(texto: str) -> str:
+    """minúsculas, sem acento, sem espaços nas pontas — para comparar palavras-chave com tolerância."""
+    texto = texto.strip().lower()
+    return "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn")
+
+
+def _pedido_ativar_audio(content: str) -> bool:
+    return _normalizar(content) in _FRASES_ATIVAR_AUDIO
+
+
+def _pedido_desativar_audio(content: str) -> bool:
+    return _normalizar(content) in _FRASES_DESATIVAR_AUDIO
+
+
+def _limpar_para_fala(texto: str) -> str:
+    texto = _EMOJI_RE.sub("", texto)
+    texto = _MARKDOWN_RE.sub("", texto)
+    return re.sub(r"\s+", " ", texto).strip()
+
+
+def _texto_falado_menu(title: str, desc: str, rows: list[dict]) -> str:
+    """Monta o roteiro falado de um menu: título, descrição e cada opção numerada."""
+    partes = [_limpar_para_fala(title)]
+    if desc:
+        partes.append(_limpar_para_fala(desc))
+    for i, row in enumerate(rows, start=1):
+        linha = _limpar_para_fala(row["title"])
+        descricao = row.get("description")
+        if descricao:
+            linha += f", {_limpar_para_fala(descricao)}"
+        partes.append(f"Opção {i}: {linha}.")
+    return " ".join(partes)
+
+
+def _modo_audio_ativo() -> bool:
+    db = _ctx_db.get(None)
+    at = _ctx_at.get(None)
+    if db is None or at is None:
+        return False
+    return _get(db, at.id, "modo_audio") == "1"
+
+
+def _guardar_texto_falado(texto: str) -> None:
+    """Guarda a última mensagem enviada (já limpa) para poder relê-la em áudio sob demanda."""
+    db = _ctx_db.get(None)
+    at = _ctx_at.get(None)
+    if db is None or at is None:
+        return
+    _set(db, at.id, "ultimo_texto_falado", _limpar_para_fala(texto))
+
+
+async def _enviar_audio(inst: str, tel: str, texto: str) -> None:
+    """Converte texto em MP3 (audio_service) e envia como nota de voz via Evolution API."""
+    texto = _limpar_para_fala(texto)
+    if not texto:
+        return
+    try:
+        resultado = await audio_service.gerar_audio(texto)
+    except (audio_service.TextoVazioError, audio_service.TextoMuitoLongoError):
+        return
+    except Exception:
+        logger.exception("bot_service | falha ao gerar áudio | tel=%s", tel)
+        return
+
+    media_url = f"{BACKEND_PUBLIC_URL}/api/audio/audios/{resultado['arquivo']}"
+    try:
+        await evolution_service.enviar_midia(
+            instance=inst, number=tel, media_url=media_url, mediatype="audio",
+        )
+    except Exception:
+        logger.exception("bot_service | falha ao enviar nota de voz | tel=%s", tel)
+
+
+async def _ativar_modo_audio(db: Session, at: Atendimento, inst: str, tel: str) -> None:
+    _set(db, at.id, "modo_audio", "1")
+    await evolution_service.enviar_texto(
+        instance=inst, number=tel,
+        text=(
+            "🔊 *Modo áudio ativado!* A partir de agora também vou te enviar "
+            "as mensagens faladas.\n\nPara voltar ao modo texto, responda "
+            "*TEXTO* a qualquer momento."
+        ),
+    )
+    ultimo = _get(db, at.id, "ultimo_texto_falado")
+    if ultimo:
+        await _enviar_audio(inst, tel, ultimo)
+
+
+async def _desativar_modo_audio(db: Session, at: Atendimento, inst: str, tel: str) -> None:
+    _set(db, at.id, "modo_audio", "0")
+    await evolution_service.enviar_texto(
+        instance=inst, number=tel,
+        text=(
+            "⌨️ *Modo texto ativado.* Para voltar a ouvir as mensagens em "
+            "áudio, responda *ÁUDIO* a qualquer momento."
+        ),
+    )
+
+
+# ══════════════════════════════════════════════════════════════
 # HELPERS COMPARTILHADOS
 # ══════════════════════════════════════════════════════════════
 
@@ -218,16 +373,61 @@ async def _lista(
         sections=[{"title": title, "rows": rows}],
         footer=footer,
     )
+    texto_falado = _texto_falado_menu(title, desc, rows)
+    _guardar_texto_falado(texto_falado)
+    if _modo_audio_ativo():
+        await _enviar_audio(inst, tel, texto_falado)
 
 
 async def _txt(inst: str, tel: str, msg: str) -> None:
     await evolution_service.enviar_texto(instance=inst, number=tel, text=msg)
+    _guardar_texto_falado(msg)
+    if _modo_audio_ativo():
+        await _enviar_audio(inst, tel, msg)
+
+
+MSG_FILA_OCUPADA = (
+    "Pedimos desculpa, mas todos os nossos agentes estão ocupados neste "
+    "momento. Por favor, aguarde alguns minutos e estaremos com você em breve."
+)
+
+
+def _atendentes_disponiveis(db: Session, canal_id: int) -> int:
+    """
+    Capacidade livre de atendentes de um canal (MVP: 1 atendimento
+    simultâneo por atendente). Um atendente conta como ocupado quando já
+    tem algum Atendimento em_atendimento atribuído a ele (usuario_id).
+    Atendimentos em_atendimento ainda sem atendente atribuído (na fila,
+    aguardando alguém puxar) não contam como ocupando ninguém.
+    """
+    total_atendentes = (
+        db.query(Usuario)
+        .filter(Usuario.canal_id == canal_id, Usuario.ativo == True)
+        .count()
+    )
+    ocupados = (
+        db.query(Atendimento)
+        .filter(
+            Atendimento.canal_id == canal_id,
+            Atendimento.status == "em_atendimento",
+            Atendimento.usuario_id.isnot(None),
+        )
+        .count()
+    )
+    return total_atendentes - ocupados
 
 
 async def _transferir(
     db: Session, at: Atendimento, inst: str, tel: str,
     msg: str = "🗣️ Transferindo para um atendente. Aguarde! 😊"
 ) -> None:
+    # Se não há atendente livre no canal do atendimento, avisa que está na
+    # fila em vez da mensagem de "transferindo" (que sugeriria atendimento
+    # imediato). Sem canal_id definido (departamentos "em breve", sem Canal
+    # cadastrado) não dá para checar capacidade, então mantém o texto padrão.
+    if at.canal_id is not None and _atendentes_disponiveis(db, at.canal_id) <= 0:
+        msg = MSG_FILA_OCUPADA
+
     await _txt(inst, tel, msg)
     at.status = "em_atendimento"
     db.commit()
@@ -261,8 +461,22 @@ async def processar_mensagem_recebida(
     at, _ = _buscar_ou_criar(db, telefone, instance_nome, push_name)
     step = _get(db, at.id, "step") or BOOT
 
+    # Disponibiliza db/at para _txt e _lista (ver seção "ACESSIBILIDADE POR
+    # VOZ") sem precisar alterar a assinatura das dezenas de chamadas a eles.
+    _ctx_db.set(db)
+    _ctx_at.set(at)
+
     logger.info("step=%s tel=%s type=%s content=%r prot=%s",
                 step, telefone, msg_type, content, at.protocolo)
+
+    # Alternância de modo texto/áudio: funciona em qualquer step (exceto com
+    # o bot silenciado durante atendimento humano) e não avança a máquina de
+    # estados — o paciente continua exatamente de onde parou depois de trocar.
+    if step != EM_ATENDIMENTO and msg_type != "list_response":
+        if _pedido_ativar_audio(content):
+            return await _ativar_modo_audio(db, at, instance_nome, telefone)
+        if _pedido_desativar_audio(content):
+            return await _desativar_modo_audio(db, at, instance_nome, telefone)
 
     try:
         # Hub e fluxo inicial
@@ -328,7 +542,9 @@ async def _boot(db: Session, at: Atendimento, inst: str, tel: str) -> None:
         "*Hospital Presbiteriano Mackenzie*\n"
         "_Dr. e Sra. Goldsby King — Dourados/MS_\n\n"
         "Sou seu assistente virtual e estou aqui para iniciar "
-        "seu atendimento com agilidade. 🤝"
+        "seu atendimento com agilidade. 🤝\n\n"
+        "💡 Se preferir ouvir em vez de ler, responda *ÁUDIO* a qualquer "
+        "momento (e *TEXTO* para voltar)."
     )
     await _lista(inst, tel,
         "🔒 Política de Privacidade (LGPD)",

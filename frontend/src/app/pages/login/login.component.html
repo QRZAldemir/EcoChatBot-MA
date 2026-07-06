@@ -1,0 +1,49 @@
+<div class="login-shell">
+
+  <!-- LADO ESQUERDO — MARCA + FORMULÁRIO -->
+  <div class="login-left">
+    <div class="brand">
+      <div class="brand-logo">M</div>
+      <div class="brand-txt">
+        <strong>EcoChat</strong><small>Mackenzie</small>
+      </div>
+    </div>
+
+    <div class="login-card">
+      <h1>Faça login para acessar sua conta</h1>
+
+      <form (ngSubmit)="entrar()" #f="ngForm" novalidate>
+        <label for="email">E-mail</label>
+        <input
+          id="email" name="email" type="email"
+          [(ngModel)]="email" required
+          autocomplete="username" placeholder="seu.nome@mackenzie.com" />
+
+        <label for="senha">Senha</label>
+        <input
+          id="senha" name="senha" type="password"
+          [(ngModel)]="senha" required
+          autocomplete="current-password" placeholder="••••••••" />
+
+        <div class="erro" *ngIf="erro">
+          <i class="fas fa-triangle-exclamation"></i> {{ erro }}
+        </div>
+
+        <button type="submit" [disabled]="carregando">
+          <i class="fas" [class.fa-arrow-right-to-bracket]="!carregando" [class.fa-spinner]="carregando" [class.fa-spin]="carregando"></i>
+          {{ carregando ? 'Entrando...' : 'Entrar' }}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- LADO DIREITO — ILUSTRAÇÃO -->
+  <div class="login-right">
+    <div class="illustration">
+      <i class="fas fa-hospital"></i>
+    </div>
+    <h2>Hospital Presbiteriano Mackenzie</h2>
+    <p>Atendimento inteligente e humanizado, em um só lugar.</p>
+  </div>
+
+</div>

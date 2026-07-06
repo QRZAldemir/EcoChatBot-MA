@@ -1,11 +1,15 @@
+import logging
+
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from typing import Optional, Any
 from sqlalchemy.orm import Session
 from app.database import get_db
+from app.models import Canal, Departamento
 from app.services.atendimento_service import AtendimentoService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class ZigResponse(BaseModel):
@@ -93,26 +97,92 @@ class TransferirAtendimentoRequest(BaseModel):
     atendimento_id: int
     departamento_id: Optional[int] = None
     atendente_usuario_id: Optional[int] = None
+    canal_id: Optional[int] = None
+    mensagem: Optional[str] = None   # texto customizado avisando o paciente; se omitido, usa um padrão
+
+
+def _buscar_instancia(db: Session, atendimento_id: int) -> Optional[str]:
+    """
+    Resolve o nome real da instância Evolution de um atendimento.
+
+    NUNCA use Canal.nome como instância — Canal.nome é o nome do
+    departamento/menu (ex: "Ouvidoria"), não o identificador da instância
+    WhatsApp configurada na Evolution API. A instância verdadeira é
+    guardada em AtendimentoContext (chave "instancia") por
+    bot_service._buscar_ou_criar quando o atendimento é criado a partir do
+    webhook.
+    """
+    ctx = AtendimentoService.buscar_context(db, atendimento_id, "instancia")
+    return ctx.value if ctx and ctx.value else None
+
+
+async def _avisar_paciente_transferencia(db: Session, atendimento, mensagem: Optional[str]) -> None:
+    """
+    Avisa o paciente por WhatsApp que seu atendimento mudou de setor/atendente.
+    Nunca deixa uma falha de envio derrubar a transferência em si — só loga.
+    """
+    if not atendimento.telefone:
+        return
+
+    instancia = _buscar_instancia(db, atendimento.id)
+    if not instancia:
+        logger.warning(
+            "atendimento | transferir | sem 'instancia' registrada para atendimento=%s; aviso não enviado",
+            atendimento.id,
+        )
+        return
+
+    texto = mensagem
+    if not texto:
+        setor = None
+        if atendimento.canal_id:
+            canal = db.query(Canal).filter(Canal.id == atendimento.canal_id).first()
+            setor = canal.nome if canal else None
+        if not setor and atendimento.departamento_id:
+            depto = db.query(Departamento).filter(Departamento.id == atendimento.departamento_id).first()
+            setor = depto.nome if depto else None
+
+        texto = (
+            f"🔄 Você foi transferido(a) para o setor de *{setor}*. "
+            "Em instantes, um de nossos atendentes continuará seu atendimento por aqui."
+            if setor else
+            "🔄 Você foi transferido(a) para outro atendente. Em instantes, continuaremos seu atendimento."
+        )
+
+    try:
+        from app.services import evolution_service
+        await evolution_service.enviar_texto(
+            instance=instancia, number=atendimento.telefone, text=texto,
+        )
+    except Exception:
+        logger.exception("atendimento | transferir | falha ao avisar paciente | atendimento=%s", atendimento.id)
 
 
 @router.post("/transferir", response_model=ZigResponse)
-def transferir_atendimento(body: TransferirAtendimentoRequest, db: Session = Depends(get_db)):
+async def transferir_atendimento(body: TransferirAtendimentoRequest, db: Session = Depends(get_db)):
     """
-    Transfere o atendimento para um departamento e/ou atendente.
+    Transfere o atendimento para um departamento, atendente e/ou canal, e
+    avisa o paciente por WhatsApp sobre a mudança.
     Contrato compatível com ZigChat POST /atendimento/transferir.
     """
     try:
-        if body.departamento_id is None and body.atendente_usuario_id is None:
-            return ZigResponse(codigo=1, erro="Informe ao menos departamento_id ou atendente_usuario_id.")
+        if body.departamento_id is None and body.atendente_usuario_id is None and body.canal_id is None:
+            return ZigResponse(
+                codigo=1,
+                erro="Informe ao menos departamento_id, atendente_usuario_id ou canal_id.",
+            )
 
         atendimento = AtendimentoService.transferir(
             db=db,
             atendimento_id=body.atendimento_id,
             departamento_id=body.departamento_id,
             atendente_usuario_id=body.atendente_usuario_id,
+            canal_id=body.canal_id,
         )
         if not atendimento:
             return ZigResponse(codigo=1, erro=f"Atendimento {body.atendimento_id} não encontrado.")
+
+        await _avisar_paciente_transferencia(db, atendimento, body.mensagem)
 
         return ZigResponse(
             codigo=0,
@@ -121,6 +191,7 @@ def transferir_atendimento(body: TransferirAtendimentoRequest, db: Session = Dep
                 "status": atendimento.status,
                 "departamento_id": atendimento.departamento_id,
                 "usuario_id": atendimento.usuario_id,
+                "canal_id": atendimento.canal_id,
             },
         )
     except Exception as e:
@@ -144,13 +215,26 @@ async def encerrar_atendimento(body: EncerrarAtendimentoRequest, db: Session = D
         if not atendimento:
             return ZigResponse(codigo=1, erro=f"Atendimento {body.atendimento_id} não encontrado.")
 
-        if body.mensagem and atendimento.canal and atendimento.telefone:
-            from app.services import evolution_service
-            await evolution_service.enviar_texto(
-                instance=atendimento.canal.nome,
-                number=atendimento.telefone,
-                text=body.mensagem,
-            )
+        if body.mensagem and atendimento.telefone:
+            instancia = _buscar_instancia(db, atendimento.id)
+            if instancia:
+                try:
+                    from app.services import evolution_service
+                    await evolution_service.enviar_texto(
+                        instance=instancia,
+                        number=atendimento.telefone,
+                        text=body.mensagem,
+                    )
+                except Exception:
+                    logger.exception(
+                        "atendimento | encerrar | falha ao enviar mensagem final | atendimento=%s",
+                        atendimento.id,
+                    )
+            else:
+                logger.warning(
+                    "atendimento | encerrar | sem 'instancia' registrada para atendimento=%s; mensagem não enviada",
+                    atendimento.id,
+                )
 
         encerrado = AtendimentoService.encerrar(db, body.atendimento_id)
         return ZigResponse(

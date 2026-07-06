@@ -1,0 +1,131 @@
+/* Reaproveita as variáveis globais (--red, --font, --r, --sh...) de admin.css */
+
+:host {
+  display: block;
+  font-family: var(--font);
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+}
+
+/* ━━━ LADO ESQUERDO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.login-left {
+  flex: 1 1 480px;
+  max-width: 560px;
+  background: linear-gradient(160deg, var(--red) 0%, var(--red-dark) 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 48px 56px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+.brand-logo {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: rgba(255,255,255,0.15);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 18px;
+}
+.brand-txt { display: flex; flex-direction: column; line-height: 1.1; }
+.brand-txt strong { font-size: 18px; }
+.brand-txt small { opacity: .8; font-size: 12px; }
+
+.login-card {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: var(--r);
+  padding: 28px;
+  max-width: 380px;
+}
+.login-card h1 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 22px;
+}
+
+.login-card label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  opacity: .9;
+}
+.login-card input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: none;
+  font-family: var(--font);
+  font-size: 13px;
+  margin-bottom: 16px;
+  background: #fff;
+  color: var(--text);
+}
+.login-card input:focus {
+  outline: 2px solid rgba(255,255,255,0.6);
+}
+
+.erro {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,0,0,0.18);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.login-card button {
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--red-dark);
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: .14s;
+}
+.login-card button:hover:not(:disabled) { background: #f4f0ed; }
+.login-card button:disabled { opacity: .7; cursor: default; }
+
+/* ━━━ LADO DIREITO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.login-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px;
+  background: var(--bg);
+}
+.illustration {
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  background: var(--red-pale);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 24px;
+}
+.illustration i { font-size: 46px; color: var(--red); }
+.login-right h2 { font-size: 18px; color: var(--text); margin-bottom: 8px; }
+.login-right p { font-size: 13px; color: var(--muted); max-width: 320px; }
+
+/* ━━━ RESPONSIVO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@media (max-width: 860px) {
+  .login-shell { flex-direction: column; }
+  .login-left { max-width: none; padding: 32px 24px; }
+  .login-right { display: none; }
+}

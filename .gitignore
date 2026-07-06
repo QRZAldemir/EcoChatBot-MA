@@ -31,6 +31,9 @@ Thumbs.db
 # Docker
 .docker/
 
+# Áudios gerados (texto → fala)
+audios_gerados/
+
 # Evolution API
 evolution-api.env
 .aider*

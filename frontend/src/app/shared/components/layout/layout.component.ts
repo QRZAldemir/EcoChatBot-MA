@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-layout',
@@ -11,6 +12,14 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 })
 export class LayoutComponent {
   menuAberto = true;
+  usuario = this.auth.getUsuarioAtual();
+
+  constructor(private auth: AuthService, private router: Router) {}
+
+  sair(): void {
+    this.auth.logout();
+    this.router.navigate(['/login']);
+  }
 
   navItens = [
     { secao: 'Visão Geral', itens: [

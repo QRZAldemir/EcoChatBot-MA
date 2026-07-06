@@ -118,4 +118,16 @@
 .tb-title span { color: var(--red); }
 .tb-title small { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 4px; }
 
+.tb-user { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.tb-user-nome { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.tb-sair {
+  width: 32px; height: 32px;
+  border: 1.5px solid var(--border); border-radius: 7px;
+  background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 13px;
+  transition: .14s;
+}
+.tb-sair:hover { border-color: var(--red); color: var(--red); }
+
 .content { padding: 20px; flex: 1; }
