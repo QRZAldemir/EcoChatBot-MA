@@ -36,7 +36,7 @@ class Atendimento(Base):
     departamento_id = Column(Integer, ForeignKey("departamentos.id"))
     tipo = Column(Integer, default=1)            # Tipo de atendimento: 1=automático, 2=manual
     ativo = Column(Boolean, default=True)
-    status = Column(String(30), default="aberto")  # Status: aberto, em_atendimento, finalizado
+    status = Column(String(30), default="aberto")  # Status: aberto, fila, em_atendimento, finalizado
     criado_em = Column(DateTime, default=datetime.utcnow)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -126,6 +126,21 @@ class Menu(Base):
 
     opcoes = relationship("MenuOpcao", back_populates="menu", order_by="MenuOpcao.ordem")
     canal = relationship("Canal", back_populates="menus")
+
+
+class ModeloMensagem(Base):
+    __tablename__ = "modelos_mensagem"
+
+    id = Column(Integer, primary_key=True, index=True)
+    descricao = Column(String(100), nullable=False)  # nome para identificar a mensagem
+    corpo = Column(Text, nullable=False)              # texto principal (memorando)
+    arquivo = Column(String(300))                     # URL pública de anexo, opcional
+    departamento_id = Column(Integer, ForeignKey("departamentos.id"))
+    ativo = Column(Boolean, default=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    departamento = relationship("Departamento")
 
 
 class Usuario(Base):

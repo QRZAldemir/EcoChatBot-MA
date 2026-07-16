@@ -63,6 +63,12 @@ AGUARDAR_HUB   = "AGUARDAR_HUB"
 EM_ATENDIMENTO = "EM_ATENDIMENTO"
 FINALIZADO     = "FINALIZADO"
 
+# Departamento novo, sem fluxo Python próprio: a 1ª tela vem do cadastro
+# (Menu vinculado ao Canal); qualquer opção clicada aqui só encaminha para
+# atendimento humano — não há passos seguintes hardcoded (ver módulo de
+# Cadastro de Mensagens).
+DEPTO_DINAMICO = "DEPTO_DINAMICO"
+
 # Atendimento ao Cliente
 AT_MENU        = "AT:MENU"
 AT_GUIA_PAC    = "AT:GUIA_PAC"
@@ -397,8 +403,8 @@ def _atendentes_disponiveis(db: Session, canal_id: int) -> int:
     Capacidade livre de atendentes de um canal (MVP: 1 atendimento
     simultâneo por atendente). Um atendente conta como ocupado quando já
     tem algum Atendimento em_atendimento atribuído a ele (usuario_id).
-    Atendimentos em_atendimento ainda sem atendente atribuído (na fila,
-    aguardando alguém puxar) não contam como ocupando ninguém.
+    Atendimentos na fila (status "fila", entregues mas ainda sem
+    usuario_id) não contam como ocupando ninguém.
     """
     total_atendentes = (
         db.query(Usuario)
@@ -429,7 +435,13 @@ async def _transferir(
         msg = MSG_FILA_OCUPADA
 
     await _txt(inst, tel, msg)
-    at.status = "em_atendimento"
+    # "fila": o bot entregou o atendimento a um departamento/canal, mas
+    # ainda não há atendente (usuario_id) que o tenha puxado. Só vira
+    # "em_atendimento" quando um humano de fato assume (ver
+    # AtendimentoService.transferir). Sem essa distinção, um relatório não
+    # consegue separar "entregue e aguardando" de "sendo atendido" — o
+    # mesmo ponto cego que o relatório da ZigChat tem hoje.
+    at.status = "fila"
     db.commit()
     _step(db, at, EM_ATENDIMENTO)
 
@@ -492,6 +504,8 @@ async def processar_mensagem_recebida(
             pass  # humano atendendo
         elif step == "EM_BREVE_MENU":
             await _em_breve_menu(db, at, instance_nome, telefone, msg_type, content)
+        elif step == DEPTO_DINAMICO:
+            await _departamento_dinamico(db, at, instance_nome, telefone, msg_type, content)
         # Departamentos
         elif step.startswith("AT:"):
             await _atendimento(db, at, instance_nome, telefone, step, msg_type, content)
@@ -603,6 +617,17 @@ async def _hub(db, at, inst, tel, msg_type, content):
     row = content.strip().upper()
     mapa = HUB_MAPA.get(row)
     if not mapa:
+        # Departamento cadastrado dinamicamente (fora dos 8 fixos de
+        # HUB_MAPA): a opção do hub aponta para um Canal por id, convenção
+        # "CANAL_<id>" usada pela tela de Cadastro de Mensagens ao criar
+        # opções do menu principal.
+        if row.startswith("CANAL_") and row[len("CANAL_"):].isdigit():
+            canal = db.query(Canal).filter(
+                Canal.id == int(row[len("CANAL_"):]), Canal.ativo == True
+            ).first()
+            if canal:
+                return await _entrar_departamento_dinamico(db, at, inst, tel, canal)
+
         await _txt(inst, tel, "Opção não reconhecida. Utilize o menu abaixo:")
         await _enviar_hub(db, inst, tel)
         return
@@ -628,10 +653,54 @@ async def _hub(db, at, inst, tel, msg_type, content):
     canal = db.query(Canal).filter(Canal.nome == nome_canal, Canal.ativo == True).first()
     if canal:
         at.canal_id = canal.id
+        # Preenche o departamento junto com o canal — sem isso, todo
+        # atendimento aberto pelo bot fica com departamento_id nulo e um
+        # relatório agrupado por departamento não teria como contabilizá-lo
+        # (o mesmo ponto cego do relatório da ZigChat).
+        at.departamento_id = canal.departamento_id
         db.commit()
 
     _step(db, at, dest_step)
     await _despachar_menu_dept(db, at, inst, tel, dest_step, msg_type, content)
+
+
+async def _entrar_departamento_dinamico(db, at, inst, tel, canal: Canal) -> None:
+    """
+    Entrada para um departamento sem fluxo Python próprio (criado via
+    Cadastro de Mensagens, não um dos 5 hardcoded). Envia a mensagem
+    interativa (Menu) cadastrada para esse Canal, se houver; do contrário,
+    encaminha direto para atendimento humano. Qualquer opção clicada a
+    partir daqui cai em _departamento_dinamico, que sempre encaminha para
+    fila humana — não há passos seguintes cadastrados nesta etapa.
+    """
+    _set(db, at.id, "canal_selecionado", canal.nome)
+    at.canal_id = canal.id
+    at.departamento_id = canal.departamento_id
+    db.commit()
+
+    menu = (
+        db.query(Menu)
+        .filter(Menu.canal_id == canal.id, Menu.ativo == True)
+        .order_by(Menu.criado_em)
+        .first()
+    )
+    if menu and menu.opcoes:
+        rows = [{"title": op.titulo, "description": op.descricao or "", "rowId": op.row_id} for op in menu.opcoes]
+        await _lista(inst, tel, menu.titulo, menu.descricao or "Selecione uma opção:", menu.texto_botao or "Ver opções", rows, menu.rodape)
+        _step(db, at, DEPTO_DINAMICO)
+    else:
+        # Departamento sem mensagem interativa cadastrada ainda: encaminha
+        # direto para um atendente em vez de travar o cliente sem resposta.
+        await _transferir(db, at, inst, tel)
+
+
+async def _departamento_dinamico(db, at, inst, tel, msg_type, content) -> None:
+    row = content.strip().upper() if msg_type == "list_response" else ""
+    if row == "VOLTAR_HUB":
+        return await _voltar_hub(db, at, inst, tel)
+    # Qualquer outra opção (ou texto livre): não há fluxo Python cadastrado
+    # além desta 1ª tela, então encaminha para atendimento humano.
+    await _transferir(db, at, inst, tel)
 
 
 async def _enviar_hub(db: Session, inst: str, tel: str) -> None:

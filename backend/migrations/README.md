@@ -55,6 +55,45 @@ WHERE table_name='atendimentos' AND column_name='tipo_canal';
 PRAGMA table_info(atendimentos);
 ```
 
+### 002_backfill_departamento_e_status_fila.sql
+**Status:** ⚠️ PENDENTE (não aplicada em produção)
+
+**O que faz:**
+- Preenche `departamento_id` a partir do `canal_id` já atribuído, onde ainda nulo
+- Corrige `status` de `em_atendimento` para `fila` nos registros sem `usuario_id`
+
+**Por quê:**
+- O relatório de atendimento da ZigChat não tem coluna "Departamento", então não dá
+  para saber se um cliente sem atendimento foi por falha do robô em entregar a
+  conversa ou porque nenhum atendente puxou. `bot_service` e `AtendimentoService`
+  agora gravam essa distinção no momento em que ela acontece; esta migração corrige
+  os registros gravados antes da mudança.
+
+**Sincronização com código:**
+- ✅ `bot_service._hub` preenche `departamento_id` junto com `canal_id`
+- ✅ `bot_service._transferir` grava status `fila` (entregue, sem atendente)
+- ✅ `AtendimentoService.transferir` só grava `em_atendimento` quando `usuario_id` está setado
+- ✅ Novo endpoint `GET /atendimento/indicadores` expõe essas contagens em tempo real
+- ⏳ **FALTA:** Executar migração no banco de dados
+
+### 003_create_modelos_mensagem.sql
+**Status:** ⚠️ PENDENTE (não aplicada em produção)
+
+**O que faz:**
+- Cria a tabela `modelos_mensagem`, para mensagens padrão (memorando) cadastradas
+  pelo administrador
+
+**Por quê:**
+- O módulo de cadastro de mensagens precisa de dois tipos reutilizáveis: Padrão
+  (texto/arquivo livre) e Interativa (com botões — já coberta por `menus`/
+  `menu_opcoes`). Esta migração cria a parte que faltava (Padrão).
+
+**Sincronização com código:**
+- ✅ Modelo ORM `ModeloMensagem` criado (`app/models/__init__.py`)
+- ✅ Schemas Pydantic criados (`app/schemas/__init__.py`)
+- ✅ Endpoints `/api/modelos-mensagem` criados
+- ⏳ **FALTA:** Executar migração no banco de dados
+
 ---
 
 ## ⚠️ Próximas Etapas

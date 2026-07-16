@@ -1,0 +1,86 @@
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-icon blue"><i class="fas fa-chart-bar"></i></div>
+    <h3>Relatórios</h3>
+  </div>
+
+  <!-- FILTROS -->
+  <div class="filter-panel">
+    <div class="filter-title">Filtrar Período</div>
+    <div class="filter-row">
+      <div class="filter-field">
+        <label>Data inicial:</label>
+        <input type="date" [(ngModel)]="dataInicial" (ngModelChange)="onFiltroManual()">
+      </div>
+      <div class="filter-field">
+        <label>Data final:</label>
+        <input type="date" [(ngModel)]="dataFinal" (ngModelChange)="onFiltroManual()">
+      </div>
+      <div class="filter-field">
+        <label>Departamento:</label>
+        <select [(ngModel)]="departamentoId" (ngModelChange)="buscar()">
+          <option [ngValue]="null">Todos</option>
+          <option *ngFor="let d of departamentos" [ngValue]="d.id">{{ d.nome }}</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label>Atendente:</label>
+        <select [(ngModel)]="atendenteUsuarioId" (ngModelChange)="buscar()">
+          <option [ngValue]="null">Todos</option>
+          <option *ngFor="let a of atendentes" [ngValue]="a.id">{{ a.nome }}</option>
+        </select>
+      </div>
+      <button type="button" class="filter-search-btn" (click)="buscar()">
+        <i class="fas fa-search"></i> Buscar
+      </button>
+    </div>
+
+    <div class="filter-shortcuts">
+      <button type="button" class="filter-shortcut-btn" [class.active]="atalhoAtivo === 'hoje'" (click)="hoje()">Hoje</button>
+      <button type="button" class="filter-shortcut-btn" [class.active]="atalhoAtivo === 'semana'" (click)="estaSemana()">Esta semana</button>
+      <button type="button" class="filter-shortcut-btn" [class.active]="atalhoAtivo === 'mes'" (click)="esteMes()">Este mês</button>
+      <button type="button" class="filter-shortcut-btn" [class.active]="atalhoAtivo === '7dias'" (click)="ultimos7Dias()">Últimos 7 dias</button>
+      <button type="button" class="filter-shortcut-btn" [class.active]="atalhoAtivo === '30dias'" (click)="ultimos30Dias()">Últimos 30 dias</button>
+    </div>
+
+    <div class="filter-note">
+      <i class="fas fa-info-circle"></i> O filtro considera a data de criação dos atendimentos em aberto e a data de finalização dos atendimentos finalizados.
+    </div>
+  </div>
+
+  <div *ngIf="erro" class="alert error">
+    <i class="fas fa-exclamation-circle"></i> {{ erro }}
+  </div>
+
+  <div class="table-wrap">
+    <div *ngIf="!carregando && registros.length === 0" class="empty">
+      <i class="fas fa-chart-bar" style="font-size:48px;margin-bottom:16px;display:block;opacity:0.3"></i>
+      <p>Nenhum atendimento encontrado para os filtros selecionados.</p>
+    </div>
+
+    <table class="tbl" *ngIf="registros.length > 0">
+      <thead>
+        <tr>
+          <th>Protocolo</th>
+          <th>Cliente</th>
+          <th>Telefone</th>
+          <th>Departamento</th>
+          <th>Atendente</th>
+          <th>Status</th>
+          <th>Criado em</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let r of registros">
+          <td>{{ r.protocolo }}</td>
+          <td><strong>{{ r.nomeContato || '—' }}</strong></td>
+          <td>{{ r.telefone || '—' }}</td>
+          <td>{{ nomeDepartamento(r.departamentoId) }}</td>
+          <td>{{ nomeAtendente(r.usuarioId) }}</td>
+          <td>{{ statusLabel(r.status) }}</td>
+          <td>{{ r.criadoEm | date:'dd/MM/yyyy HH:mm' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

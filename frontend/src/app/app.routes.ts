@@ -22,6 +22,11 @@ export const routes: Routes = [
         title: 'Dashboard — EcoChat Mackenzie'
       },
       {
+        path: 'atendimentos',
+        loadComponent: () => import('./pages/admin/atendimentos/atendimentos.component').then(m => m.AtendimentosComponent),
+        title: 'Atendimentos — EcoChat Mackenzie'
+      },
+      {
         path: 'usuarios',
         loadComponent: () => import('./pages/admin/usuarios/usuarios.component').then(m => m.UsuariosComponent),
         title: 'Usuários — EcoChat Mackenzie'
@@ -35,6 +40,11 @@ export const routes: Routes = [
         path: 'canais',
         loadComponent: () => import('./pages/admin/canais/canais.component').then(m => m.CanaisComponent),
         title: 'Canais de Atendimento — EcoChat Mackenzie'
+      },
+      {
+        path: 'mensagens',
+        loadComponent: () => import('./pages/admin/mensagens/mensagens.component').then(m => m.MensagensComponent),
+        title: 'Mensagens — EcoChat Mackenzie'
       },
       {
         path: 'niveis',

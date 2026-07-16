@@ -114,6 +114,32 @@ class CanalResponse(CanalBase):
     class Config:
         from_attributes = True
 
+# ━━━ Modelo de Mensagem (mensagem padrão / memorando) ━━━━━━
+class ModeloMensagemBase(BaseModel):
+    descricao: str
+    corpo: str
+    arquivo: Optional[str] = None
+    departamento_id: Optional[int] = None
+    ativo: bool = True
+
+class ModeloMensagemCreate(ModeloMensagemBase):
+    pass
+
+class ModeloMensagemUpdate(BaseModel):
+    descricao: Optional[str] = None
+    corpo: Optional[str] = None
+    arquivo: Optional[str] = None
+    departamento_id: Optional[int] = None
+    ativo: Optional[bool] = None
+
+class ModeloMensagemResponse(ModeloMensagemBase):
+    id: int
+    criado_em: datetime
+    departamento: Optional[DepartamentoResponse] = None
+
+    class Config:
+        from_attributes = True
+
 # ━━━ Usuario ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class UsuarioBase(BaseModel):
     nome: str

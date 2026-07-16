@@ -1,0 +1,241 @@
+<div class="page">
+
+  <div *ngIf="alerta" class="alert" [class.success]="alerta.tipo==='sucesso'" [class.error]="alerta.tipo==='erro'">
+    <i class="fas" [class.fa-check-circle]="alerta.tipo==='sucesso'" [class.fa-exclamation-circle]="alerta.tipo==='erro'"></i>
+    {{ alerta.msg }}
+  </div>
+
+  <!-- ═══════════════ LISTA ═══════════════ -->
+  <div class="panel" *ngIf="view === 'lista'">
+    <div class="panel-header">
+      <div class="panel-icon red"><i class="fas fa-comment-dots"></i></div>
+      <h3>Mensagens</h3>
+      <button class="btn primary" (click)="abrirNovo()">
+        <i class="fas fa-plus"></i> Novo
+      </button>
+    </div>
+
+    <div class="filter-panel">
+      <div class="filter-title">Filtrar Mensagens</div>
+      <div class="filter-row">
+        <div class="filter-field">
+          <label>Descrição:</label>
+          <input type="text" placeholder="Buscar por descrição..." [(ngModel)]="filtroDescricao">
+        </div>
+        <div class="filter-field">
+          <label>Tipo:</label>
+          <select [(ngModel)]="filtroTipo">
+            <option value="Todos">Todos</option>
+            <option value="Padrão">Padrão</option>
+            <option value="Interativa">Interativa</option>
+          </select>
+        </div>
+        <button type="button" class="filter-search-btn">
+          <i class="fas fa-search"></i> Buscar
+        </button>
+      </div>
+      <div class="filter-note">
+        <i class="fas fa-info-circle"></i> O filtro considera a descrição e o tipo do modelo de mensagem.
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <div *ngIf="linhasFiltradas.length === 0" class="empty">Nenhum modelo de mensagem cadastrado</div>
+
+      <table class="tbl" *ngIf="linhasFiltradas.length > 0">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Descrição</th>
+            <th>Tipo</th>
+            <th>Dono da mensagem</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let l of linhasFiltradas">
+            <td>{{ l.id }}</td>
+            <td><strong>{{ l.descricao }}</strong></td>
+            <td>{{ l.tipo }}</td>
+            <td>{{ l.donoNome }}</td>
+            <td>
+              <button class="btn-icon" (click)="editar(l)" title="Editar"><i class="fas fa-edit"></i></button>
+              <button class="btn-icon danger" (click)="excluir(l)" title="Excluir"><i class="fas fa-trash"></i></button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════ FORM: MENSAGEM PADRÃO ═══════════════ -->
+  <div class="panel" *ngIf="view === 'padrao'">
+    <div class="panel-header">
+      <div class="panel-icon red"><i class="fas fa-file-alt"></i></div>
+      <h3>{{ modo === 'novo' ? 'Nova Mensagem Padrão' : 'Editar Mensagem Padrão' }}</h3>
+    </div>
+
+    <div class="pb">
+      <div class="form-grid">
+        <div class="fg full">
+          <label>Descrição *</label>
+          <input type="text" [(ngModel)]="formPadrao.descricao" placeholder="Nome pra identificar a mensagem" maxlength="100">
+        </div>
+
+        <div class="fg full">
+          <label>Mensagem *</label>
+          <textarea rows="6" [(ngModel)]="formPadrao.corpo" placeholder="Digite seu modelo de mensagem..."></textarea>
+        </div>
+
+        <div class="fg">
+          <label>Departamento (dono)</label>
+          <select [(ngModel)]="formPadrao.departamentoId">
+            <option [ngValue]="undefined">— Nenhum —</option>
+            <option *ngFor="let d of departamentos" [ngValue]="d.id">{{ d.nome }}</option>
+          </select>
+        </div>
+
+        <div class="fg">
+          <label>Status</label>
+          <select [(ngModel)]="formPadrao.ativo">
+            <option [ngValue]="true">🟢 Ativo</option>
+            <option [ngValue]="false">🔴 Inativo</option>
+          </select>
+        </div>
+
+        <div class="fg full">
+          <label>Arquivo</label>
+          <p class="helper" style="margin-bottom:8px">Selecione um arquivo ou converta o texto acima em áudio:</p>
+          <div class="arquivo-actions">
+            <button type="button" class="btn secondary" disabled title="Upload de arquivo — em breve">
+              <i class="fas fa-paperclip"></i> Selecionar arquivo
+            </button>
+            <button type="button" class="btn primary" (click)="gerarAudio()" [disabled]="gerandoAudio">
+              <i class="fas" [class.fa-microphone]="!gerandoAudio" [class.fa-spinner]="gerandoAudio" [class.fa-spin]="gerandoAudio"></i>
+              {{ gerandoAudio ? 'Gerando...' : 'Gerar Áudio' }}
+            </button>
+          </div>
+          <p class="helper" *ngIf="!formPadrao.arquivo">Nenhum arquivo selecionado.</p>
+          <audio *ngIf="formPadrao.arquivo" controls [src]="formPadrao.arquivo" style="margin-top:10px; width:100%;"></audio>
+          <button type="button" class="btn-icon danger" *ngIf="formPadrao.arquivo" (click)="removerArquivo()" title="Remover arquivo" style="margin-top:6px">
+            <i class="fas fa-trash"></i> Remover
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="padding: 0 16px 16px;">
+      <button class="btn secondary" (click)="voltar()">Voltar</button>
+      <button class="btn primary" (click)="salvarPadrao()"><i class="fas fa-save"></i> Salvar</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════ FORM: MENSAGEM INTERATIVA ═══════════════ -->
+  <div class="panel" *ngIf="view === 'interativa'">
+    <div class="panel-header">
+      <div class="panel-icon blue"><i class="fas fa-list-ul"></i></div>
+      <h3>{{ modo === 'novo' ? 'Nova Mensagem Interativa' : 'Editar Mensagem Interativa' }}</h3>
+    </div>
+
+    <div class="pb">
+      <div class="form-grid">
+        <div class="fg full">
+          <label>Descrição *</label>
+          <input type="text" [(ngModel)]="formInterativa.titulo" placeholder="Nome pra identificar a mensagem" maxlength="100">
+        </div>
+
+        <div class="fg full">
+          <label>Corpo *</label>
+          <textarea rows="4" [(ngModel)]="formInterativa.descricao" placeholder="Texto principal da mensagem..." maxlength="1024"></textarea>
+        </div>
+
+        <div class="fg full">
+          <label>Rodapé</label>
+          <input type="text" [(ngModel)]="formInterativa.rodape" maxlength="60">
+        </div>
+
+        <div class="fg">
+          <label>Texto do botão</label>
+          <input type="text" [(ngModel)]="formInterativa.textoBotao" placeholder="Ver opções">
+        </div>
+
+        <div class="fg">
+          <label>Vínculo</label>
+          <select [(ngModel)]="formInterativa.canalId">
+            <option [ngValue]="undefined">🏠 Menu Principal (Hub)</option>
+            <option *ngFor="let c of canais" [ngValue]="c.id">{{ c.departamentoNome || c.nome }} — {{ c.nome }}</option>
+          </select>
+          <small class="helper">
+            Menu Principal = 1ª tela que o cliente vê. Vinculada a um canal = tela do departamento após ele ser selecionado.
+          </small>
+        </div>
+      </div>
+
+      <!-- OPÇÕES -->
+      <div class="opcoes-section">
+        <div class="opcoes-header">
+          <strong>Opções ({{ (formInterativa.opcoes?.length ?? 0) }}/3)</strong>
+        </div>
+
+        <div class="opcoes-lista" *ngIf="formInterativa.opcoes?.length">
+          <div class="opcao-item" *ngFor="let o of formInterativa.opcoes; let i = index">
+            <span class="opcao-titulo">{{ o.titulo }}</span>
+            <code class="opcao-id">{{ o.rowId }}</code>
+            <button class="btn-icon danger" (click)="removerOpcao(i)" title="Remover"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+        <p class="helper" *ngIf="!formInterativa.opcoes?.length">Nenhuma opção adicionada.</p>
+
+        <div class="opcao-form" *ngIf="(formInterativa.opcoes?.length ?? 0) < 3">
+          <div class="fg" *ngIf="ehHub">
+            <label>Departamento de destino</label>
+            <select [(ngModel)]="destinoCanalId" (ngModelChange)="onDestinoCanalChange()">
+              <option [ngValue]="null">— escolher para preencher automático —</option>
+              <option *ngFor="let c of canais" [ngValue]="c.id">{{ c.departamentoNome || c.nome }} — {{ c.nome }}</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label>Título *</label>
+            <input type="text" [(ngModel)]="novaOpcao.titulo" maxlength="20">
+          </div>
+          <div class="fg">
+            <label>Identificador *</label>
+            <input type="text" [(ngModel)]="novaOpcao.rowId" maxlength="256">
+          </div>
+          <button type="button" class="btn primary" (click)="adicionarOpcao()"><i class="fas fa-plus"></i> Adicionar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="padding: 0 16px 16px;">
+      <button class="btn secondary" (click)="voltar()">Voltar</button>
+      <button class="btn primary" (click)="salvarInterativa()"><i class="fas fa-save"></i> Salvar</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL: ESCOLHA DE TIPO -->
+<div class="overlay" [class.open]="modalTipoAberto" (click.self)="modalTipoAberto = false">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Novo modelo de mensagem</h2>
+      <button class="close-btn" (click)="modalTipoAberto = false">✕</button>
+    </div>
+
+    <p class="helper" style="margin-bottom:14px">Escolha o tipo da mensagem:</p>
+
+    <div class="tipo-cards">
+      <div class="tipo-card" (click)="escolherTipo('Padrão')">
+        <i class="fas fa-align-left"></i>
+        <strong>Padrão</strong>
+        <p>Mensagem padrão com texto ou arquivo. Pode ser enviada por qualquer canal.</p>
+      </div>
+      <div class="tipo-card" (click)="escolherTipo('Interativa')">
+        <i class="fas fa-th-large"></i>
+        <strong>Interativa</strong>
+        <p>Mensagem com botões para interação com o cliente.</p>
+      </div>
+    </div>
+  </div>
+</div>

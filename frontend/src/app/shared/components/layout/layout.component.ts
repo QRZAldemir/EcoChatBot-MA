@@ -26,11 +26,13 @@ export class LayoutComponent {
       { rota: '/admin/dashboard', icone: 'fa-gauge-high',    label: 'Dashboard' },
     ]},
     { secao: 'Atendimento', itens: [
-      { rota: '/chat/menu',       icone: 'fa-comments',      label: 'Iniciar Chat' },
+      { rota: '/admin/atendimentos', icone: 'fa-inbox',    label: 'Fila de Atendimento' },
+      { rota: '/chat/menu',          icone: 'fa-comments',     label: 'Iniciar Chat' },
     ]},
     { secao: 'Configuração', itens: [
       { rota: '/admin/canais',       icone: 'fa-project-diagram', label: 'Canais' },
       { rota: '/admin/departamentos',icone: 'fa-building',        label: 'Departamentos' },
+      { rota: '/admin/mensagens',    icone: 'fa-comment-dots',    label: 'Mensagens' },
       { rota: '/admin/usuarios',     icone: 'fa-users',           label: 'Usuários' },
       { rota: '/admin/niveis',       icone: 'fa-shield-halved',   label: 'Níveis de Acesso' },
     ]},
