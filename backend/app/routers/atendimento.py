@@ -140,6 +140,10 @@ def listar_atendimentos(
     cliente_id: Optional[int] = Query(None),
     protocolo: Optional[str] = Query(None),
     conexao_id: Optional[int] = Query(None),
+    # Extensão própria deste projeto (fora do contrato ZigChat) — permite ao
+    # painel do atendente pedir só "fila" ou só "em_atendimento" em vez de
+    # filtrar status no cliente depois de baixar tudo.
+    status: Optional[str] = Query(None, description="aberto, fila, em_atendimento ou finalizado"),
     # Parâmetros de paginação e ordenação com validações embutidas
     limit: int = Query(10, le=50),  # le=50 limita o máximo a 50 por página
     page: int = Query(1, ge=1),     # ge=1 garante que a página seja pelo menos 1
@@ -149,15 +153,16 @@ def listar_atendimentos(
 ):
     """
     Lista atendimentos de forma paginada com múltiplos filtros.
-    Contrato compatível com ZigChat GET /atendimento/listar.
+    Contrato compatível com ZigChat GET /atendimento/listar (+ filtro
+    opcional "status", que é uma extensão própria deste projeto).
     """
     try:
         # Delega a busca complexa para o Service. O Router não deve conter regras de negócio.
         resultado = AtendimentoService.listar(
-            db=db, id=id, canal=canal, ativo=ativo, 
-            data_criacao_inicio=data_criacao_inicio, data_criacao_fim=data_criacao_fim, 
-            tipo=tipo, departamento_id=departamento_id, atendente_usuario_id=atendente_usuario_id, 
-            cliente_id=cliente_id, protocolo=protocolo, conexao_id=conexao_id, 
+            db=db, id=id, canal=canal, ativo=ativo,
+            data_criacao_inicio=data_criacao_inicio, data_criacao_fim=data_criacao_fim,
+            tipo=tipo, departamento_id=departamento_id, atendente_usuario_id=atendente_usuario_id,
+            cliente_id=cliente_id, protocolo=protocolo, conexao_id=conexao_id, status=status,
             limit=limit, page=page, order=order,
         )
 
@@ -178,6 +183,26 @@ def listar_atendimentos(
         )
     except Exception as e:
         # Em caso de falha, retorna o erro padronizado
+        return ZigResponse(codigo=1, erro=str(e))
+
+
+@router.get("/indicadores", response_model=ZigResponse)
+def indicadores_atendimentos(
+    data_criacao_inicio: Optional[str] = Query(None, example="2026-01-01"),
+    data_criacao_fim: Optional[str] = Query(None, example="2026-01-30"),
+    db: Session = Depends(get_db),
+):
+    """
+    Indicadores de atendimento em tempo real, direto do banco — substitui o
+    fluxo manual de extrair relatório da ZigChat, exportar em Excel e
+    importar no dashboard. Endpoint próprio deste projeto (não é contrato
+    ZigChat); pensado para ser consultado por polling do painel/dashboard.
+    """
+    try:
+        return ZigResponse(codigo=0, dados=AtendimentoService.indicadores(
+            db=db, data_criacao_inicio=data_criacao_inicio, data_criacao_fim=data_criacao_fim,
+        ))
+    except Exception as e:
         return ZigResponse(codigo=1, erro=str(e))
 
 

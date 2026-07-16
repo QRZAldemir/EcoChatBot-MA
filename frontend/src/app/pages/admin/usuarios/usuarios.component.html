@@ -33,31 +33,52 @@
     </div>
 
     <!-- FILTROS -->
-    <div class="toolbar">
-      <div class="search-box">
-        <i class="fas fa-search"></i>
-        <input type="text" [(ngModel)]="filtroNome" placeholder="Pesquisar nome..." (ngModelChange)="carregarUsuarios()">
+    <div class="filter-panel">
+      <div class="filter-title">Filtrar Usuários</div>
+      <div class="filter-row">
+        <div class="filter-field">
+          <label>Nome:</label>
+          <input type="text" [(ngModel)]="filtroNome" placeholder="Pesquisar nome..." (ngModelChange)="carregarUsuarios()">
+        </div>
+        <div class="filter-field">
+          <label>Departamento:</label>
+          <select [(ngModel)]="filtroDepartamentoId" (ngModelChange)="carregarUsuarios()">
+            <option [ngValue]="null">Todos</option>
+            <option *ngFor="let d of departamentos" [ngValue]="d.id">{{ d.nome }}</option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label>Canal:</label>
+          <select [(ngModel)]="filtroCanalId" (ngModelChange)="carregarUsuarios()">
+            <option [ngValue]="null">Todos</option>
+            <option *ngFor="let c of canais" [ngValue]="c.id">{{ c.icone }} {{ c.nome }}</option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label>Nível:</label>
+          <select [(ngModel)]="filtroNivel" (ngModelChange)="carregarUsuarios()">
+            <option value="">Todos</option>
+            <option value="atendente">Atendente</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="gerente">Gerente</option>
+            <option value="administrador">Administrador</option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label>Status:</label>
+          <select [(ngModel)]="filtroStatus" (ngModelChange)="carregarUsuarios()">
+            <option value="">Todos</option>
+            <option value="ativo">🟢 Ativo</option>
+            <option value="inativo">🔴 Inativo</option>
+          </select>
+        </div>
+        <button type="button" class="filter-search-btn" (click)="carregarUsuarios()">
+          <i class="fas fa-search"></i> Buscar
+        </button>
       </div>
-      <select [(ngModel)]="filtroDepartamentoId" (ngModelChange)="carregarUsuarios()">
-        <option [ngValue]="null">Todos os Departamentos</option>
-        <option *ngFor="let d of departamentos" [ngValue]="d.id">{{ d.nome }}</option>
-      </select>
-      <select [(ngModel)]="filtroCanalId" (ngModelChange)="carregarUsuarios()">
-        <option [ngValue]="null">Todos os Canais</option>
-        <option *ngFor="let c of canais" [ngValue]="c.id">{{ c.icone }} {{ c.nome }}</option>
-      </select>
-      <select [(ngModel)]="filtroNivel" (ngModelChange)="carregarUsuarios()">
-        <option value="">Todos os Níveis</option>
-        <option value="atendente">Atendente</option>
-        <option value="supervisor">Supervisor</option>
-        <option value="gerente">Gerente</option>
-        <option value="administrador">Administrador</option>
-      </select>
-      <select [(ngModel)]="filtroStatus" (ngModelChange)="carregarUsuarios()">
-        <option value="">Todos os Status</option>
-        <option value="ativo">🟢 Ativo</option>
-        <option value="inativo">🔴 Inativo</option>
-      </select>
+      <div class="filter-note">
+        <i class="fas fa-info-circle"></i> O filtro considera o departamento, canal, nível e status vinculados a cada usuário.
+      </div>
     </div>
 
     <!-- TABELA AGRUPADA POR DEPARTAMENTO -->

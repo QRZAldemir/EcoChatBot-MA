@@ -1,0 +1,88 @@
+<div class="page">
+
+  <div *ngIf="erro" class="alert error">
+    <i class="fas fa-exclamation-circle"></i> {{ erro }}
+  </div>
+
+  <div class="panel" *ngIf="!usuario?.departamentoId">
+    <div class="pb empty">
+      Seu usuário não tem um departamento configurado, então não há fila para mostrar.
+      Peça a um administrador para vincular seu cadastro a um departamento em
+      <strong>Configuração → Usuários</strong>.
+    </div>
+  </div>
+
+  <ng-container *ngIf="usuario?.departamentoId">
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-icon green"><i class="fab fa-whatsapp"></i></div>
+        <h3>Fila — {{ departamentoNome || 'meu departamento' }}</h3>
+        <span class="badge-ativo" *ngIf="!carregando">{{ fila.length }} aguardando</span>
+      </div>
+      <div class="table-wrap">
+        <div *ngIf="!carregando && fila.length === 0" class="empty">Ninguém na fila agora.</div>
+        <table class="tbl" *ngIf="fila.length > 0">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Telefone</th>
+              <th>Protocolo</th>
+              <th>Aguardando</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let a of fila">
+              <td><strong>{{ a.nomeContato || '—' }}</strong></td>
+              <td>{{ a.telefone || '—' }}</td>
+              <td>{{ a.protocolo }}</td>
+              <td>{{ tempoDecorrido(a.criadoEm) }}</td>
+              <td>
+                <button class="btn primary" (click)="puxar(a)">
+                  <i class="fas fa-hand-paper"></i> Puxar
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-icon blue"><i class="fas fa-headset"></i></div>
+        <h3>Meus atendimentos</h3>
+        <span class="badge-ativo" *ngIf="!carregando">{{ meus.length }} em andamento</span>
+      </div>
+      <div class="table-wrap">
+        <div *ngIf="!carregando && meus.length === 0" class="empty">Nenhum atendimento em andamento.</div>
+        <table class="tbl" *ngIf="meus.length > 0">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Telefone</th>
+              <th>Protocolo</th>
+              <th>Duração</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let a of meus">
+              <td><strong>{{ a.nomeContato || '—' }}</strong></td>
+              <td>{{ a.telefone || '—' }}</td>
+              <td>{{ a.protocolo }}</td>
+              <td>{{ tempoDecorrido(a.criadoEm) }}</td>
+              <td>
+                <button class="btn secondary" (click)="encerrar(a)">
+                  <i class="fas fa-check"></i> Encerrar
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </ng-container>
+</div>

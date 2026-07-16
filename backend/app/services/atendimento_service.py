@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import asc, desc
-from app.models import Atendimento, AtendimentoContext
+from sqlalchemy import asc, desc, func
+from app.models import Atendimento, AtendimentoContext, Departamento
 from typing import Optional, List
 from datetime import datetime
 
@@ -21,6 +21,7 @@ class AtendimentoService:
         cliente_id: Optional[int] = None,
         protocolo: Optional[str] = None,
         conexao_id: Optional[int] = None,
+        status: Optional[str] = None,
         limit: int = 10,
         page: int = 1,
         order: str = "desc",
@@ -64,6 +65,8 @@ class AtendimentoService:
             query = query.filter(Atendimento.protocolo == protocolo)
         if conexao_id:
             query = query.filter(Atendimento.conexao_id == conexao_id)
+        if status:
+            query = query.filter(Atendimento.status == status)
         if data_criacao_inicio:
             query = query.filter(Atendimento.criado_em >= datetime.fromisoformat(data_criacao_inicio))
         if data_criacao_fim:
@@ -112,7 +115,11 @@ class AtendimentoService:
             atendimento.usuario_id = atendente_usuario_id
         if canal_id is not None:
             atendimento.canal_id = canal_id
-        atendimento.status = "em_atendimento"
+        # Só é "em_atendimento" se a transferência já inclui um atendente.
+        # Transferir só o departamento/canal (sem atendente_usuario_id) é
+        # entrega para a fila — precisa continuar distinguível de "sendo
+        # atendido" para os indicadores (ver AtendimentoService.indicadores).
+        atendimento.status = "em_atendimento" if atendimento.usuario_id else "fila"
         db.commit()
         db.refresh(atendimento)
         return atendimento
@@ -186,3 +193,83 @@ class AtendimentoService:
         db.commit()
         db.refresh(ctx)
         return ctx
+
+    @staticmethod
+    def indicadores(
+        db: Session,
+        data_criacao_inicio: Optional[str] = None,
+        data_criacao_fim: Optional[str] = None,
+    ) -> dict:
+        """
+        Indicadores em tempo real, direto do banco — substitui o fluxo manual
+        de extrair um relatório da ZigChat, exportar em Excel e importar no
+        dashboard. As mesmas categorias que o dashboard_ecoVs2.html inferia
+        de planilha (Robô/Humano, aguardando/em atendimento) já nascem
+        corretas aqui porque bot_service e AtendimentoService.transferir
+        gravam o status certo no momento em que ele muda:
+
+            aberto                  — cliente ainda no fluxo do bot, sem
+                                        departamento definido
+            fila                    — bot entregou a um departamento/canal,
+                                        nenhum atendente (usuario_id) puxou
+            em_atendimento          — atendente assumiu (usuario_id setado)
+            finalizado + usuario_id — finalizado por um atendente humano
+            finalizado sem usuario_id — encerrado sem nunca ter sido
+                                        assumido por um humano (equivalente
+                                        ao "Robô"/abandono do relatório ZigChat)
+        """
+        query = db.query(Atendimento)
+        if data_criacao_inicio:
+            query = query.filter(Atendimento.criado_em >= datetime.fromisoformat(data_criacao_inicio))
+        if data_criacao_fim:
+            query = query.filter(Atendimento.criado_em <= datetime.fromisoformat(data_criacao_fim + "T23:59:59"))
+
+        total = query.count()
+        aberto = query.filter(Atendimento.status == "aberto").count()
+        fila = query.filter(Atendimento.status == "fila").count()
+        em_atendimento = query.filter(Atendimento.status == "em_atendimento").count()
+        finalizado_humano = query.filter(
+            Atendimento.status == "finalizado", Atendimento.usuario_id.isnot(None)
+        ).count()
+        finalizado_sem_atendente = query.filter(
+            Atendimento.status == "finalizado", Atendimento.usuario_id.is_(None)
+        ).count()
+
+        dept_rows = (
+            query.outerjoin(Departamento, Atendimento.departamento_id == Departamento.id)
+            .with_entities(
+                Atendimento.departamento_id,
+                func.coalesce(Departamento.nome, "Sem Departamento").label("nome"),
+                func.count(Atendimento.id).label("total"),
+            )
+            .group_by(Atendimento.departamento_id, Departamento.nome)
+            .all()
+        )
+        finalizados_por_depto = dict(
+            query.filter(Atendimento.status == "finalizado")
+            .with_entities(Atendimento.departamento_id, func.count(Atendimento.id))
+            .group_by(Atendimento.departamento_id)
+            .all()
+        )
+
+        por_departamento = [
+            {
+                "departamento_id": departamento_id,
+                "nome": nome,
+                "total": dept_total,
+                "finalizados": finalizados_por_depto.get(departamento_id, 0),
+                "em_aberto": dept_total - finalizados_por_depto.get(departamento_id, 0),
+            }
+            for departamento_id, nome, dept_total in dept_rows
+        ]
+        por_departamento.sort(key=lambda d: d["total"], reverse=True)
+
+        return {
+            "total": total,
+            "aberto": aberto,
+            "fila": fila,
+            "em_atendimento": em_atendimento,
+            "finalizado_humano": finalizado_humano,
+            "finalizado_sem_atendente": finalizado_sem_atendente,
+            "por_departamento": por_departamento,
+        }

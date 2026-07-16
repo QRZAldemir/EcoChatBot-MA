@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel de Escalas Médicas - Hospital Mackenzie</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif; }
         body { background: #eef2f5; margin: 0; padding: 0; min-height: 100vh; }
@@ -525,6 +526,14 @@
             --memo-orange:  #fff7ed; --memo-orange-border: #f97316; --memo-orange-header: #ffedd5;
             --memo-teal:    #f0fdfa; --memo-teal-border:   #14b8a6; --memo-teal-header:   #ccfbf1;
             --memo-red:     #fff1f2; --memo-red-border:    #f43f5e; --memo-red-header:    #ffe4e6;
+            --memo-indigo:  #eef2ff; --memo-indigo-border:  #6366f1; --memo-indigo-header:  #e0e7ff;
+            --memo-lime:    #f7fee7; --memo-lime-border:    #84cc16; --memo-lime-header:    #ecfccb;
+            --memo-amber:   #fffbeb; --memo-amber-border:   #f59e0b; --memo-amber-header:   #fef3c7;
+            --memo-cyan:    #ecfeff; --memo-cyan-border:    #06b6d4; --memo-cyan-header:    #cffafe;
+            --memo-slate:   #f1f5f9; --memo-slate-border:   #64748b; --memo-slate-header:   #e2e8f0;
+            --memo-stone:   #fefce8; --memo-stone-border:   #78716c; --memo-stone-header:   #f5f5dc;
+            --memo-rose:    #fff1f2; --memo-rose-border:    #f43f5e; --memo-rose-header:    #ffe4e6;
+            --memo-emerald: #ecfdf5; --memo-emerald-border: #10b981; --memo-emerald-header: #d1fae5;
         }
 
         /* ---- MEMORANDOS ---- */
@@ -793,13 +802,13 @@
         </div>
 
         <div class="nav-divider">Sistema</div>
-        <a href="EchoChatMackenzieVs.html" class="nav-btn" onclick="return confirm('Tem certeza que deseja sair do Painel de Escalas e voltar ao Menu?');">
+        <a href="modulo_EcoChatBotMa.html" class="nav-btn" onclick="return confirm('Tem certeza que deseja sair do Painel de Escalas e voltar ao Menu?');">
             <span class="icon">⬅️</span>
             <span>Voltar ao Menu</span>
         </a>
 
         <div class="sidebar-footer" style="color:#fca5a5; border-top: 1px solid rgba(255,255,255,0.15);">
-            v1.6 · OCR Local com Tesseract.js<br>
+            v1.9 · WhatsApp + Backup JSON<br>
             © Mackenzie 2026
         </div>
     </aside>
@@ -810,45 +819,78 @@
         <!-- ============ PÁGINA: IMPORTAR ============ -->
         <div class="page" id="page-importar">
             <h1>📤 Importação de Escalas</h1>
-            <div class="sub">Arraste imagens ou clique para selecionar por especialidade. O OCR local (Tesseract.js) processa direto no navegador — nenhum dado é enviado externamente.</div>
-
-            <!-- DRAG & DROP UNIFICADO -->
-            <div class="import-dropzone" id="importDropzone">
-                <div class="dropzone-icon">🗂️</div>
-                <h3>Arraste arquivos aqui</h3>
-                <p>Imagens JPG / PNG de qualquer escala</p>
-                <input type="file" id="fileInputGlobal" multiple accept="image/jpeg,image/jpg,image/png,image/webp" style="display:none;">
-                <button class="dropzone-btn" onclick="document.getElementById('fileInputGlobal').click()">📁 Selecionar Arquivos</button>
+            <div class="sub">
+                <strong>Fluxo recomendado:</strong> Execute <code>processar_escalas.py</code> → importe os <code>.xlsx</code> gerados.<br>
+                Também aceita imagens JPG/PNG com OCR local (Tesseract.js).
             </div>
 
-            <!-- LISTA DE ARQUIVOS + ATRIBUIÇÃO DE TIPO -->
-            <div id="fileListContainer" style="display:none; margin:16px 0;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <strong style="color:#7f1d1d;">📋 Arquivos selecionados — defina o tipo de cada um:</strong>
-                    <button id="btnLimparArquivos" class="reset-btn" style="height:32px; font-size:0.75rem; padding:4px 14px;">🗑️ Limpar lista</button>
+            <!-- ABAS: EXCEL | IMAGEM -->
+            <div style="display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #e5e7eb; padding-bottom:0;">
+                <button id="tabExcel" onclick="trocarAba('excel')"
+                    style="border-radius:8px 8px 0 0; background:linear-gradient(135deg,#c0392b,#6b1010); border-bottom:none; margin-bottom:-2px; z-index:1; border:2px solid #c0392b; border-bottom-color:white;">
+                    📊 Importar Excel (.xlsx)
+                </button>
+                <button id="tabImagem" onclick="trocarAba('imagem')"
+                    style="border-radius:8px 8px 0 0; background:#6c757d; border-bottom:none; margin-bottom:-2px; z-index:0; border:2px solid transparent;">
+                    🖼️ Importar Imagem (OCR)
+                </button>
+            </div>
+
+            <!-- ====== ABA EXCEL ====== -->
+            <div id="abaExcel">
+                <div class="import-dropzone" id="dropzoneExcel">
+                    <div class="dropzone-icon">📊</div>
+                    <h3>Arraste arquivos .xlsx aqui</h3>
+                    <p>Gerados pelo <strong>processar_escalas.py</strong> — pasta <code>output/</code></p>
+                    <input type="file" id="fileInputXlsx" multiple accept=".xlsx,.xls" style="display:none;">
+                    <button class="dropzone-btn" onclick="document.getElementById('fileInputXlsx').click()">📁 Selecionar .xlsx</button>
                 </div>
-                <div id="assignGrid" class="assign-grid"></div>
-            </div>
 
-            <!-- AÇÕES -->
-            <div style="display:flex; gap:12px; flex-wrap:wrap; margin:20px 0; align-items:center;">
-                <button id="btnProcessarTudo" disabled>🤖 Processar com OCR</button>
-                <button id="btnExemplo" style="background:linear-gradient(135deg,#059669,#064e3b);">📋 Gerar Dados Exemplo</button>
-                <button id="btnLimparTudo" class="reset-btn">🗑️ Limpar Bases</button>
-            </div>
-
-            <!-- BARRA DE PROGRESSO -->
-            <div id="progressContainer" style="display:none; margin:12px 0;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                    <span id="progressLabel" style="font-size:0.82rem; font-weight:600; color:#7f1d1d;">Processando...</span>
-                    <span id="progressPct" style="font-size:0.82rem; color:#555;">0%</span>
+                <div id="xlsxFileList" style="display:none; margin:12px 0;">
+                    <strong style="color:#7f1d1d; font-size:0.88rem;">📋 Arquivos prontos para importar:</strong>
+                    <div id="xlsxGrid" class="file-list-grid" style="margin-top:10px;"></div>
                 </div>
-                <div style="background:#e5e7eb; border-radius:99px; height:10px; overflow:hidden;">
-                    <div id="progressBar" style="height:100%; width:0%; background:linear-gradient(90deg,#c0392b,#e74c3c); border-radius:99px; transition:width 0.3s;"></div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin:16px 0; align-items:center;">
+                    <button id="btnImportarXlsx" disabled>📥 Importar Escalas</button>
+                    <button id="btnLimparTudo" class="reset-btn">🗑️ Limpar Bases</button>
                 </div>
             </div>
 
-            <!-- LOG DE STATUS -->
+            <!-- ====== ABA IMAGEM ====== -->
+            <div id="abaImagem" style="display:none;">
+                <div class="import-dropzone" id="importDropzone">
+                    <div class="dropzone-icon">🗂️</div>
+                    <h3>Arraste imagens aqui</h3>
+                    <p>JPG / PNG de qualquer escala médica</p>
+                    <input type="file" id="fileInputGlobal" multiple accept="image/jpeg,image/jpg,image/png,image/webp" style="display:none;">
+                    <button class="dropzone-btn" onclick="document.getElementById('fileInputGlobal').click()">📁 Selecionar Imagens</button>
+                </div>
+
+                <div id="fileListContainer" style="display:none; margin:16px 0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <strong style="color:#7f1d1d;">📋 Arquivos — defina o tipo de cada um:</strong>
+                        <button id="btnLimparArquivos" class="reset-btn" style="height:32px; font-size:0.75rem; padding:4px 14px;">🗑️ Limpar lista</button>
+                    </div>
+                    <div id="assignGrid" class="assign-grid"></div>
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin:20px 0; align-items:center;">
+                    <button id="btnProcessarTudo" disabled>🤖 Processar com OCR</button>
+                </div>
+
+                <div id="progressContainer" style="display:none; margin:12px 0;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span id="progressLabel" style="font-size:0.82rem; font-weight:600; color:#7f1d1d;">Processando...</span>
+                        <span id="progressPct" style="font-size:0.82rem; color:#555;">0%</span>
+                    </div>
+                    <div style="background:#e5e7eb; border-radius:99px; height:10px; overflow:hidden;">
+                        <div id="progressBar" style="height:100%; width:0%; background:linear-gradient(90deg,#c0392b,#e74c3c); border-radius:99px; transition:width 0.3s;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LOG DE STATUS (comum) -->
             <div id="importStatus" class="import-status" style="display:none;"></div>
 
             <!-- CARDS DE CONTAGEM -->
@@ -856,22 +898,23 @@
                 <div class="card pediatria">
                     <h3>👶 Pediatria</h3>
                     <div class="big-number" id="count-pediatria">0</div>
-                    <div class="label">plantões carregados</div>
+                    <div class="label">dias carregados</div>
                 </div>
                 <div class="card adulto">
                     <h3>🩺 Clínico Adulto</h3>
                     <div class="big-number" id="count-adulto">0</div>
-                    <div class="label">plantões carregados</div>
+                    <div class="label">dias carregados</div>
                 </div>
                 <div class="card go">
                     <h3>🌸 G.O.</h3>
                     <div class="big-number" id="count-go">0</div>
-                    <div class="label">plantões carregados</div>
+                    <div class="label">dias carregados</div>
                 </div>
             </div>
 
             <div class="footer-note">
-                💡 Após processar, clique nas escalas na barra lateral para visualizar e filtrar. Os dados ficam salvos no navegador até você clicar em "Limpar Bases".
+                💡 <strong>Fluxo rápido:</strong> coloque as imagens em <code>uploads/</code> → execute <code>processar_escalas.py</code>
+                → importe os <code>.xlsx</code> gerados em <code>output/</code> aqui. Os dados ficam salvos no navegador.
             </div>
         </div>
 
@@ -903,6 +946,10 @@
                     </select>
                 </div>
                 <button class="reset-btn btn-reset" data-tipo="pediatria">Limpar filtros</button>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
+                <button onclick="copiarEscalaWhatsApp('pediatria')" style="background:linear-gradient(135deg,#25d366,#128c7e); font-size:0.82rem; padding:8px 18px;">📲 Copiar para WhatsApp</button>
             </div>
 
             <div style="overflow-x:auto;">
@@ -951,6 +998,10 @@
                 <button class="reset-btn btn-reset" data-tipo="adulto">Limpar filtros</button>
             </div>
 
+            <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
+                <button onclick="copiarEscalaWhatsApp('adulto')" style="background:linear-gradient(135deg,#25d366,#128c7e); font-size:0.82rem; padding:8px 18px;">📲 Copiar para WhatsApp</button>
+            </div>
+
             <div style="overflow-x:auto;">
                 <table>
                     <thead>
@@ -997,6 +1048,10 @@
                 <button class="reset-btn btn-reset" data-tipo="go">Limpar filtros</button>
             </div>
 
+            <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
+                <button onclick="copiarEscalaWhatsApp('go')" style="background:linear-gradient(135deg,#25d366,#128c7e); font-size:0.82rem; padding:8px 18px;">📲 Copiar para WhatsApp</button>
+            </div>
+
             <div style="overflow-x:auto;">
                 <table>
                     <thead>
@@ -1028,6 +1083,11 @@
                 <button class="btn-cor orange"  title="Laranja"  data-memo-color="orange"  onclick="abrirModalMemorando('orange')">🟠</button>
                 <button class="btn-cor teal"    title="Teal"     data-memo-color="teal"    onclick="abrirModalMemorando('teal')">🩵</button>
                 <button class="btn-cor red"     title="Vermelho" data-memo-color="red"     onclick="abrirModalMemorando('red')">🔴</button>
+                <span style="width:1px; background:rgba(0,0,0,0.12); align-self:stretch; margin:0 6px;"></span>
+                <button onclick="exportarMemorandosJSON()" title="Exportar backup JSON" style="background:linear-gradient(135deg,#0369a1,#0c4a6e); font-size:0.78rem; padding:6px 14px; height:auto; border-radius:30px;">💾 Exportar JSON</button>
+                <label title="Importar backup JSON" style="background:linear-gradient(135deg,#065f46,#022c22); color:white; font-size:0.78rem; padding:6px 14px; border-radius:30px; cursor:pointer; font-weight:600; white-space:nowrap;">
+                    📂 Importar JSON<input type="file" accept=".json" id="importMemoJSON" style="display:none;" onchange="importarMemorandosJSON(this)">
+                </label>
             </div>
             <div class="memorandos-grid" id="memorandosGrid"></div>
         </div>
@@ -1065,6 +1125,216 @@
 
     </main>
 </div>
+
+<script>
+// =====================================================
+// IMPORTAÇÃO EXCEL (.xlsx) — PAINEL MACKENZIE v1.8
+// =====================================================
+
+// Troca de abas Excel / Imagem
+window.trocarAba = function(aba) {
+    const isExcel = aba === 'excel';
+    document.getElementById('abaExcel').style.display  = isExcel ? '' : 'none';
+    document.getElementById('abaImagem').style.display = isExcel ? 'none' : '';
+    document.getElementById('tabExcel').style.background  = isExcel
+        ? 'linear-gradient(135deg,#c0392b,#6b1010)' : '#6c757d';
+    document.getElementById('tabImagem').style.background = isExcel
+        ? '#6c757d' : 'linear-gradient(135deg,#c0392b,#6b1010)';
+};
+
+// ---- Drag & Drop para .xlsx ----
+document.addEventListener('DOMContentLoaded', function() {
+    const dz = document.getElementById('dropzoneExcel');
+    const fi = document.getElementById('fileInputXlsx');
+
+    if (dz) {
+        dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+        dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+        dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); adicionarXlsx(e.dataTransfer.files); });
+        dz.addEventListener('click', e => { if (e.target === dz || e.target.tagName === 'H3' || e.target.tagName === 'P' || e.target.tagName === 'DIV') fi.click(); });
+    }
+    if (fi) fi.addEventListener('change', () => { adicionarXlsx(fi.files); fi.value = ''; });
+
+    // Botão importar
+    const btnImp = document.getElementById('btnImportarXlsx');
+    if (btnImp) btnImp.addEventListener('click', importarXlsxSelecionados);
+});
+
+let xlsxFiles = []; // Array de File
+
+function adicionarXlsx(files) {
+    Array.from(files).forEach(f => {
+        if (f.name.match(/\.xlsx?$/i) && !xlsxFiles.find(x => x.name === f.name && x.size === f.size)) {
+            xlsxFiles.push(f);
+        }
+    });
+    renderXlsxGrid();
+}
+
+function renderXlsxGrid() {
+    const list = document.getElementById('xlsxFileList');
+    const grid = document.getElementById('xlsxGrid');
+    const btn  = document.getElementById('btnImportarXlsx');
+    if (!list || !grid) return;
+
+    if (xlsxFiles.length === 0) { list.style.display = 'none'; if (btn) btn.disabled = true; return; }
+    list.style.display = 'block';
+    if (btn) btn.disabled = false;
+
+    grid.innerHTML = xlsxFiles.map((f, i) => {
+        const kb = (f.size / 1024).toFixed(0);
+        return `<div class="file-item-card" id="xfc-${i}">
+            <div style="font-size:2rem; flex-shrink:0;">📊</div>
+            <div class="file-info">
+                <div class="fname">${f.name}</div>
+                <div class="fsize">${kb} KB</div>
+            </div>
+            <span class="file-remove" onclick="removerXlsx(${i})" title="Remover">✕</span>
+        </div>`;
+    }).join('');
+}
+
+window.removerXlsx = function(idx) {
+    xlsxFiles.splice(idx, 1);
+    renderXlsxGrid();
+};
+
+// ---- Leitura e importação do .xlsx ----
+function detectarTipoDoXlsx(wb, nomeArq) {
+    // 1. Tenta ler da aba oculta _meta (gerada pelo processar_escalas.py)
+    if (wb.SheetNames.includes('_meta')) {
+        const meta = XLSX.utils.sheet_to_json(wb.Sheets['_meta'], {header:1});
+        const tipoRow = meta.find(r => r[0] === 'tipo');
+        if (tipoRow) return tipoRow[1];
+    }
+    // 2. Fallback: detecta pelo nome do arquivo
+    const n = nomeArq.toLowerCase();
+    if (n.includes('pediatria') || n.includes('ped')) return 'pediatria';
+    if (n.includes('adulto') || n.includes('clinico') || n.includes('pronto')) return 'adulto';
+    if (n.includes('go') || n.includes('gineco') || n.includes('obstet')) return 'go';
+    return null;
+}
+
+function lerDatasDoXlsx(wb) {
+    // Procura a aba "Escala"
+    const sheetName = wb.SheetNames.find(n => n !== '_meta') || wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, {defval: ''});
+
+    const diasSemanaNomes = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+    const resultado = [];
+
+    rows.forEach(row => {
+        // Detecta a chave de data (case-insensitive)
+        const keys = Object.keys(row);
+        const dataKey  = keys.find(k => k.toLowerCase().includes('data')) || keys[0];
+        const diaKey   = keys.find(k => k.toLowerCase().includes('dia') || k.toLowerCase().includes('semana'));
+        const manhaKey = keys.find(k => k.toLowerCase().includes('manh'));
+        const tardeKey = keys.find(k => k.toLowerCase().includes('tarde'));
+        const noiteKey = keys.find(k => k.toLowerCase().includes('noite'));
+
+        let dataStr = (row[dataKey] || '').toString().trim();
+
+        // Converte número serial do Excel para data
+        if (/^\d{5}$/.test(dataStr)) {
+            const dt = XLSX.SSF.parse_date_code(parseInt(dataStr));
+            dataStr = `${dt.y}-${String(dt.m).padStart(2,'0')}-${String(dt.d).padStart(2,'0')}`;
+        }
+        // Converte dd/mm/yyyy para yyyy-mm-dd
+        const dmyMatch = dataStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (dmyMatch) dataStr = `${dmyMatch[3]}-${dmyMatch[2].padStart(2,'0')}-${dmyMatch[1].padStart(2,'0')}`;
+
+        if (!dataStr.match(/^\d{4}-\d{2}-\d{2}$/)) return; // pula linhas inválidas
+
+        let diaSemana = diaKey ? (row[diaKey] || '').toString().trim() : '';
+        if (!diaSemana) {
+            try {
+                const dt = new Date(dataStr + 'T12:00:00');
+                diaSemana = diasSemanaNomes[dt.getDay()];
+            } catch(e) {}
+        }
+
+        resultado.push({
+            data: dataStr,
+            diaSemana,
+            manha: manhaKey ? (row[manhaKey] || '').toString().trim() : '',
+            tarde: tardeKey ? (row[tardeKey] || '').toString().trim() : '',
+            noite: noiteKey ? (row[noiteKey] || '').toString().trim() : '',
+        });
+    });
+
+    return resultado;
+}
+
+async function importarXlsxSelecionados() {
+    const btn = document.getElementById('btnImportarXlsx');
+    const statusLog = document.getElementById('importStatus');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Importando...'; }
+    if (statusLog) statusLog.style.display = 'block';
+
+    function log(msg, tipo='info') {
+        if (!statusLog) return;
+        const ts = new Date().toLocaleTimeString();
+        statusLog.innerHTML += `<div class="status-${tipo}"><strong>${ts}</strong>: ${msg}</div>`;
+        statusLog.scrollTop = statusLog.scrollHeight;
+    }
+
+    // Acessa as bases do painel principal via window
+    const bases = window._painelBases;
+    const salvarBase = window._painelSalvar;
+    const aplicarFiltros = window._painelFiltros;
+    const atualizarContadores = window._painelContadores;
+
+    if (!bases || !salvarBase) {
+        log('❌ Painel não inicializado ainda. Aguarde e tente novamente.', 'error');
+        if (btn) { btn.disabled = false; btn.textContent = '📥 Importar Escalas'; }
+        return;
+    }
+
+    let totalImportados = 0;
+
+    for (const file of xlsxFiles) {
+        try {
+            log(`📂 Lendo ${file.name}...`);
+            const buf  = await file.arrayBuffer();
+            const wb   = XLSX.read(buf, {type:'array', cellDates:true});
+            const tipo = detectarTipoDoXlsx(wb, file.name);
+
+            if (!tipo) {
+                log(`⚠️ ${file.name}: tipo não detectado. Renomeie o arquivo para incluir: pediatria, adulto ou go.`, 'warning');
+                continue;
+            }
+
+            const registros = lerDatasDoXlsx(wb);
+            if (registros.length === 0) {
+                log(`⚠️ ${file.name}: nenhum dado válido encontrado.`, 'warning');
+                continue;
+            }
+
+            // Mescla (substitui por data) na base existente
+            const existentes = bases[tipo].filter(e => !registros.find(n => n.data === e.data));
+            bases[tipo] = [...existentes, ...registros].sort((a,b) => a.data.localeCompare(b.data));
+            salvarBase(tipo, bases[tipo]);
+            if (aplicarFiltros) aplicarFiltros(tipo);
+
+            log(`✅ ${file.name} → ${tipo.toUpperCase()}: ${registros.length} dias importados.`, 'success');
+            totalImportados += registros.length;
+        } catch(err) {
+            log(`❌ Erro em ${file.name}: ${err.message}`, 'error');
+        }
+    }
+
+    if (atualizarContadores) atualizarContadores();
+
+    if (totalImportados > 0) {
+        log(`🏁 Importação concluída! ${totalImportados} registros importados. Veja as escalas no menu lateral.`, 'success');
+        xlsxFiles = [];
+        renderXlsxGrid();
+    }
+
+    if (btn) { btn.disabled = false; btn.textContent = '📥 Importar Escalas'; }
+}
+</script>
 
 <script>
 // =================================================
@@ -1260,38 +1530,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ===== GERAR EXEMPLO (do V5) =====
-    if (btnExemplo) {
-        btnExemplo.addEventListener('click', () => {
-            logStatus('📋 Gerando dados de exemplo...', 'info');
-            const profissionais = {
-                pediatria: ['Dra. FERNANDA','Dr. CARLOS','Dra. ANA PAULA','Dr. MIGUEL','Dra. TATIANA'],
-                adulto:    ['Dr. NIKOLAS','Dra. PATRICIA','Dr. PEDRO ANNO','Dra. CAMILA','Dr. RAFAEL (NIR)'],
-                go:        ['Dra. VALENTINA','Dr. LUCAS','Dra. MARIANA','Dr. THIAGO','Dra. JULIA']
-            };
-            TIPOS.forEach(tipo => {
-                const profs = profissionais[tipo];
-                const novos = [];
-                for (let i = 0; i < 20; i++) {
-                    const dt = new Date();
-                    dt.setDate(dt.getDate() + i);
-                    const dataStr = dt.toISOString().split('T')[0];
-                    novos.push({
-                        data: dataStr,
-                        diaSemana: diasSemanaNomes[dt.getDay()],
-                        manha: profs[i % 5],
-                        tarde: profs[(i + 1) % 5],
-                        noite: i % 3 === 0 ? '' : profs[(i + 2) % 5]
-                    });
-                }
-                bases[tipo] = novos;
-                salvarBase(tipo, novos);
-                aplicarFiltros(tipo);
-            });
-            atualizarContadores();
-            logStatus('✅ Dados de exemplo gerados com sucesso! Veja as escalas na barra lateral.', 'success');
-        });
-    }
+
 
     // ===== LIMPAR TUDO =====
     if (btnLimpar) {
@@ -1375,6 +1614,67 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         aplicarFiltros(tipo);
     });
+
+    // ========== COPIAR ESCALA PARA WHATSAPP ==========
+    window.copiarEscalaWhatsApp = function(tipo) {
+        const labels = {
+            pediatria: '👶 PS Pediatria',
+            adulto:    '🩺 PS Clínico Adulto',
+            go:        '🌸 GO — Ginecologia/Obstetrícia'
+        };
+        const tbody = document.getElementById('tbody-' + tipo);
+        if (!tbody) return;
+        const rows = tbody.querySelectorAll('tr:not(.empty-row)');
+        if (rows.length === 0) { alert('Nenhum dado visível para copiar. Verifique os filtros.'); return; }
+
+        // Lê os títulos reais das colunas do cabeçalho da tabela
+        const theadRow = tbody.closest('table').querySelector('thead tr');
+        const headers = theadRow
+            ? [...theadRow.querySelectorAll('th')].map(th => th.textContent.trim())
+            : ['Data', 'Dia', 'Manhã (07h–13h)', 'Tarde (13h–19h)', 'Noite (19h–07h)'];
+
+        const turnoEmojis = ['🌅', '☀️', '🌙'];
+
+        let texto = `*${labels[tipo]}*\n`;
+        texto += '─'.repeat(32) + '\n';
+        texto += `📋 ${headers.join(' | ')}\n`;
+        texto += '─'.repeat(32) + '\n\n';
+
+        rows.forEach(tr => {
+            const cols = tr.querySelectorAll('td');
+            if (cols.length < 5) return;
+            const data  = cols[0].textContent.trim();
+            const dia   = cols[1].textContent.trim();
+            const manha = cols[2].innerText.replace(/\s+/g, ' ').trim();
+            const tarde = cols[3].innerText.replace(/\s+/g, ' ').trim();
+            const noite = cols[4].innerText.replace(/\s+/g, ' ').trim();
+
+            texto += `*📅 ${data} — ${dia}*\n`;
+            if (manha && manha !== '—') texto += `${turnoEmojis[0]} ${headers[2]}: ${manha}\n`;
+            if (tarde && tarde !== '—') texto += `${turnoEmojis[1]} ${headers[3]}: ${tarde}\n`;
+            if (noite && noite !== '—') texto += `${turnoEmojis[2]} ${headers[4]}: ${noite}\n`;
+            texto += '\n';
+        });
+
+        const finalText = texto.trim();
+        navigator.clipboard.writeText(finalText)
+            .then(() => alert('✅ Escala copiada!\nAgora cole no WhatsApp (Ctrl+V).'))
+            .catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = finalText;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+                alert('✅ Escala copiada!\nAgora cole no WhatsApp (Ctrl+V).');
+            });
+    };
+
+    // Expõe funções para o módulo de importação Excel
+    window._painelBases      = bases;
+    window._painelSalvar     = salvarBase;
+    window._painelFiltros    = aplicarFiltros;
+    window._painelContadores = atualizarContadores;
 });
 </script>
 <script>
@@ -1494,6 +1794,73 @@ document.addEventListener('DOMContentLoaded', () => {
         memorandos = memorandos.filter(m => m.id !== id);
         salvarMemorandos();
         renderMemorandos();
+    };
+
+    // ---- EXPORT / IMPORT JSON ----
+    window.exportarMemorandosJSON = function() {
+        let postitsData = [];
+        try { postitsData = JSON.parse(localStorage.getItem('postits_data')) || []; } catch(e) {}
+        const backup = {
+            versao: '1.9',
+            exportadoEm: new Date().toLocaleString('pt-BR'),
+            memorandos: memorandos,
+            postits: postitsData
+        };
+        const json = JSON.stringify(backup, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        const data = new Date().toISOString().slice(0,10);
+        a.href     = url;
+        a.download = `memorandos_mackenzie_${data}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    window.importarMemorandosJSON = function(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const backup = JSON.parse(e.target.result);
+                const novosMemor  = Array.isArray(backup.memorandos) ? backup.memorandos : [];
+                const novosPostit = Array.isArray(backup.postits)    ? backup.postits    : [];
+
+                if (novosMemor.length === 0 && novosPostit.length === 0) {
+                    alert('Arquivo JSON sem dados válidos.'); return;
+                }
+
+                const opcao = confirm(
+                    `📂 Arquivo: ${file.name}\n\n` +
+                    `📝 Memorandos: ${novosMemor.length}\n` +
+                    `📌 Post-its: ${novosPostit.length}\n\n` +
+                    `Clique OK para MESCLAR com os dados existentes.\n` +
+                    `Clique Cancelar para SUBSTITUIR tudo.`
+                );
+
+                if (opcao) {
+                    // Mescla — evita duplicatas pelo ID
+                    novosMemor.forEach(m => { if (!memorandos.find(x => x.id === m.id)) memorandos.push(m); });
+                    let postitsAtual = [];
+                    try { postitsAtual = JSON.parse(localStorage.getItem('postits_data')) || []; } catch(ex) {}
+                    novosPostit.forEach(p => { if (!postitsAtual.find(x => x.id === p.id)) postitsAtual.push(p); });
+                    localStorage.setItem('postits_data', JSON.stringify(postitsAtual));
+                } else {
+                    // Substitui
+                    memorandos = novosMemor;
+                    localStorage.setItem('postits_data', JSON.stringify(novosPostit));
+                }
+
+                salvarMemorandos();
+                renderMemorandos();
+                alert(`✅ Importação concluída!\n${memorandos.length} memorandos carregados.`);
+            } catch(err) {
+                alert('❌ Erro ao ler o arquivo JSON: ' + err.message);
+            }
+            input.value = '';
+        };
+        reader.readAsText(file, 'utf-8');
     };
 
     // Fechar modal ao clicar fora

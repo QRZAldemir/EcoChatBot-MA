@@ -47,6 +47,7 @@ from app.routers import (
     ia,
     mensagem,
     menus,
+    modelos_mensagem,
     atendimento,
     webhook,
     audio
@@ -99,6 +100,7 @@ ROUTERS_CONFIG: List[tuple] = [
     (ia, "/api/ia", "Inteligência Artificial"),
     (mensagem, "/api/mensagem", "Mensagens"),
     (menus, "/api/menus", "Menus"),
+    (modelos_mensagem, "/api/modelos-mensagem", "Modelos de Mensagem"),
     (atendimento, "/api/atendimento", "Atendimento"),
     (webhook, "/api/webhook", "Webhook"),
     (audio, "/api/audio", "Áudio")
