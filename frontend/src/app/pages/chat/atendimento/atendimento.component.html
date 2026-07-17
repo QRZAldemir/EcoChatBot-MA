@@ -6,7 +6,6 @@
   </div>
 
   <ng-container *ngIf="!carregando && canal">
-    <!-- Barra mínima com botão voltar (não interfere com a interface do chat) -->
     <div class="canal-bar">
       <button class="btn-voltar" (click)="voltar()">
         <i class="fas fa-arrow-left"></i> Menu
@@ -14,14 +13,41 @@
       <span class="canal-nome">{{ canal.icone }} {{ canal.nome }}</span>
     </div>
 
-    <!-- O HTML do canal (1atendimento-ma.html, etc.) é carregado aqui -->
-    <iframe
-      [src]="iframeUrl"
-      class="canal-frame"
-      frameborder="0"
-      allowfullscreen
-      title="{{ canal.nome }}"
-    ></iframe>
+    <div class="chat-area">
+      <ng-container *ngIf="menu; else semMenu">
+        <div class="bubble bot">
+          <strong class="bubble-titulo">{{ menu.titulo }}</strong>
+          <p class="bubble-desc" *ngIf="menu.descricao">{{ menu.descricao }}</p>
+
+          <div class="bubble-opcoes">
+            <button
+              class="opcao-btn"
+              type="button"
+              *ngFor="let o of menu.opcoes; trackBy: trackByOpcao"
+              [class.selecionada]="opcaoSelecionada?.rowId === o.rowId"
+              (click)="selecionarOpcao(o)"
+            >
+              {{ o.titulo }}
+            </button>
+          </div>
+
+          <small class="bubble-rodape" *ngIf="menu.rodape">{{ menu.rodape }}</small>
+        </div>
+
+        <ng-container *ngIf="opcaoSelecionada">
+          <div class="bubble user">{{ opcaoSelecionada.titulo }}</div>
+          <div class="bubble bot" *ngIf="opcaoSelecionada.descricao">{{ opcaoSelecionada.descricao }}</div>
+        </ng-container>
+      </ng-container>
+
+      <ng-template #semMenu>
+        <div class="bubble-vazia">
+          <i class="fas fa-comment-slash"></i>
+          <p>Nenhuma mensagem interativa cadastrada para este canal ainda.</p>
+          <a routerLink="/admin/mensagens" class="btn-cadastrar">Cadastrar em Mensagens</a>
+        </div>
+      </ng-template>
+    </div>
   </ng-container>
 
 </div>

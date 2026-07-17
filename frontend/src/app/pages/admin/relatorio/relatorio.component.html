@@ -20,14 +20,14 @@
         <label>Departamento:</label>
         <select [(ngModel)]="departamentoId" (ngModelChange)="buscar()">
           <option [ngValue]="null">Todos</option>
-          <option *ngFor="let d of departamentos" [ngValue]="d.id">{{ d.nome }}</option>
+          <option *ngFor="let d of departamentos; trackBy: trackById" [ngValue]="d.id">{{ d.nome }}</option>
         </select>
       </div>
       <div class="filter-field">
         <label>Atendente:</label>
         <select [(ngModel)]="atendenteUsuarioId" (ngModelChange)="buscar()">
           <option [ngValue]="null">Todos</option>
-          <option *ngFor="let a of atendentes" [ngValue]="a.id">{{ a.nome }}</option>
+          <option *ngFor="let a of atendentes; trackBy: trackById" [ngValue]="a.id">{{ a.nome }}</option>
         </select>
       </div>
       <button type="button" class="filter-search-btn" (click)="buscar()">
@@ -71,7 +71,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let r of registros">
+        <tr *ngFor="let r of registros; trackBy: trackById">
           <td>{{ r.protocolo }}</td>
           <td><strong>{{ r.nomeContato || '—' }}</strong></td>
           <td>{{ r.telefone || '—' }}</td>

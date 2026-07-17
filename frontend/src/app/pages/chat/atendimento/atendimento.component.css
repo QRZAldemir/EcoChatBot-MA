@@ -38,11 +38,82 @@
   font-weight: 600;
 }
 
-/* O iframe ocupa todo o espaço restante — o HTML do canal vive aqui */
-.canal-frame {
+/* ── Área de mensagem: prévia da mensagem interativa cadastrada em Mensagens ── */
+.chat-area {
   flex: 1;
-  width: 100%;
-  border: none;
+  overflow-y: auto;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bubble {
+  max-width: 420px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.bubble.bot {
+  align-self: flex-start;
+  background: #fff;
+  border: 1px solid #e5ddd8;
+  color: #18181b;
+}
+.bubble.user {
+  align-self: flex-end;
+  background: #ffd6d9;
+  color: #18181b;
+}
+
+.bubble-titulo { display: block; font-size: 14px; margin-bottom: 4px; }
+.bubble-desc { color: #3f3f46; margin-bottom: 10px; white-space: pre-line; }
+.bubble-rodape { display: block; margin-top: 10px; color: #78716c; font-size: 10.5px; font-style: italic; }
+
+.bubble-opcoes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.opcao-btn {
+  border: 1.5px solid #c8102e;
+  background: #fff;
+  color: #c8102e;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.14s;
+}
+.opcao-btn:hover { background: #fff0f2; }
+.opcao-btn.selecionada { background: #c8102e; color: #fff; }
+
+.bubble-vazia {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #78716c;
+  text-align: center;
+  padding: 40px 20px;
+}
+.bubble-vazia i { font-size: 32px; opacity: 0.4; }
+.btn-cadastrar {
+  margin-top: 4px;
+  background: #c8102e;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
 }
 
 .loading {

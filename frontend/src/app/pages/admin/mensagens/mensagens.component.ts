@@ -13,6 +13,7 @@ import { MenuService } from '../../../core/services/menu.service';
 import { DepartamentoService } from '../../../core/services/departamento.service';
 import { CanalService } from '../../../core/services/canal.service';
 import { environment } from '../../../../environments/environment';
+import { trackById } from '../../../core/utils/track-by';
 
 type TipoMensagem = 'Padrão' | 'Interativa';
 
@@ -32,6 +33,7 @@ interface MensagemRow {
   styleUrls: ['./mensagens.component.css']
 })
 export class MensagensComponent implements OnInit {
+  readonly trackById = trackById;
 
   linhas: MensagemRow[] = [];
   departamentos: Departamento[] = [];
@@ -204,6 +206,11 @@ export class MensagensComponent implements OnInit {
     ];
     this.novaOpcao = { titulo: '', rowId: '' };
     this.destinoCanalId = null;
+  }
+
+  // rowId é estável desde a criação da opção; id só existe depois de salva no backend.
+  trackByOpcao(_indice: number, opcao: Partial<MenuOpcao>): string {
+    return opcao.rowId ?? String(_indice);
   }
 
   removerOpcao(indice: number): void {

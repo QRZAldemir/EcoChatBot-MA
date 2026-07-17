@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Departamento } from '../../../core/models/departamento.model';
 import { DepartamentoService } from '../../../core/services/departamento.service';
+import { trackById } from '../../../core/utils/track-by';
 
 @Component({
   selector: 'app-departamentos',
@@ -12,6 +13,8 @@ import { DepartamentoService } from '../../../core/services/departamento.service
   styleUrls: ['./departamentos.component.css']
 })
 export class DepartamentosComponent implements OnInit {
+
+  readonly trackById = trackById;
 
   departamentos: Departamento[] = [];
   modalAberto = false;

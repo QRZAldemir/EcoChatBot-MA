@@ -53,7 +53,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let l of linhasFiltradas">
+          <tr *ngFor="let l of linhasFiltradas; trackBy: trackById">
             <td>{{ l.id }}</td>
             <td><strong>{{ l.descricao }}</strong></td>
             <td>{{ l.tipo }}</td>
@@ -91,7 +91,7 @@
           <label>Departamento (dono)</label>
           <select [(ngModel)]="formPadrao.departamentoId">
             <option [ngValue]="undefined">— Nenhum —</option>
-            <option *ngFor="let d of departamentos" [ngValue]="d.id">{{ d.nome }}</option>
+            <option *ngFor="let d of departamentos; trackBy: trackById" [ngValue]="d.id">{{ d.nome }}</option>
           </select>
         </div>
 
@@ -163,7 +163,7 @@
           <label>Vínculo</label>
           <select [(ngModel)]="formInterativa.canalId">
             <option [ngValue]="undefined">🏠 Menu Principal (Hub)</option>
-            <option *ngFor="let c of canais" [ngValue]="c.id">{{ c.departamentoNome || c.nome }} — {{ c.nome }}</option>
+            <option *ngFor="let c of canais; trackBy: trackById" [ngValue]="c.id">{{ c.departamentoNome || c.nome }} — {{ c.nome }}</option>
           </select>
           <small class="helper">
             Menu Principal = 1ª tela que o cliente vê. Vinculada a um canal = tela do departamento após ele ser selecionado.
@@ -178,7 +178,7 @@
         </div>
 
         <div class="opcoes-lista" *ngIf="formInterativa.opcoes?.length">
-          <div class="opcao-item" *ngFor="let o of formInterativa.opcoes; let i = index">
+          <div class="opcao-item" *ngFor="let o of formInterativa.opcoes; let i = index; trackBy: trackByOpcao">
             <span class="opcao-titulo">{{ o.titulo }}</span>
             <code class="opcao-id">{{ o.rowId }}</code>
             <button class="btn-icon danger" (click)="removerOpcao(i)" title="Remover"><i class="fas fa-trash"></i></button>
@@ -191,7 +191,7 @@
             <label>Departamento de destino</label>
             <select [(ngModel)]="destinoCanalId" (ngModelChange)="onDestinoCanalChange()">
               <option [ngValue]="null">— escolher para preencher automático —</option>
-              <option *ngFor="let c of canais" [ngValue]="c.id">{{ c.departamentoNome || c.nome }} — {{ c.nome }}</option>
+              <option *ngFor="let c of canais; trackBy: trackById" [ngValue]="c.id">{{ c.departamentoNome || c.nome }} — {{ c.nome }}</option>
             </select>
           </div>
           <div class="fg">

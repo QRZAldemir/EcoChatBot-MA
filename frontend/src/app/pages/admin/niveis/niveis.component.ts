@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { trackById } from '../../../core/utils/track-by';
 
 interface NivelUI {
   id: number;
@@ -18,6 +19,8 @@ interface NivelUI {
   styleUrls: ['./niveis.component.css']
 })
 export class NiveisComponent {
+  readonly trackById = trackById;
+
   niveis: NivelUI[] = [
     {
       id: 1, codigo: 'atendente', nome: 'Atendente',

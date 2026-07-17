@@ -1,10 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
-
 :root {
   --red: #c8102e; --red-dark: #8a0a1f; --red-pale: #fff0f2;
   --sb: #0c0004; --border: #e5ddd8; --bg: #f4f0ed;
   --card: #ffffff; --text: #18181b; --muted: #78716c;
-  --font: 'DM Sans', system-ui, sans-serif;
+  --font: 'Roboto', system-ui, sans-serif;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }

@@ -28,16 +28,23 @@
 body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;min-height:100vh;overflow-x:hidden;font-size:13.5px;}
 
 /* ━━━ SIDEBAR ━━━ */
-.sb{width:var(--sw);background:var(--sb);display:flex;flex-direction:column;position:fixed;inset:0 auto 0 0;z-index:200;overflow:hidden;}
+/* Paleta da barra lateral = docs/Barra Menu.png (fundo branco, ícones cinza-azulado,
+   item ativo em azul) — substitui o fundo preto usado antes. */
+.sb{width:var(--sw);background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;inset:0 auto 0 0;z-index:200;overflow:hidden;}
 .sb-brand{padding:15px 14px;background:#fff;border-bottom:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:8px;}
 .sb-logo{flex-shrink:0;}
 .sb-logo img{width:180px;height:auto;object-fit:contain;mix-blend-mode:multiply;}
-.sb-txt strong{color:#fff;font-size:13px;font-weight:700;display:block;line-height:1.2;}
-.sb-txt small{color:rgba(255,255,255,0.32);font-size:9.5px;}
-.sb-sec{padding:12px 14px 3px;font-size:9px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,0.2);text-transform:uppercase;}
-.ni{display:flex;align-items:center;gap:9px;padding:9px 13px;margin:2px 7px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,0.48);font-size:12.5px;font-weight:500;transition:all .15s;position:relative;user-select:none;}
-.ni:hover{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.85);}
-.ni.active{background:var(--red);color:#fff;box-shadow:0 4px 14px rgba(200,16,46,0.4);}
+.sb-txt strong{color:#18181b;font-size:13px;font-weight:700;display:block;line-height:1.2;}
+.sb-txt small{color:#94a3b8;font-size:9.5px;}
+.icon-btn{width:34px;height:34px;border:1.5px solid var(--border);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#515c66;text-decoration:none;position:relative;transition:all .15s;}
+.icon-btn:hover{border-color:#5c8ad6;color:#5c8ad6;}
+.icon-btn-tip{position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%) translateY(-4px);background:#18181b;color:#fff;font-size:10.5px;font-weight:600;padding:4px 9px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:all .15s;z-index:10;}
+.icon-btn-tip::before{content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-bottom-color:#18181b;}
+.icon-btn:hover .icon-btn-tip{opacity:1;transform:translateX(-50%) translateY(0);}
+.sb-sec{padding:12px 14px 3px;font-size:9px;font-weight:700;letter-spacing:1.5px;color:#94a3b8;text-transform:uppercase;}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 13px;margin:2px 7px;border-radius:8px;cursor:pointer;color:#515c66;font-size:12.5px;font-weight:500;transition:all .15s;position:relative;user-select:none;}
+.ni:hover{background:#f4f6f8;color:#18181b;}
+.ni.active{background:#5c8ad6;color:#fff;box-shadow:0 4px 14px rgba(92,138,214,0.35);}
 .ni i{width:16px;text-align:center;font-size:12.5px;flex-shrink:0;}
 .nb{margin-left:auto;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:20px;min-width:18px;text-align:center;line-height:1.4;}
 .nb.g{background:var(--wa);color:#fff;}
@@ -45,16 +52,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .nb.b{background:var(--blue);color:#fff;}
 .nb.y{background:var(--yellow);color:#222;}
 .nb.t{background:var(--teal);color:#fff;}
-.sb-div{height:1px;background:rgba(255,255,255,0.06);margin:6px 14px;}
-.sb-foot{margin-top:auto;border-top:1px solid rgba(255,255,255,0.06);padding:11px;}
-.agent-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.04);border-radius:8px;}
-.av{width:30px;height:30px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:11px;flex-shrink:0;position:relative;}
-.dot-status{position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--sb);}
+.sb-div{height:1px;background:var(--border);margin:6px 14px;}
+.sb-foot{margin-top:auto;border-top:1px solid var(--border);padding:11px;}
+.agent-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f4f6f8;border-radius:8px;}
+.av{width:30px;height:30px;border-radius:50%;background:#5c8ad6;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:11px;flex-shrink:0;position:relative;}
+.dot-status{position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;border:1.5px solid #fff;}
 .dot-status.on{background:var(--green);}
 .dot-status.busy{background:var(--yellow);}
 .dot-status.off{background:#6b7280;}
-.agent-row strong{color:#fff;font-size:11.5px;display:block;line-height:1.2;}
-.agent-row small{color:rgba(255,255,255,0.32);font-size:9.5px;}
+.agent-row strong{color:#18181b;font-size:11.5px;display:block;line-height:1.2;}
+.agent-row small{color:#94a3b8;font-size:9.5px;}
 
 /* ━━━ MAIN ━━━ */
 .main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh;}
@@ -379,54 +386,54 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 <aside class="sb">
   <div class="sb-brand">
     <div class="sb-logo"><img src="LogoMackenzie.png" alt="Mackenzie Logo"></div>
-    <div class="sb-txt"><strong>Dashboard</strong></div>
+    <!-- docs/icone deixe o label suspenso...png — ícone com label em tooltip
+         (só aparece no hover) que abre o relatório em tempo real. -->
+    <a href="modulo_dashboard.html" target="_blank" class="icon-btn">
+      <i class="fas fa-house"></i>
+      <span class="icon-btn-tip">Dashboard</span>
+    </a>
   </div>
 
 
 
-  <div class="sb-sec">Canais</div>
-  <div class="ni" onclick="nav('whatsapp',this)">
-    <i class="fab fa-whatsapp"></i> WhatsApp
-    <span class="nb g" id="nb-wa">12</span>
+  <!-- EXATAMENTE os 11 itens de docs/Barra Menu.png, na mesma ordem, sem
+       seções extras — nomes genéricos porque o projeto se adapta a qualquer
+       modelo de negócio, não só o hospitalar. -->
+  <div class="ni" onclick="nav('dashboard',this)">
+    <i class="fas fa-house"></i> Início
   </div>
-  <div class="ni" onclick="nav('telefonia',this)">
-    <i class="fas fa-phone-alt"></i> Telefonia
-    <span class="nb t" id="nb-tel">5</span>
+  <div class="ni" onclick="nav('usuarios',this)">
+    <i class="fas fa-users"></i> Usuários
+  </div>
+  <div class="ni" onclick="nav('contatos',this)">
+    <i class="fas fa-address-card"></i> Contatos
+  </div>
+  <div class="ni" onclick="nav('setor',this)">
+    <i class="fas fa-building"></i> Setor
+  </div>
+  <div class="ni" onclick="nav('atendimentos',this)">
+    <i class="fas fa-comments"></i> Chat
+    <span class="nb b" id="nb-at">20</span>
   </div>
   <div class="ni" onclick="nav('email',this)">
     <i class="fas fa-envelope"></i> E-mail
     <span class="nb r" id="nb-em">3</span>
   </div>
-
-  <div class="sb-sec">Atendimentos</div>
-  <div class="ni" onclick="nav('atendimentos',this)">
-    <i class="fas fa-headset"></i> Fila Geral
-    <span class="nb b" id="nb-at">20</span>
+  <div class="ni" onclick="nav('historico',this)">
+    <i class="fas fa-clock-rotate-left"></i> Histórico
   </div>
-  <div class="ni" onclick="nav('bilhetagem',this)">
-    <i class="fas fa-receipt"></i> Bilhetagem
-  </div>
-
-  <div class="sb-sec">Gestão</div>
-  <div class="ni" onclick="nav('usuarios',this)">
-    <i class="fas fa-users"></i> Usuários
-  </div>
-  <div class="ni" onclick="nav('relatorios',this)">
-    <i class="fas fa-chart-bar"></i> Relatórios
-  </div>
-  <div class="ni" onclick="nav('config',this)">
-    <i class="fas fa-plug"></i> API ChatMackenzie
-    <span class="nb y" id="nb-api">!</span>
+  <div class="ni" onclick="nav('conexoes',this)">
+    <i class="fas fa-wifi"></i> Conexões
   </div>
   <div class="ni" onclick="abrirPainelEscalas()">
-    <i class="fas fa-calendar-alt"></i> Painel de Escalas
+    <i class="fas fa-calendar-days"></i> Escalas
   </div>
-
-  <div class="sb-sec">Análises</div>
-  <a href="dashboard_eco.html" class="ni">
-    <i class="fas fa-chart-pie"></i>
-    <span>Dashboard</span>
-  </a>
+  <div class="ni" onclick="nav('campanhas',this)">
+    <i class="fas fa-paper-plane"></i> Campanhas
+  </div>
+  <div class="ni" onclick="nav('arquivos',this)">
+    <i class="fas fa-folder-open"></i> Arquivos
+  </div>
 
   <div class="sb-foot">
     <div class="agent-row">
@@ -1044,6 +1051,116 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
               <button class="btn s" onclick="nav('bilhetagem',null)"><i class="fas fa-receipt"></i> Ver Bilhetagem</button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ NOVOS ITENS (docs/botões ação menu Ecochat.png + Barra Menu.png) ══════════
+         Placeholders — conteúdo real depende do que cada negócio precisar. -->
+    <div class="page" id="page-conexoes">
+      <div class="panel"><div class="ph"><div class="ph-ico g"><i class="fas fa-wifi"></i></div><h3>Conexões</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-wifi" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Status de conexão de cada canal (WhatsApp, Telefonia, E-mail) será exibido aqui.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-campanhas">
+      <div class="panel"><div class="ph"><div class="ph-ico g"><i class="fas fa-paper-plane"></i></div><h3>Campanhas</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-paper-plane" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Envio de mensagens em massa para contatos/listas será configurado aqui.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-arquivos">
+      <div class="panel"><div class="ph"><div class="ph-ico y"><i class="fas fa-folder-open"></i></div><h3>Arquivos</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-folder-open" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Documentos e mídias enviados/recebidos nos atendimentos ficarão organizados aqui.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-historico">
+      <div class="panel"><div class="ph"><div class="ph-ico b"><i class="fas fa-clock-rotate-left"></i></div><h3>Histórico</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-clock-rotate-left" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Linha do tempo de atividades e alterações do sistema será exibida aqui.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-chatbot">
+      <div class="panel"><div class="ph"><div class="ph-ico r"><i class="fas fa-robot"></i></div><h3>ChatBot</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-robot" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Os fluxos de atendimento automatizado (mensagens interativas e menus) ficarão aqui.<br>Hoje já podem ser cadastrados em <strong>Configuração → Mensagens</strong>.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-utilidades">
+      <div class="panel"><div class="ph"><div class="ph-ico t"><i class="fas fa-toolbox"></i></div><h3>Utilidades</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-toolbox" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Ferramentas auxiliares (integrações, automações) aparecerão aqui conforme o negócio precisar.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-contatos">
+      <div class="panel"><div class="ph"><div class="ph-ico b"><i class="fas fa-address-card"></i></div><h3>Contatos</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-address-card" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          A lista de contatos que já interagiram pelos canais será exibida aqui.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-grupos-acesso">
+      <div class="panel"><div class="ph"><div class="ph-ico p"><i class="fas fa-user-shield"></i></div><h3>Grupos de Acesso</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-user-shield" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Perfis de permissão por grupo — equivalente aos <strong>Níveis de Acesso</strong> do painel administrativo.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-setor">
+      <div class="panel"><div class="ph"><div class="ph-ico g"><i class="fas fa-sitemap"></i></div><h3>Setor</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-sitemap" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Setores/departamentos da empresa — equivalente ao módulo <strong>Departamentos</strong>.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-contas">
+      <div class="panel"><div class="ph"><div class="ph-ico y"><i class="fas fa-building"></i></div><h3>Contas</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-building" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Contas e integrações da empresa (WhatsApp Business, e-mail, telefonia) serão gerenciadas aqui.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-planos">
+      <div class="panel"><div class="ph"><div class="ph-ico r"><i class="fas fa-layer-group"></i></div><h3>Planos</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-layer-group" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Planos de assinatura e limites de uso serão configurados aqui.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-personalizar">
+      <div class="panel"><div class="ph"><div class="ph-ico t"><i class="fas fa-palette"></i></div><h3>Personalizar</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-palette" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Cores, logotipo e identidade visual do painel — para adaptar o sistema a qualquer negócio.
         </div>
       </div>
     </div>

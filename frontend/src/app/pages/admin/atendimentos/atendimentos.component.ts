@@ -6,6 +6,7 @@ import { AtendimentoService } from '../../../core/services/atendimento.service';
 import { DepartamentoService } from '../../../core/services/departamento.service';
 import { Atendimento } from '../../../core/models/atendimento.model';
 import { UsuarioLogado } from '../../../core/models/auth.model';
+import { trackById } from '../../../core/utils/track-by';
 
 // Polling simples: suficiente para um painel de atendimento/recepção e
 // muito mais barato de manter que websocket (ver decisão registrada com o
@@ -20,6 +21,8 @@ const POLL_MS = 8000;
   styleUrls: ['./atendimentos.component.css'],
 })
 export class AtendimentosComponent implements OnInit, OnDestroy {
+  readonly trackById = trackById;
+
   usuario: UsuarioLogado | null = this.auth.getUsuarioAtual();
   departamentoNome = '';
   fila: Atendimento[] = [];

@@ -9,7 +9,7 @@
   <div class="opcoes-grid">
     <button
       class="opcao-btn"
-      *ngFor="let c of canais"
+      *ngFor="let c of canais; trackBy: trackById"
       (click)="selecionarCanal(c)"
     >
       <span class="opcao-icon">{{ c.icone }}</span>

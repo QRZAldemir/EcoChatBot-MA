@@ -33,7 +33,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let a of fila">
+            <tr *ngFor="let a of fila; trackBy: trackById">
               <td><strong>{{ a.nomeContato || '—' }}</strong></td>
               <td>{{ a.telefone || '—' }}</td>
               <td>{{ a.protocolo }}</td>
@@ -68,7 +68,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let a of meus">
+            <tr *ngFor="let a of meus; trackBy: trackById">
               <td><strong>{{ a.nomeContato || '—' }}</strong></td>
               <td>{{ a.telefone || '—' }}</td>
               <td>{{ a.protocolo }}</td>

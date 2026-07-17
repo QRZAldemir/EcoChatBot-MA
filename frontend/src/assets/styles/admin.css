@@ -9,7 +9,7 @@
   --teal:#0891b2; --teal-pale:#ecfeff; --teal-dark:#0e7490;
   --bg:#f4f0ed; --card:#ffffff; --border:#e5ddd8;
   --text:#18181b; --muted:#78716c;
-  --font:'DM Sans',system-ui,sans-serif;
+  --font:'Roboto',system-ui,sans-serif;
   --r:13px; --sh:0 2px 10px rgba(0,0,0,0.06); --shl:0 8px 30px rgba(0,0,0,0.12);
 }
 

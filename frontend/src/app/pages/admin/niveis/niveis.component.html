@@ -6,7 +6,7 @@
     </div>
     <div class="pb">
       <div class="niveis-grid">
-        <div *ngFor="let n of niveis" class="nivel-card" [class.selecionado]="nivelSelecionado?.id === n.id" (click)="selecionar(n)">
+        <div *ngFor="let n of niveis; trackBy: trackById" class="nivel-card" [class.selecionado]="nivelSelecionado?.id === n.id" (click)="selecionar(n)">
           <div class="nivel-top">
             <span class="nivel-badge" [class]="n.codigo">{{ n.nome }}</span>
             <i class="fas fa-chevron-down" [class.up]="nivelSelecionado?.id === n.id"></i>
