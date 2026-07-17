@@ -141,6 +141,20 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .alert.ok{background:var(--green-pale);border-color:var(--green);color:var(--green-dark);}
 .alert.err{background:var(--red-pale);border-color:var(--red);color:var(--red-dark);}
 
+/* ━━━ GRADE DE HORÁRIOS (TURNOS) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.dias-box{border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;}
+.dia-row{display:flex;align-items:center;gap:8px;padding:5px 0;}
+.dia-row + .dia-row{border-top:1px dashed var(--border);}
+.dia-lbl{width:32px;font-size:11.5px;font-weight:700;color:var(--text);flex-shrink:0;}
+.dia-ranges{flex:1;display:flex;flex-direction:column;gap:5px;}
+.dia-range{display:flex;align-items:center;gap:6px;}
+.dia-range input[type=time]{padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:11.5px;font-family:var(--font);background:var(--card);color:var(--text);outline:none;width:92px;}
+.dia-range input[type=time]:focus{border-color:var(--red);}
+.dia-range .as{font-size:11px;color:var(--muted);}
+.dia-vazio{font-size:11px;color:var(--muted);font-style:italic;}
+.pill-dia{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;font-size:9.5px;font-weight:700;margin-right:3px;background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+.pill-dia.on{background:var(--yellow-pale);color:var(--yellow-dark);border-color:var(--yellow);}
+
 /* ━━━ STATS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;}
 .sc{background:var(--card);border-radius:var(--r);padding:13px;border:1px solid var(--border);box-shadow:var(--sh);position:relative;}
@@ -166,19 +180,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
   </div>
 
   <nav class="sb-nav">
-    <div class="sb-sec">Visão Geral</div>
-    <div class="ni" onclick="window.location.href='dashboard_eco.html'"><i class="fas fa-chart-pie"></i> Dashboard</div>
-
     <div class="sb-sec">Configuração</div>
     <div class="ni active" onclick="goPage('usuarios',this)"><i class="fas fa-users"></i> Usuários</div>
+    <div class="ni" onclick="goPage('turnos',this)"><i class="fas fa-clock"></i> Turnos de Trabalho</div>
     <div class="ni" onclick="goPage('departamentos',this)"><i class="fas fa-building"></i> Departamentos</div>
     <div class="ni" onclick="goPage('canais',this)"><i class="fas fa-project-diagram"></i> Canais</div>
     <div class="ni" onclick="goPage('niveis',this)"><i class="fas fa-shield-halved"></i> Níveis de Acesso</div>
-    <div class="ni" onclick="goPage('conexoes',this)"><i class="fab fa-whatsapp"></i> Conexões WhatsApp</div>
-
-    <div class="sb-sec">Gestão</div>
-    <div class="ni" onclick="window.open('modulo_mensagens.html', '_blank', 'width=1280,height=800')"><i class="fas fa-calendar-alt"></i> Painel de Escalas</div>
-    <div class="ni" onclick="goPage('relatorio',this)"><i class="fas fa-chart-bar"></i> Relatórios</div>
   </nav>
 
   <div class="sb-foot">
@@ -348,10 +355,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
               <label>Turno</label>
               <select id="turnoField" onchange="atualizarTurno()">
                 <option value="">Selecione...</option>
-                <option value="manha">☀️ Manhã (06h–14h)</option>
-                <option value="tarde">🌤️ Tarde (14h–22h)</option>
-                <option value="noite">🌙 Noite (22h–06h)</option>
-                <option value="integral">🔄 Integral (24h)</option>
               </select>
             </div>
             <div id="turnoTag" class="turno-vazio">Nenhum turno selecionado.</div>
@@ -419,6 +422,80 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
     </div><!-- /layout -->
     </div><!-- /page-usuarios -->
+
+    <!-- ══════ PÁGINA: TURNOS DE TRABALHO ══════ -->
+    <div id="page-turnos" style="display:none">
+      <div style="display:grid;grid-template-columns:380px 1fr;gap:18px;align-items:start">
+
+        <!-- FORM -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ico y"><i class="fas fa-clock"></i></div>
+            <h3>Novo Turno</h3>
+          </div>
+          <div class="cb">
+            <div class="fg">
+              <label>Descrição <span class="req">*</span></label>
+              <input type="text" id="t-desc" placeholder="Ex: Turno Manhã">
+            </div>
+
+            <div class="fg">
+              <label>Turnos</label>
+              <div class="dias-box" id="t-dias-container"></div>
+            </div>
+
+            <div class="fg">
+              <label>Ação para novos atendimentos</label>
+              <select id="t-acao">
+                <option value="">Selecione...</option>
+                <option value="fila">Colocar em fila de espera</option>
+                <option value="mensagem">Enviar mensagem automática</option>
+                <option value="encaminhar">Encaminhar para outro turno</option>
+                <option value="bloquear">Não aceitar novos atendimentos</option>
+              </select>
+            </div>
+
+            <div class="fg">
+              <label>Mensagem para atendimentos em andamento</label>
+              <textarea id="t-msg-andamento" rows="3" placeholder="Escreva a mensagem..."></textarea>
+            </div>
+
+            <div class="fg">
+              <label>Mensagem de encerramento</label>
+              <textarea id="t-msg-encerramento" rows="3" placeholder="Escreva a mensagem..."></textarea>
+            </div>
+
+            <div class="fg">
+              <label>Status</label>
+              <select id="t-status">
+                <option value="ativo">🟢 Ativo</option>
+                <option value="inativo">🔴 Inativo</option>
+              </select>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:4px">
+              <button class="btn p" style="flex:1" onclick="salvarTurno()"><i class="fas fa-save"></i> Salvar Turno</button>
+              <button class="btn s" onclick="limparTurno()"><i class="fas fa-times"></i> Limpar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- LISTA -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ico b"><i class="fas fa-list"></i></div>
+            <h3>Turnos Cadastrados</h3>
+            <span id="t-cont" style="font-size:11px;color:var(--muted);margin-left:auto">0 turnos</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th>Descrição</th><th>Dias</th><th>Atendentes</th><th>Status</th><th></th></tr></thead>
+              <tbody id="t-corpo"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ══════ PÁGINA: DEPARTAMENTOS ══════ -->
     <div id="page-departamentos" style="display:none">
@@ -582,10 +659,11 @@ const canalLabel = {
   'portaria':'🚪 Portaria',
   'ouvidoria':'📢 Ouvidoria'
 };
-const turnoLabel = {
-  'manha':'☀️ Manhã','tarde':'🌤️ Tarde',
-  'noite':'🌙 Noite','integral':'🔄 Integral'
-};
+const DIAS = [
+  { key:'dom', label:'Dom' }, { key:'seg', label:'Seg' }, { key:'ter', label:'Ter' },
+  { key:'qua', label:'Qua' }, { key:'qui', label:'Qui' }, { key:'sex', label:'Sex' },
+  { key:'sab', label:'Sáb' }
+];
 const conexaoLabel = {
   '67-3416-7800':'67 3416-7800 — Oficial',
   '67-3416-7801':'67 3416-7801 — Suporte'
@@ -623,7 +701,7 @@ function atualizarTurno() {
   const el = document.getElementById('turnoTag');
   if (v) {
     el.className = 'turno-tag';
-    el.textContent = turnoLabel[v];
+    el.innerHTML = `<i class="fas fa-clock"></i> ${v}`;
   } else {
     el.className = 'turno-vazio';
     el.textContent = 'Nenhum turno selecionado.';
@@ -722,7 +800,7 @@ function renderTabela() {
             <i class="fab fa-whatsapp"></i> ${conexaoLabel[u.conexao] || u.conexao || '—'}
           </span>
         </td>
-        <td style="font-size:11px">${turnoLabel[u.turno] || u.turno || '—'}</td>
+        <td style="font-size:11px">${u.turno ? `<i class="fas fa-clock" style="color:var(--yellow-dark);margin-right:4px"></i>${u.turno}` : '—'}</td>
         <td><span class="badge ${u.tipo}">${u.tipo}</span></td>
         <td><span class="badge ${u.status}">${u.status === 'ativo' ? '● Ativo' : '● Inativo'}</span></td>
         <td>
@@ -768,9 +846,10 @@ function alerta(msg, tipo) {
   setTimeout(() => d.remove(), 4000);
 }
 
-// ─── DADOS: DEPARTAMENTOS E CANAIS ───────────────────────────
+// ─── DADOS: DEPARTAMENTOS, CANAIS E TURNOS ───────────────────
 let departamentos = JSON.parse(localStorage.getItem('ecochat_deptos') || '[]');
 let canais        = JSON.parse(localStorage.getItem('ecochat_canais') || '[]');
+let turnos        = JSON.parse(localStorage.getItem('ecochat_turnos') || '[]');
 
 // Pré-carrega dados padrão se estiver vazio
 if (departamentos.length === 0) {
@@ -791,6 +870,20 @@ if (canais.length === 0) {
     { id: 5, nome: 'Ouvidoria',                icone: '📢', desc: 'Canal de ouvidoria e sugestões',           arquivo: '8ouvidoria-mackenzie.html',          status: 'ativo' },
   ];
   localStorage.setItem('ecochat_canais', JSON.stringify(canais));
+}
+function diasFixos(ini, fim) {
+  const d = {};
+  DIAS.forEach(({key}) => { d[key] = [{ini, fim}]; });
+  return d;
+}
+if (turnos.length === 0) {
+  turnos = [
+    { id: 1, desc: 'Manhã',    dias: diasFixos('06:00','14:00'), acao: 'fila',      msgAndamento: '', msgEncerramento: '', status: 'ativo' },
+    { id: 2, desc: 'Tarde',    dias: diasFixos('14:00','22:00'), acao: 'fila',      msgAndamento: '', msgEncerramento: '', status: 'ativo' },
+    { id: 3, desc: 'Noite',    dias: diasFixos('22:00','23:59'), acao: 'mensagem',  msgAndamento: '', msgEncerramento: '', status: 'ativo' },
+    { id: 4, desc: 'Integral', dias: diasFixos('00:00','23:59'), acao: 'fila',      msgAndamento: '', msgEncerramento: '', status: 'ativo' },
+  ];
+  localStorage.setItem('ecochat_turnos', JSON.stringify(turnos));
 }
 
 // ─── CRUD: DEPARTAMENTOS ─────────────────────────────────────
@@ -919,14 +1012,118 @@ function renderCanais() {
   }).join('');
 }
 
+// ─── GRADE DE HORÁRIOS (FORM DE TURNO) ───────────────────────
+let turnoDiasForm = {};
+
+function novoTurnoDiasForm() {
+  const d = {};
+  DIAS.forEach(({key}) => { d[key] = [{ ini:'08:00', fim:'17:00' }]; });
+  return d;
+}
+
+function renderDiasForm() {
+  const box = document.getElementById('t-dias-container');
+  if (!box) return;
+  box.innerHTML = DIAS.map(({key,label}) => {
+    const ranges = turnoDiasForm[key] || [];
+    const rangesHtml = ranges.length
+      ? ranges.map((r, i) => `
+          <div class="dia-range">
+            <input type="time" value="${r.ini}" onchange="atualizarRange('${key}',${i},'ini',this.value)">
+            <span class="as">às</span>
+            <input type="time" value="${r.fim}" onchange="atualizarRange('${key}',${i},'fim',this.value)">
+            <button type="button" class="btn-ico del" onclick="removeRange('${key}',${i})" title="Remover"><i class="fas fa-trash"></i></button>
+            ${i === ranges.length - 1 ? `<button type="button" class="btn-ico" onclick="addRange('${key}')" title="Adicionar horário"><i class="fas fa-plus"></i></button>` : ''}
+          </div>`).join('')
+      : `<div class="dia-range"><span class="dia-vazio">Sem atendimento</span><button type="button" class="btn-ico" onclick="addRange('${key}')" title="Adicionar horário"><i class="fas fa-plus"></i></button></div>`;
+    return `<div class="dia-row"><div class="dia-lbl">${label}</div><div class="dia-ranges">${rangesHtml}</div></div>`;
+  }).join('');
+}
+
+function addRange(dia) {
+  if (!turnoDiasForm[dia]) turnoDiasForm[dia] = [];
+  turnoDiasForm[dia].push({ ini:'08:00', fim:'17:00' });
+  renderDiasForm();
+}
+
+function removeRange(dia, idx) {
+  turnoDiasForm[dia].splice(idx, 1);
+  renderDiasForm();
+}
+
+function atualizarRange(dia, idx, campo, val) {
+  turnoDiasForm[dia][idx][campo] = val;
+}
+
+// ─── CRUD: TURNOS ─────────────────────────────────────────────
+function salvarTurno() {
+  const desc = document.getElementById('t-desc').value.trim();
+  const acao = document.getElementById('t-acao').value;
+  const msgAndamento = document.getElementById('t-msg-andamento').value.trim();
+  const msgEncerramento = document.getElementById('t-msg-encerramento').value.trim();
+  const status = document.getElementById('t-status').value;
+  if (!desc) return alerta('Descrição do turno é obrigatória.', 'err');
+  turnos.push({ id: Date.now(), desc, dias: JSON.parse(JSON.stringify(turnoDiasForm)), acao, msgAndamento, msgEncerramento, status });
+  localStorage.setItem('ecochat_turnos', JSON.stringify(turnos));
+  alerta('✓ Turno cadastrado!', 'ok');
+  limparTurno();
+  renderTurnos();
+  sincronizarSelects();
+}
+
+function deletarTurno(id) {
+  if (!confirm('Excluir este turno?')) return;
+  turnos = turnos.filter(t => t.id !== id);
+  localStorage.setItem('ecochat_turnos', JSON.stringify(turnos));
+  renderTurnos();
+  sincronizarSelects();
+}
+
+function limparTurno() {
+  document.getElementById('t-desc').value = '';
+  document.getElementById('t-acao').value = '';
+  document.getElementById('t-msg-andamento').value = '';
+  document.getElementById('t-msg-encerramento').value = '';
+  document.getElementById('t-status').value = 'ativo';
+  turnoDiasForm = novoTurnoDiasForm();
+  renderDiasForm();
+}
+
+function renderTurnos() {
+  const corpo = document.getElementById('t-corpo');
+  const cont  = document.getElementById('t-cont');
+  if (!corpo) return;
+  cont.textContent = turnos.length + ' turno(s)';
+  if (turnos.length === 0) {
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Nenhum turno cadastrado</td></tr>`;
+    return;
+  }
+  corpo.innerHTML = turnos.map(t => {
+    const qtd = usuarios.filter(u => u.turno === t.desc).length;
+    const diasHtml = DIAS.map(({key,label}) => {
+      const ativo = (t.dias && t.dias[key] && t.dias[key].length > 0);
+      return `<span class="pill-dia ${ativo ? 'on' : ''}" title="${label}">${label[0]}</span>`;
+    }).join('');
+    return `<tr>
+      <td><strong style="font-size:12.5px"><i class="fas fa-clock" style="color:var(--yellow-dark);margin-right:5px"></i>${t.desc}</strong></td>
+      <td>${diasHtml}</td>
+      <td style="font-size:11.5px">${qtd} atendente(s)</td>
+      <td><span class="badge ${t.status}">${t.status === 'ativo' ? '● Ativo' : '● Inativo'}</span></td>
+      <td><button class="btn-ico del" onclick="deletarTurno(${t.id})" title="Excluir turno"><i class="fas fa-trash"></i></button></td>
+    </tr>`;
+  }).join('');
+}
+
 // ─── SINCRONIZAR SELECTS DO FORM DE USUÁRIO ──────────────────
 function sincronizarSelects() {
   const deptoSel = document.getElementById('deptoField');
   const canalSel = document.getElementById('canalField');
+  const turnoSel = document.getElementById('turnoField');
   if (!deptoSel || !canalSel) return;
 
   const dVal = deptoSel.value;
   const cVal = canalSel.value;
+  const tVal = turnoSel ? turnoSel.value : '';
 
   deptoSel.innerHTML = '<option value="">Selecione...</option>' +
     departamentos.filter(d => d.status === 'ativo')
@@ -937,12 +1134,20 @@ function sincronizarSelects() {
     canais.filter(c => c.status === 'ativo')
       .map(c => `<option value="${c.nome}">${c.icone || ''} ${c.nome}</option>`).join('');
   canalSel.value = cVal;
+
+  if (turnoSel) {
+    turnoSel.innerHTML = '<option value="">Selecione...</option>' +
+      turnos.filter(t => t.status === 'ativo')
+        .map(t => `<option value="${t.desc}">${t.desc}</option>`).join('');
+    turnoSel.value = tVal;
+  }
 }
 
 // ─── NAVEGAÇÃO ENTRE PÁGINAS ──────────────────────────────────
-const paginas = { usuarios:'page-usuarios', departamentos:'page-departamentos', canais:'page-canais' };
+const paginas = { usuarios:'page-usuarios', turnos:'page-turnos', departamentos:'page-departamentos', canais:'page-canais' };
 const titulos = {
   usuarios: '<i class="fas fa-users" style="color:var(--red);margin-right:8px"></i>Cadastro de <span>Usuários</span>',
+  turnos: '<i class="fas fa-clock" style="color:var(--yellow-dark);margin-right:8px"></i>Turnos de <span>Trabalho</span>',
   departamentos: '<i class="fas fa-building" style="color:var(--blue);margin-right:8px"></i>Cadastro de <span>Departamentos</span>',
   canais: '<i class="fas fa-project-diagram" style="color:var(--wa);margin-right:8px"></i>Cadastro de <span>Canais</span>',
 };
@@ -957,6 +1162,7 @@ function goPage(p, el) {
     document.querySelector('.tb-title').innerHTML = titulos[p] || p;
     if (p === 'departamentos') renderDeptos();
     if (p === 'canais') renderCanais();
+    if (p === 'turnos') renderTurnos();
   } else {
     alert(`Página "${p}" disponível no Angular.`);
   }
@@ -967,6 +1173,8 @@ sincronizarSelects();
 renderTabela();
 renderDeptos();
 renderCanais();
+limparTurno();
+renderTurnos();
 atualizarStats();
 </script>
 </body>

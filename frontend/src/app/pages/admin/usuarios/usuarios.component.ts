@@ -8,6 +8,7 @@ import { UsuarioService } from '../../../core/services/usuario.service';
 import { DepartamentoService } from '../../../core/services/departamento.service';
 import { CanalService } from '../../../core/services/canal.service';
 import { CanalByIdPipe } from '../../../core/pipes/canal-by-id.pipe';
+import { trackById } from '../../../core/utils/track-by';
 
 @Component({
   selector: 'app-usuarios',
@@ -22,13 +23,13 @@ export class UsuariosComponent implements OnInit {
   departamentos: Departamento[] = [];
   canais: Canal[] = [];
 
-  // Agrupamento por departamento para exibição na tabela
-  get usuariosPorDepto(): Map<string, Usuario[]> {
-    return this.usuarioService.agruparPorDepartamento(this.usuariosFiltrados);
-  }
-  get deptosOrdenados(): string[] {
-    return Array.from(this.usuariosPorDepto.keys()).sort();
-  }
+  // Agrupamento por departamento, calculado uma única vez a cada carga (não a
+  // cada change detection): usuariosPorDepto/deptosOrdenados eram getters que
+  // recriavam um Map e um array novos a cada ciclo, mesmo sem os dados mudarem.
+  usuariosPorDepto = new Map<string, Usuario[]>();
+  deptosOrdenados: string[] = [];
+
+  readonly trackById = trackById;
 
   // Filtros
   filtroNome = '';
@@ -67,17 +68,15 @@ export class UsuariosComponent implements OnInit {
       canalId: this.filtroCanalId ?? undefined,
       nivel: this.filtroNivel || undefined,
       status: this.filtroStatus || undefined,
-    }).subscribe(u => this.usuarios = u);
+    }).subscribe(u => this._aplicarUsuarios(u));
   }
 
-  get usuariosFiltrados(): Usuario[] {
-    return this.usuarios.filter(u =>
-      (!this.filtroNome    || u.nome.toLowerCase().includes(this.filtroNome.toLowerCase())) &&
-      (!this.filtroDepartamentoId || u.departamentoId === this.filtroDepartamentoId) &&
-      (!this.filtroCanalId        || u.canalId === this.filtroCanalId) &&
-      (!this.filtroNivel   || u.nivel === this.filtroNivel) &&
-      (!this.filtroStatus  || u.status === this.filtroStatus)
-    );
+  // O backend já aplica os filtros (ver carregarUsuarios); aqui só cacheamos
+  // o agrupamento por departamento como referência estável até a próxima carga.
+  private _aplicarUsuarios(usuarios: Usuario[]): void {
+    this.usuarios = usuarios;
+    this.usuariosPorDepto = this.usuarioService.agruparPorDepartamento(usuarios);
+    this.deptosOrdenados = Array.from(this.usuariosPorDepto.keys()).sort();
   }
 
   abrirNovo(): void {

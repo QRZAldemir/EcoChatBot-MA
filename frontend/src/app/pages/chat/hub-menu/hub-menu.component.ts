@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Canal } from '../../../core/models/canal.model';
 import { CanalService } from '../../../core/services/canal.service';
+import { trackById } from '../../../core/utils/track-by';
 
 @Component({
   selector: 'app-hub-menu',
@@ -12,6 +13,7 @@ import { CanalService } from '../../../core/services/canal.service';
   styleUrls: ['./hub-menu.component.css']
 })
 export class HubMenuComponent implements OnInit {
+  readonly trackById = trackById;
 
   canais: Canal[] = [];
 

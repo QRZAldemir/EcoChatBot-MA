@@ -8,6 +8,7 @@ import { UsuarioService } from '../../../core/services/usuario.service';
 import { Atendimento } from '../../../core/models/atendimento.model';
 import { Departamento } from '../../../core/models/departamento.model';
 import { Usuario } from '../../../core/models/usuario.model';
+import { trackById } from '../../../core/utils/track-by';
 
 function paraISO(data: Date): string {
   return data.toISOString().slice(0, 10);
@@ -21,6 +22,8 @@ function paraISO(data: Date): string {
   styleUrls: ['./relatorio.component.css'],
 })
 export class RelatorioComponent implements OnInit {
+  readonly trackById = trackById;
+
   departamentos: Departamento[] = [];
   atendentes: Usuario[] = [];
   registros: Atendimento[] = [];

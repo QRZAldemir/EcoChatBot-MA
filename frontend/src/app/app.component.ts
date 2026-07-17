@@ -9,7 +9,7 @@ import { RouterOutlet } from '@angular/router';
   styles: [`
     :host { display: block; height: 100vh; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'DM Sans', system-ui, sans-serif; }
+    body { font-family: 'Roboto', system-ui, sans-serif; }
   `]
 })
 export class AppComponent {}

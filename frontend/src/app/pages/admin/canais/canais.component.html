@@ -21,7 +21,7 @@
     <!-- CARDS DE CANAIS -->
     <div class="canais-grid">
       <!-- *ngFor é um laço de repetição. Ele replica a div 'canal-card' inteira para cada canal 'c' dentro do array 'canais' -->
-      <div class="canal-card" *ngFor="let c of canais">
+      <div class="canal-card" *ngFor="let c of canais; trackBy: trackById">
         <div class="canal-icon">{{ c.icone }}</div>
         <div class="canal-info">
           <strong>{{ c.nome }}</strong>

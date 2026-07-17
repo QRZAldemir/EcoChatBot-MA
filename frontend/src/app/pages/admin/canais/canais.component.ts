@@ -5,6 +5,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Canal, CANAIS_PADRAO } from '../../../core/models/canal.model';
 import { CanalService } from '../../../core/services/canal.service';
+import { trackById } from '../../../core/utils/track-by';
 
 // O decorador @Component diz ao Angular que esta classe é um componente visual (UI).
 @Component({
@@ -19,6 +20,8 @@ import { CanalService } from '../../../core/services/canal.service';
 })
 // 'implements OnInit' obriga a classe a ter o método ngOnInit().
 export class CanaisComponent implements OnInit {
+
+  readonly trackById = trackById;
 
   canais: Canal[] = [];
   modalAberto = false;

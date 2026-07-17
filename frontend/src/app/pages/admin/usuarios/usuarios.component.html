@@ -44,14 +44,14 @@
           <label>Departamento:</label>
           <select [(ngModel)]="filtroDepartamentoId" (ngModelChange)="carregarUsuarios()">
             <option [ngValue]="null">Todos</option>
-            <option *ngFor="let d of departamentos" [ngValue]="d.id">{{ d.nome }}</option>
+            <option *ngFor="let d of departamentos; trackBy: trackById" [ngValue]="d.id">{{ d.nome }}</option>
           </select>
         </div>
         <div class="filter-field">
           <label>Canal:</label>
           <select [(ngModel)]="filtroCanalId" (ngModelChange)="carregarUsuarios()">
             <option [ngValue]="null">Todos</option>
-            <option *ngFor="let c of canais" [ngValue]="c.id">{{ c.icone }} {{ c.nome }}</option>
+            <option *ngFor="let c of canais; trackBy: trackById" [ngValue]="c.id">{{ c.icone }} {{ c.nome }}</option>
           </select>
         </div>
         <div class="filter-field">
@@ -83,7 +83,7 @@
 
     <!-- TABELA AGRUPADA POR DEPARTAMENTO -->
     <div class="table-wrap">
-      <div *ngIf="usuariosFiltrados.length === 0" class="empty">Nenhum usuário encontrado</div>
+      <div *ngIf="usuarios.length === 0" class="empty">Nenhum usuário encontrado</div>
 
       <ng-container *ngFor="let depto of deptosOrdenados">
         <div class="dept-header">
@@ -102,8 +102,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let u of usuariosPorDepto.get(depto)">
-              <td><strong>{{ u.nome }}</strong><br><small>{{ u.dataCadastro }}</small></td>
+            <tr *ngFor="let u of usuariosPorDepto.get(depto); trackBy: trackById">
+              <td><strong>{{ u.nome }}</strong><br><small>{{ u.criado_em | date:'dd/MM/yyyy' }}</small></td>
               <td>{{ u.email }}</td>
               <td>
                 <span class="canal-badge">
@@ -162,7 +162,7 @@
         <label>Departamento *</label>
         <select [(ngModel)]="form.departamentoId">
           <option [ngValue]="null">Selecione...</option>
-          <option *ngFor="let d of departamentos" [ngValue]="d.id">{{ d.nome }}</option>
+          <option *ngFor="let d of departamentos; trackBy: trackById" [ngValue]="d.id">{{ d.nome }}</option>
         </select>
         <small class="helper">Ex: Call-Center, Recepção, Ouvidoria</small>
       </div>
@@ -172,7 +172,7 @@
         <label>Canal de Atendimento *</label>
         <select [(ngModel)]="form.canalId">
           <option [ngValue]="null">Selecione...</option>
-          <option *ngFor="let c of canais" [ngValue]="c.id">{{ c.icone }} {{ c.nome }}</option>
+          <option *ngFor="let c of canais; trackBy: trackById" [ngValue]="c.id">{{ c.icone }} {{ c.nome }}</option>
         </select>
         <small class="helper" *ngIf="form.canalId">
           Menu: {{ canais | canalById: form.canalId }}

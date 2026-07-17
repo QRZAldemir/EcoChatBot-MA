@@ -1,28 +1,30 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CanalService } from '../../../core/services/canal.service';
+import { MenuService } from '../../../core/services/menu.service';
 import { Canal } from '../../../core/models/canal.model';
+import { Menu, MenuOpcao } from '../../../core/models/menu.model';
 
 @Component({
   selector: 'app-atendimento',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './atendimento.component.html',
   styleUrls: ['./atendimento.component.css']
 })
 export class AtendimentoComponent implements OnInit {
 
   canal: Canal | null = null;
-  iframeUrl: SafeResourceUrl | null = null;
+  menu: Menu | null = null;
+  opcaoSelecionada: MenuOpcao | null = null;
   carregando = true;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private sanitizer: DomSanitizer,
-    private canalService: CanalService
+    private canalService: CanalService,
+    private menuService: MenuService,
   ) {}
 
   ngOnInit(): void {
@@ -47,12 +49,31 @@ export class AtendimentoComponent implements OnInit {
     }
   }
 
+  // rowId é estável e sempre presente (id só existe depois de salvo no backend).
+  trackByOpcao(_indice: number, opcao: MenuOpcao): string {
+    return opcao.rowId;
+  }
+
+  selecionarOpcao(opcao: MenuOpcao): void {
+    this.opcaoSelecionada = this.opcaoSelecionada?.rowId === opcao.rowId ? null : opcao;
+  }
+
   private carregarCanal(canal: Canal): void {
     this.canal = canal;
-    // Os HTMLs ficam em /assets/menus/ (copiados do protótipo)
-    const url = `/assets/menus/${canal.arquivoMenu}`;
-    this.iframeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
-    this.carregando = false;
+    this.opcaoSelecionada = null;
+
+    // A mensagem interativa do canal é cadastrada em Configuração → Mensagens
+    // (tela "Mensagem Interativa"), não mais um HTML estático em assets/menus.
+    this.menuService.listar(canal.id, true).subscribe({
+      next: menus => {
+        this.menu = menus[0] ?? null;
+        this.carregando = false;
+      },
+      error: () => {
+        this.menu = null;
+        this.carregando = false;
+      },
+    });
   }
 
   voltar(): void {
