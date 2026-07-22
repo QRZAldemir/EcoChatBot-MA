@@ -11,6 +11,9 @@
         <i class="fas fa-arrow-left"></i> Menu
       </button>
       <span class="canal-nome">{{ canal.icone }} {{ canal.nome }}</span>
+      <button class="btn-mensagens-prontas" (click)="abrirMensagensProntas()">
+        <i class="fas fa-comment-dots"></i> Mensagens prontas
+      </button>
     </div>
 
     <div class="chat-area">
@@ -49,5 +52,67 @@
       </ng-template>
     </div>
   </ng-container>
+
+  <!-- ============ MODAL: MENSAGENS PRONTAS ============ -->
+  <div class="mp-overlay" *ngIf="mensagensModalAberto" (click)="$event.target === $event.currentTarget && fecharMensagensProntas()">
+    <div class="mp-modal">
+      <div class="mp-modal-header">
+        <h3><i class="fas fa-comment-dots"></i> Mensagens prontas</h3>
+        <button class="mp-close-btn" (click)="fecharMensagensProntas()">✕</button>
+      </div>
+
+      <div class="mp-search-row">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Buscar por título ou conteúdo..." [(ngModel)]="buscaMensagem" [ngModelOptions]="{standalone: true}">
+      </div>
+
+      <div class="mp-body">
+        <div class="mp-loading" *ngIf="carregandoMensagens">
+          <div class="spinner"></div>
+          <p>Carregando mensagens...</p>
+        </div>
+
+        <div class="mp-empty" *ngIf="!carregandoMensagens && modelosFiltrados.length === 0">
+          <i class="fas fa-comment-slash"></i>
+          <p *ngIf="modelos.length === 0">Nenhuma mensagem pronta cadastrada ainda.</p>
+          <p *ngIf="modelos.length > 0">Nenhuma mensagem encontrada para "{{ buscaMensagem }}".</p>
+        </div>
+
+        <div class="mp-grid" *ngIf="!carregandoMensagens && modelosFiltrados.length > 0">
+          <div class="mp-card" *ngFor="let m of modelosFiltrados; trackBy: trackByModelo" [attr.data-color]="corModelo(m)" (click)="expandirMensagem(m)">
+            <div class="mp-card-header">
+              <span class="mp-card-titulo">{{ m.descricao }}</span>
+              <span class="mp-card-badge" *ngIf="m.departamentoNome">{{ m.departamentoNome }}</span>
+            </div>
+            <div class="mp-card-body"><p>{{ m.corpo }}</p></div>
+            <div class="mp-card-actions">
+              <button class="mp-btn-copy" (click)="$event.stopPropagation(); copiarMensagem(m)">
+                <i class="fas" [class.fa-copy]="copiadoId !== m.id" [class.fa-check]="copiadoId === m.id"></i>
+                {{ copiadoId === m.id ? 'Copiado!' : 'Copiar' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: MENSAGEM EXPANDIDA (quadrado que sobe) ============ -->
+  <div class="mp-expand-overlay" *ngIf="mensagemExpandida" (click)="$event.target === $event.currentTarget && fecharMensagemExpandida()">
+    <div class="mp-card mp-card-expand" [attr.data-color]="corModelo(mensagemExpandida)">
+      <div class="mp-card-header">
+        <span class="mp-card-titulo">{{ mensagemExpandida.descricao }}</span>
+        <span class="mp-card-badge" *ngIf="mensagemExpandida.departamentoNome">{{ mensagemExpandida.departamentoNome }}</span>
+      </div>
+      <div class="mp-card-body mp-card-body-expand"><p>{{ mensagemExpandida.corpo }}</p></div>
+      <div class="mp-card-actions">
+        <button class="mp-btn-copy" (click)="copiarMensagem(mensagemExpandida)">
+          <i class="fas" [class.fa-copy]="copiadoId !== mensagemExpandida.id" [class.fa-check]="copiadoId === mensagemExpandida.id"></i>
+          {{ copiadoId === mensagemExpandida.id ? 'Copiado!' : 'Copiar' }}
+        </button>
+        <button class="mp-btn-fechar" (click)="fecharMensagemExpandida()">✕ Fechar</button>
+      </div>
+    </div>
+  </div>
 
 </div>

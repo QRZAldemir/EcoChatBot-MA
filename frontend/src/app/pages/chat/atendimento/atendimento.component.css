@@ -135,3 +135,228 @@
   animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ══════════════════════ MENSAGENS PRONTAS ══════════════════════ */
+
+.btn-mensagens-prontas {
+  margin-left: auto;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #fff;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.14s;
+}
+.btn-mensagens-prontas:hover { background: rgba(255,255,255,0.25); }
+
+/* ── paleta de cores dos cartões ── */
+.mp-card[data-color="yellow"] { background: #fffbeb; border-color: #f59e0b; }
+.mp-card[data-color="yellow"] .mp-card-header { background: #fef3c7; border-bottom-color: #f59e0b; }
+.mp-card[data-color="pink"]   { background: #fdf2f8; border-color: #ec4899; }
+.mp-card[data-color="pink"]   .mp-card-header { background: #fce7f3; border-bottom-color: #ec4899; }
+.mp-card[data-color="blue"]   { background: #eff6ff; border-color: #3b82f6; }
+.mp-card[data-color="blue"]   .mp-card-header { background: #dbeafe; border-bottom-color: #3b82f6; }
+.mp-card[data-color="green"]  { background: #f0fdf4; border-color: #22c55e; }
+.mp-card[data-color="green"]  .mp-card-header { background: #dcfce7; border-bottom-color: #22c55e; }
+.mp-card[data-color="purple"] { background: #faf5ff; border-color: #a855f7; }
+.mp-card[data-color="purple"] .mp-card-header { background: #f3e8ff; border-bottom-color: #a855f7; }
+.mp-card[data-color="orange"] { background: #fff7ed; border-color: #f97316; }
+.mp-card[data-color="orange"] .mp-card-header { background: #ffedd5; border-bottom-color: #f97316; }
+.mp-card[data-color="teal"]   { background: #f0fdfa; border-color: #14b8a6; }
+.mp-card[data-color="teal"]   .mp-card-header { background: #ccfbf1; border-bottom-color: #14b8a6; }
+.mp-card[data-color="red"]    { background: #fff1f2; border-color: #f43f5e; }
+.mp-card[data-color="red"]    .mp-card-header { background: #ffe4e6; border-bottom-color: #f43f5e; }
+
+/* ── modal de listagem ── */
+.mp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.mp-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 70px rgba(0,0,0,0.35);
+  overflow: hidden;
+}
+.mp-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #c8102e;
+  color: #fff;
+  flex-shrink: 0;
+}
+.mp-modal-header h3 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.mp-close-btn {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 13px;
+}
+.mp-close-btn:hover { background: rgba(255,255,255,0.3); }
+
+.mp-search-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #e5ddd8;
+  flex-shrink: 0;
+  color: #78716c;
+}
+.mp-search-row input {
+  flex: 1;
+  border: 1.5px solid #e5ddd8;
+  border-radius: 30px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.mp-search-row input:focus { border-color: #c8102e; box-shadow: 0 0 0 3px rgba(200,16,46,0.12); }
+
+.mp-body { flex: 1; overflow-y: auto; padding: 18px 20px; }
+
+.mp-loading, .mp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #78716c;
+  padding: 40px 20px;
+  text-align: center;
+}
+.mp-empty i { font-size: 28px; opacity: 0.4; }
+
+.mp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.mp-card {
+  border-radius: 14px;
+  border: 1.5px solid;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+}
+.mp-card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,0.12); }
+
+.mp-card-header {
+  padding: 10px 14px;
+  border-bottom: 2px solid;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mp-card-titulo {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: #1a2e3b;
+  word-break: break-word;
+}
+.mp-card-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: #57606f;
+  background: rgba(255,255,255,0.6);
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.mp-card-body { padding: 12px 14px; flex-grow: 1; }
+.mp-card-body p {
+  margin: 0;
+  font-size: 12.5px;
+  color: #334155;
+  line-height: 1.5;
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mp-card-actions {
+  padding: 8px 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+.mp-btn-copy, .mp-btn-fechar {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 30px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+}
+.mp-btn-copy { background: linear-gradient(135deg, #c8102e 0%, #6a0a18 100%); color: #fff; }
+.mp-btn-fechar { background: #6c757d; color: #fff; }
+
+/* ── quadrado expandido (sobe ao clicar) ── */
+.mp-expand-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 3100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.mp-card-expand {
+  width: 100%;
+  max-width: 620px;
+  max-height: 82vh;
+  box-shadow: 0 24px 70px rgba(0,0,0,0.4);
+  animation: mpPopUp 0.28s cubic-bezier(0.2, 0.8, 0.3, 1.1);
+  cursor: default;
+}
+.mp-card-expand:hover { transform: none; }
+.mp-card-body-expand { overflow-y: auto; }
+.mp-card-body-expand p {
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  display: block;
+  font-size: 14px;
+}
+@keyframes mpPopUp {
+  from { opacity: 0; transform: translateY(60px) scale(0.85); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
