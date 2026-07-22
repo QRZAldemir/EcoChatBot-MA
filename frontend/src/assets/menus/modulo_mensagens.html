@@ -655,6 +655,53 @@
         .memo-btn-edit   { background: linear-gradient(135deg, #6366f1 0%, #1e1b4b 100%); }
         .memo-btn-delete { background: linear-gradient(135deg, #e74c3c 0%, #2d0000 100%); }
 
+        /* ---- BUSCA E ORDENAÇÃO DE MEMORANDOS ---- */
+        #memoSearchInput {
+            flex: 1;
+            min-width: 180px;
+            padding: 7px 16px;
+            border-radius: 30px;
+            border: 1.5px solid #cbd5e1;
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        #memoSearchInput:focus { border-color: #8b0000; box-shadow: 0 0 0 3px rgba(139,0,0,0.12); }
+        .memo-sort-btn {
+            background: linear-gradient(135deg, #334155, #0f172a);
+            font-size: 0.78rem;
+            padding: 6px 14px;
+            height: auto;
+            border-radius: 30px;
+            transition: outline 0.15s, transform 0.15s;
+        }
+        .memo-sort-btn.active { outline: 2.5px solid #f59e0b; outline-offset: 2px; }
+
+        /* cartão clicável para expandir */
+        .memorando-card .memo-header,
+        .memorando-card .memo-body { cursor: pointer; }
+
+        /* ---- MEMORANDO EXPANDIDO (quadrado que "sobe" ao clicar) ---- */
+        #memoViewModal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+            z-index: 9998; align-items: center; justify-content: center;
+        }
+        .memo-view-box {
+            width: 90%;
+            max-width: 620px;
+            max-height: 82vh;
+            border-radius: 18px;
+            box-shadow: 0 24px 70px rgba(0,0,0,0.35);
+            animation: memoPopUp 0.28s cubic-bezier(0.2, 0.8, 0.3, 1.1);
+        }
+        .memo-view-box .memo-body { overflow-y: auto; max-height: 55vh; }
+        .memo-view-box .memo-body pre { max-height: none; }
+        @keyframes memoPopUp {
+            from { opacity: 0; transform: translateY(60px) scale(0.85); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        mark.memo-highlight { background: #fde047; border-radius: 3px; padding: 0 1px; }
+
         /* ---- POST-ITS ---- */
         .postit {
             position: absolute;
@@ -1089,6 +1136,17 @@
                     📂 Importar JSON<input type="file" accept=".json" id="importMemoJSON" style="display:none;" onchange="importarMemorandosJSON(this)">
                 </label>
             </div>
+
+            <div class="memorandos-toolbar">
+                <span>🔎 Localizar:</span>
+                <input type="text" id="memoSearchInput" placeholder="Buscar por título ou conteúdo..." oninput="filtrarMemorandos()">
+                <span style="width:1px; background:rgba(0,0,0,0.12); align-self:stretch; margin:0 6px;"></span>
+                <span>Ordenar:</span>
+                <button id="memoSortAZBtn" class="memo-sort-btn" onclick="ordenarMemorandosAZ()" title="Ordenar de A a Z">🔤 A-Z</button>
+                <button id="memoSortZABtn" class="memo-sort-btn" onclick="ordenarMemorandosZA()" title="Ordenar de Z a A">🔤 Z-A</button>
+                <button id="memoSortLimparBtn" class="memo-sort-btn" onclick="limparOrdenacaoMemorandos()" title="Voltar à ordem de criação" style="background:linear-gradient(135deg,#64748b,#334155);">↺ Padrão</button>
+            </div>
+
             <div class="memorandos-grid" id="memorandosGrid"></div>
         </div>
 
@@ -1101,6 +1159,22 @@
                 <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
                     <button onclick="fecharModalMemorando()" style="background:#6c757d;">Cancelar</button>
                     <button id="memoSaveBtn" onclick="salvarMemorandoModal()">Salvar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ MODAL VISUALIZAÇÃO EXPANDIDA DO MEMORANDO ============ -->
+        <div id="memoViewModal" style="display:none;">
+            <div id="memoViewBox" class="memorando-card memo-view-box">
+                <div class="memo-header">
+                    <span class="memo-title" id="memoViewTitle"></span>
+                    <span class="memo-date" id="memoViewDate"></span>
+                </div>
+                <div class="memo-body"><pre id="memoViewContent"></pre></div>
+                <div class="memo-actions">
+                    <button class="memo-btn-copy" onclick="copiarMemorandoView()">📋 Copiar</button>
+                    <button class="memo-btn-edit" onclick="editarMemorandoView()">✏️ Editar</button>
+                    <button onclick="fecharMemorandoExpandido()" style="background:#6c757d;">✖ Fechar</button>
                 </div>
             </div>
         </div>
@@ -1127,11 +1201,62 @@
 </div>
 
 <script>
+// ============================================================
+// 📘 GUIA RÁPIDO — JS/HTML PARA QUEM VEM DE DELPHI
+// ============================================================
+// Este arquivo mistura HTML (estrutura da tela), CSS (estilo, lá
+// em cima em <style>) e JavaScript (a "lógica de negócio"/eventos,
+// dentro das tags <script>). Pontos de tradução mais úteis:
+//
+// 1) FUNÇÃO x PROCEDURE
+//    Em JS não existe "procedure". Tudo é "function". Se ela não
+//    usa "return", se comporta como uma procedure; se usa
+//    "return valor", se comporta como uma function do Delphi.
+//
+// 2) EVENTO OnClick de um botão
+//    Delphi:  procedure TForm1.Button1Click(Sender: TObject);
+//             (ligado ao botão pela IDE, no Object Inspector)
+//    Aqui, duas formas equivalentes:
+//      a) <button onclick="minhaFuncao()">...</button>
+//         (a função roda quando o HTML dispara o evento)
+//      b) elemento.addEventListener('click', function(){ ... });
+//         (ligado via código, sem precisar escrever onclick no HTML)
+//
+// 3) VARIÁVEIS: let / const (não existe "var:" com tipo fixo)
+//    let   → como uma var do Delphi, o valor pode ser trocado depois.
+//    const → a REFERÊNCIA não muda (não dá pra reatribuir a variável),
+//            mas se for um array/objeto o CONTEÚDO ainda pode mudar.
+//
+// 4) window.NomeDaFuncao = function(...) {...}
+//    "window" é o objeto global do navegador. Atribuir a função a
+//    "window.algo" a torna visível para ser chamada de qualquer
+//    onclick="algo()" no HTML — sem isso, ela ficaria "presa" dentro
+//    do <script> e o HTML não conseguiria enxergá-la.
+//
+// 5) localStorage
+//    É um "bancozinho" local do navegador (pense num INI file ou
+//    num TClientDataSet salvo em disco). Só guarda texto, por isso:
+//      JSON.stringify(objeto)  → transforma objeto em texto p/ salvar
+//      JSON.parse(texto)       → transforma texto de volta em objeto
+//
+// 6) TEMPLATE STRINGS: `texto ${variavel}`
+//    Equivale ao Format('%s', [variavel]) do Delphi. Repare que usa
+//    crase (`) no lugar de aspas simples/duplas, e a variável entra
+//    direto dentro de ${ }.
+//
+// 7) document.getElementById('x') / querySelector('.x')
+//    É como usar FindComponent('x') no Delphi: acha o elemento HTML
+//    pelo id (ou pela classe CSS) para poder ler/alterar seu conteúdo.
+// ============================================================
+
 // =====================================================
 // IMPORTAÇÃO EXCEL (.xlsx) — PAINEL MACKENZIE v1.8
 // =====================================================
 
 // Troca de abas Excel / Imagem
+// "aba" é o parâmetro recebido (igual um parâmetro de procedure em Delphi).
+// A linha abaixo é um operador ternário: condição ? valorSeTrue : valorSeFalse
+// equivale a um "if...then...else" de uma linha só, atribuindo um valor.
 window.trocarAba = function(aba) {
     const isExcel = aba === 'excel';
     document.getElementById('abaExcel').style.display  = isExcel ? '' : 'none';
@@ -1162,6 +1287,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 let xlsxFiles = []; // Array de File
 
+// "function nome(...) {}" sem "window." na frente = função "privada",
+// só pode ser chamada por código dentro deste mesmo <script>.
+// forEach é como um "for each item in Lista do" do Delphi: roda o
+// bloco { ... } uma vez para cada elemento da lista/array.
 function adicionarXlsx(files) {
     Array.from(files).forEach(f => {
         if (f.name.match(/\.xlsx?$/i) && !xlsxFiles.find(x => x.name === f.name && x.size === f.size)) {
@@ -1695,6 +1824,16 @@ document.addEventListener('DOMContentLoaded', () => {
     try { memorandos = JSON.parse(localStorage.getItem('memorandos_data')) || []; } catch(e) {}
     let memoEditingId = null;
     let memoCurrentColor = 'yellow';
+    let memoSearchTerm = '';
+    let memoSortOrder = null; // null = ordem de criação, 'asc' = A-Z, 'desc' = Z-A
+    let memoViewingId = null;
+
+    function highlightTerm(text, term) {
+        const safe = escapeHtml(text);
+        if (!term) return safe;
+        const escTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return safe.replace(new RegExp(`(${escTerm})`, 'ig'), '<mark class="memo-highlight">$1</mark>');
+    }
 
     window.abrirModalMemorando = function(color, editId) {
         memoCurrentColor = color || 'yellow';
@@ -1744,30 +1883,118 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderMemorandos() {
         const grid = document.getElementById('memorandosGrid');
         if (!grid) return;
+
         if (memorandos.length === 0) {
             grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:48px; color:#94a3b8; font-size:1rem;">Nenhum memorando criado ainda. Clique em uma cor acima para criar o primeiro! 📝</div>';
+            atualizarBotoesOrdenacao();
             return;
         }
+
+        let lista = memorandos.slice();
+        const termo = memoSearchTerm.trim().toLowerCase();
+        if (termo) {
+            lista = lista.filter(m =>
+                (m.title || '').toLowerCase().includes(termo) ||
+                (m.content || '').toLowerCase().includes(termo)
+            );
+        }
+        if (memoSortOrder === 'asc') {
+            lista.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'pt-BR', { sensitivity: 'base' }));
+        } else if (memoSortOrder === 'desc') {
+            lista.sort((a, b) => (b.title || '').localeCompare(a.title || '', 'pt-BR', { sensitivity: 'base' }));
+        }
+
+        if (lista.length === 0) {
+            grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:48px; color:#94a3b8; font-size:1rem;">🔎 Nenhum memorando encontrado para "${escapeHtml(memoSearchTerm)}".</div>`;
+            atualizarBotoesOrdenacao();
+            return;
+        }
+
         grid.innerHTML = '';
-        memorandos.forEach(memo => {
+        lista.forEach(memo => {
             const color = memo.color || 'yellow';
             const card = document.createElement('div');
             card.className = 'memorando-card';
             card.setAttribute('data-color', color);
             card.innerHTML = `
                 <div class="memo-header">
-                    <span class="memo-title">${escapeHtml(memo.title)}</span>
+                    <span class="memo-title">${highlightTerm(memo.title, termo)}</span>
                     <span class="memo-date">${memo.createdAt || ''}</span>
                 </div>
-                <div class="memo-body"><pre>${escapeHtml(memo.content)}</pre></div>
+                <div class="memo-body"><pre>${highlightTerm(memo.content, termo)}</pre></div>
                 <div class="memo-actions">
                     <button class="memo-btn-copy"   onclick="copiarMemorando(${memo.id})">📋 Copiar</button>
                     <button class="memo-btn-edit"   onclick="editarMemorando(${memo.id})">✏️ Editar</button>
                     <button class="memo-btn-delete" onclick="excluirMemorando(${memo.id})">🗑️ Excluir</button>
                 </div>`;
+            card.addEventListener('click', function(e) {
+                if (e.target.closest('.memo-actions')) return;
+                abrirMemorandoExpandido(memo.id);
+            });
             grid.appendChild(card);
         });
+
+        atualizarBotoesOrdenacao();
     }
+
+    window.filtrarMemorandos = function() {
+        const input = document.getElementById('memoSearchInput');
+        memoSearchTerm = input ? input.value : '';
+        renderMemorandos();
+    };
+
+    window.ordenarMemorandosAZ = function() {
+        memoSortOrder = 'asc';
+        renderMemorandos();
+    };
+
+    window.ordenarMemorandosZA = function() {
+        memoSortOrder = 'desc';
+        renderMemorandos();
+    };
+
+    window.limparOrdenacaoMemorandos = function() {
+        memoSortOrder = null;
+        renderMemorandos();
+    };
+
+    function atualizarBotoesOrdenacao() {
+        const az = document.getElementById('memoSortAZBtn');
+        const za = document.getElementById('memoSortZABtn');
+        const padrao = document.getElementById('memoSortLimparBtn');
+        if (!az || !za || !padrao) return;
+        az.classList.toggle('active', memoSortOrder === 'asc');
+        za.classList.toggle('active', memoSortOrder === 'desc');
+        padrao.classList.toggle('active', memoSortOrder === null);
+    }
+
+    window.abrirMemorandoExpandido = function(id) {
+        const memo = memorandos.find(m => m.id === id);
+        if (!memo) return;
+        memoViewingId = id;
+        const box = document.getElementById('memoViewBox');
+        box.setAttribute('data-color', memo.color || 'yellow');
+        document.getElementById('memoViewTitle').textContent = memo.title;
+        document.getElementById('memoViewDate').textContent = memo.createdAt || '';
+        document.getElementById('memoViewContent').textContent = memo.content;
+        document.getElementById('memoViewModal').style.display = 'flex';
+    };
+
+    window.fecharMemorandoExpandido = function() {
+        document.getElementById('memoViewModal').style.display = 'none';
+        memoViewingId = null;
+    };
+
+    window.copiarMemorandoView = function() {
+        if (memoViewingId !== null) copiarMemorando(memoViewingId);
+    };
+
+    window.editarMemorandoView = function() {
+        if (memoViewingId === null) return;
+        const id = memoViewingId;
+        fecharMemorandoExpandido();
+        editarMemorando(id);
+    };
 
     window.copiarMemorando = function(id) {
         const memo = memorandos.find(m => m.id === id);
@@ -1866,6 +2093,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fechar modal ao clicar fora
     document.getElementById('memoModal').addEventListener('click', function(e) {
         if (e.target === this) fecharModalMemorando();
+    });
+    document.getElementById('memoViewModal').addEventListener('click', function(e) {
+        if (e.target === this) fecharMemorandoExpandido();
     });
 
     // ============================================================
