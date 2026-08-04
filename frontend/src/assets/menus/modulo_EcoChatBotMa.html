@@ -428,6 +428,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
   <div class="ni" onclick="abrirPainelEscalas()">
     <i class="fas fa-calendar-days"></i> Escalas
   </div>
+  <div class="ni" onclick="abrirModuloMensagens()">
+    <i class="fas fa-comment-dots"></i> Mensagens
+  </div>
   <div class="ni" onclick="nav('campanhas',this)">
     <i class="fas fa-paper-plane"></i> Campanhas
   </div>
@@ -1310,9 +1313,14 @@ const mockBil = Array.from({length:120},(_, i)=>{
   };
 });
 
-// ══ PAINEL DE ESCALAS ══
+// ══ PAINEL DE ESCALAS / MENSAGENS ══
+// Mesmo arquivo (modulo_mensagens.html) atende os dois atalhos — o hash
+// na URL diz a ele qual página deve abrir já ativa.
 function abrirPainelEscalas() {
-  window.open('modulo_mensagens.html', '_blank', 'width=1280,height=800,menubar=no,toolbar=no,location=no,status=no');
+  window.open('modulo_mensagens.html#pediatria', '_blank', 'width=1280,height=800,menubar=no,toolbar=no,location=no,status=no');
+}
+function abrirModuloMensagens() {
+  window.open('modulo_mensagens.html#mensagens-interativas', '_blank', 'width=1280,height=800,menubar=no,toolbar=no,location=no,status=no');
 }
 
 // ══ NAV ══
