@@ -1,0 +1,25 @@
+/* Elementos próprios da tela de E-mail — reutiliza .panel/.tbl/.btn/.modal
+   definidos globalmente em assets/styles/admin.css. */
+
+.section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  margin-bottom: 8px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.status-badge.enviado  { background: var(--green-pale); color: var(--green-dark); }
+.status-badge.erro     { background: var(--red-pale);   color: var(--red-dark); }
+.status-badge.simulado { background: var(--yellow-pale); color: var(--yellow-dark); }
+.status-badge.pendente { background: var(--bg); color: var(--muted); }
+
+.acoes-col { white-space: nowrap; }

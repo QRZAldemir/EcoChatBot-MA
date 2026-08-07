@@ -358,7 +358,7 @@ class MensagemSistema(Base):
     permitindo comportamentos diferentes por canal de atendimento.
 
     Exemplo de conteúdo:
-        'Você é um assistente virtual do Hospital Mackenzie.
+        'Você é um assistente virtual do Hospital Marcx.
          Responda sempre em português, de forma profissional e empática.
          Canal: Portaria. Não forneça diagnósticos médicos.'
     """

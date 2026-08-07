@@ -39,7 +39,7 @@ CANAIS_DATA = [
 # (ADMIN_SENHA) e force a troca no primeiro login antes de expor o
 # ambiente publicamente - nunca use "admin123" em produção.
 ADMIN_DATA = {
-    "nome": "Carlos Admin", "email": "admin@hospitalmackenzie.com.br", "senha": "admin123",
+    "nome": "Carlos Admin", "email": "admin@hospitalmarcx.com.br", "senha": "admin123",
     "telefone": "(67) 99999-0000", "nivel_ref": "administrador", "depto_ref": None, "canal_ref": None
 }
 
@@ -49,9 +49,9 @@ ADMIN_DATA = {
 # NÃO são cadastros reais - só são criados quando SEED_DEMO_USERS=true
 # (ver init_db.py). Mantenha desligado em produção.
 USUARIOS_DEMO_DATA = [
-    {"nome": "Ana Silva", "email": "ana@hospitalmackenzie.com.br", "senha": "senha123", "telefone": "(67) 99999-1111", "nivel_ref": "atendente", "depto_ref": "Call-Center", "canal_ref": "Atendimento-Cliente"},
-    {"nome": "João Santos", "email": "joao@hospitalmackenzie.com.br", "senha": "senha123", "telefone": "(67) 99999-2222", "nivel_ref": "atendente", "depto_ref": "Recepção", "canal_ref": "Portaria"},
-    {"nome": "Francisca Oliveira", "email": "francisca@hospitalmackenzie.com.br", "senha": "senha123", "telefone": "(67) 99999-3333", "nivel_ref": "atendente", "depto_ref": "Ouvidoria", "canal_ref": "Ouvidoria"},
-    {"nome": "Daniele Costa", "email": "daniele@hospitalmackenzie.com.br", "senha": "senha123", "telefone": "(67) 99999-4444", "nivel_ref": "atendente", "depto_ref": "Agendamento", "canal_ref": "Agendamento-Ambulatorial"},
-    {"nome": "Aldemir Pereira", "email": "aldemir@hospitalmackenzie.com.br", "senha": "senha123", "telefone": "(67) 99999-5555", "nivel_ref": "atendente", "depto_ref": "Exames", "canal_ref": "Exames-Diagnostico"}
+    {"nome": "Ana Silva", "email": "ana@hospitalmarcx.com.br", "senha": "senha123", "telefone": "(67) 99999-1111", "nivel_ref": "atendente", "depto_ref": "Call-Center", "canal_ref": "Atendimento-Cliente"},
+    {"nome": "João Santos", "email": "joao@hospitalmarcx.com.br", "senha": "senha123", "telefone": "(67) 99999-2222", "nivel_ref": "atendente", "depto_ref": "Recepção", "canal_ref": "Portaria"},
+    {"nome": "Francisca Oliveira", "email": "francisca@hospitalmarcx.com.br", "senha": "senha123", "telefone": "(67) 99999-3333", "nivel_ref": "atendente", "depto_ref": "Ouvidoria", "canal_ref": "Ouvidoria"},
+    {"nome": "Daniele Costa", "email": "daniele@hospitalmarcx.com.br", "senha": "senha123", "telefone": "(67) 99999-4444", "nivel_ref": "atendente", "depto_ref": "Agendamento", "canal_ref": "Agendamento-Ambulatorial"},
+    {"nome": "Aldemir Pereira", "email": "aldemir@hospitalmarcx.com.br", "senha": "senha123", "telefone": "(67) 99999-5555", "nivel_ref": "atendente", "depto_ref": "Exames", "canal_ref": "Exames-Diagnostico"}
 ]

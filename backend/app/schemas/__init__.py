@@ -114,6 +114,140 @@ class CanalResponse(CanalBase):
     class Config:
         from_attributes = True
 
+# ━━━ Conexao (painel WhatsApp/WABA) ━━━━━━━━━━━━━━━━━━━━━━━
+class ConexaoBase(BaseModel):
+    nome: str
+    telefone: Optional[str] = None
+    tipo: str = "whatsapp"
+    conexao: str = "waba"
+    atendimento: str = "automatico"
+    ativo: bool = True
+
+class ConexaoCreate(ConexaoBase):
+    pass
+
+class ConexaoUpdate(BaseModel):
+    nome: Optional[str] = None
+    telefone: Optional[str] = None
+    atendimento: Optional[str] = None
+    ativo: Optional[bool] = None
+
+class ConexaoResponse(ConexaoBase):
+    id: int
+    status: str
+    padrao: bool
+    criado_em: datetime
+    fila: int = 0
+    recebimento_min: int = 0
+
+    class Config:
+        from_attributes = True
+
+class ConexaoQRCodeResponse(BaseModel):
+    conexao: ConexaoResponse
+    qrcode_base64: Optional[str] = None
+    pairing_code: Optional[str] = None
+    simulado: bool = False
+    mensagem: Optional[str] = None
+
+# ━━━ Contato (agenda de clientes WhatsApp) ━━━━━━━━━━━━━━━━━
+class ContatoBase(BaseModel):
+    nome: str
+    telefone: str
+    email: Optional[str] = None
+    empresa: Optional[str] = None
+    observacao: Optional[str] = None
+    ativo: bool = True
+
+class ContatoCreate(ContatoBase):
+    pass
+
+class ContatoUpdate(BaseModel):
+    nome: Optional[str] = None
+    telefone: Optional[str] = None
+    email: Optional[str] = None
+    empresa: Optional[str] = None
+    observacao: Optional[str] = None
+    ativo: Optional[bool] = None
+
+class ContatoResponse(ContatoBase):
+    id: int
+    origem: str
+    criado_em: datetime
+
+    class Config:
+        from_attributes = True
+
+# ━━━ E-mail (central de e-mail — compõe e envia, guarda histórico) ━
+class EmailEnviarDTO(BaseModel):
+    destinatario: str
+    assunto: str
+    corpo: str
+    contato_id: Optional[int] = None
+
+class EmailResponse(BaseModel):
+    id: int
+    contato_id: Optional[int] = None
+    destinatario: str
+    assunto: str
+    corpo: str
+    status: str
+    erro_mensagem: Optional[str] = None
+    enviado_em: Optional[datetime] = None
+    criado_em: datetime
+
+    class Config:
+        from_attributes = True
+
+# ━━━ Campanha (disparo em massa WhatsApp) ━━━━━━━━━━━━━━━━━━
+class CampanhaContatoResponse(BaseModel):
+    id: int
+    contato_id: int
+    status: str
+    erro_mensagem: Optional[str] = None
+    enviado_em: Optional[datetime] = None
+    contato: Optional[ContatoResponse] = None
+
+    class Config:
+        from_attributes = True
+
+class CampanhaCreate(BaseModel):
+    nome: str
+    mensagem: str
+    conexao_id: int
+    contato_ids: List[int]
+
+class CampanhaResponse(BaseModel):
+    id: int
+    nome: str
+    mensagem: str
+    conexao_id: int
+    status: str
+    total_contatos: int
+    enviados: int
+    falhas: int
+    criado_em: datetime
+    enviado_em: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class CampanhaDetalheResponse(CampanhaResponse):
+    contatos: List[CampanhaContatoResponse] = []
+
+# ━━━ Arquivo (biblioteca de mídia do chat) ━━━━━━━━━━━━━━━━━
+class ArquivoResponse(BaseModel):
+    id: int
+    nome_original: str
+    tipo_mime: Optional[str] = None
+    tamanho_bytes: Optional[int] = None
+    descricao: Optional[str] = None
+    atendimento_id: Optional[int] = None
+    criado_em: datetime
+
+    class Config:
+        from_attributes = True
+
 # ━━━ Modelo de Mensagem (mensagem padrão / memorando) ━━━━━━
 class ModeloMensagemBase(BaseModel):
     descricao: str

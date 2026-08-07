@@ -6,25 +6,22 @@
       <div class="sb-logo"><span>M</span></div>
       <div class="sb-txt" *ngIf="menuAberto">
         <strong>EcoChat</strong>
-        <small>Mackenzie</small>
+        <small>Marcx</small>
       </div>
     </div>
 
     <nav class="sb-nav">
-      <ng-container *ngFor="let grupo of navItens">
-        <div class="sb-sec" *ngIf="menuAberto">{{ grupo.secao }}</div>
-        <a *ngFor="let item of grupo.itens"
-           [routerLink]="item.rota"
-           routerLinkActive="active"
-           class="ni">
-          <i [class]="'fas ' + item.icone"></i>
-          <span *ngIf="menuAberto">{{ item.label }}</span>
-        </a>
-      </ng-container>
+      <a *ngFor="let item of navItens"
+         [routerLink]="item.rota"
+         routerLinkActive="active"
+         class="ni">
+        <i [class]="'fas ' + item.icone"></i>
+        <span *ngIf="menuAberto">{{ item.label }}</span>
+      </a>
     </nav>
 
     <div class="sb-foot" *ngIf="menuAberto">
-      <small>EcoChat Mackenzie v1.0</small>
+      <small>EcoChat Marcx v1.0</small>
     </div>
   </aside>
 
@@ -34,7 +31,7 @@
       <button class="menu-toggle" (click)="menuAberto = !menuAberto">
         <i class="fas fa-bars"></i>
       </button>
-      <div class="tb-title">Eco<span>Chat</span> <small>Mackenzie</small></div>
+      <div class="tb-title">Eco<span>Chat</span> <small>Marcx</small></div>
       <div class="tb-user" *ngIf="usuario">
         <span class="tb-user-nome">{{ usuario.nome }}</span>
         <button class="tb-sair" (click)="sair()" title="Sair">

@@ -1,11 +1,11 @@
-# EcoChatBot Mackenzie
-### Protótipo — Hospital Presbiteriano Mackenzie · Dourados/MS
+# EcoChatBot Marcx
+### Protótipo — Hospital Presbiteriano Marcx · Dourados/MS
 
 ---
 
 ## O que é o EcoChatBot
 
-O **EcoChatBot** é um sistema de atendimento digital configurável, desenvolvido inicialmente como protótipo para o **Hospital Presbiteriano Mackenzie**.
+O **EcoChatBot** é um sistema de atendimento digital configurável, desenvolvido inicialmente como protótipo para o **Hospital Presbiteriano Marcx**.
 
 A ideia central é simples: o paciente/cliente interage via **WhatsApp clicando em botões** — nunca digitando — e é automaticamente direcionado para o atendente certo conforme o canal escolhido. O atendente vê a conversa no painel **EcoChat** com todo o contexto já coletado.
 
@@ -30,7 +30,7 @@ WhatsApp Business API
 EcoChatBot Backend (Python FastAPI)
     │
     │  identifica o Canal pelo botão clicado
-    │  ex: "Portaria" → canal vinculado ao arquivo 7portaria-mackenzie.html
+    │  ex: "Portaria" → canal vinculado ao arquivo 7portaria-marcx.html
     │
     │  busca atendente disponível daquele canal
     │  ex: João → Departamento: Recepção → Canal: Portaria
@@ -49,11 +49,11 @@ ATENDENTE responde
 
 | Usuário   | Nível     | Departamento | Canal                    | Arquivo de Menu                       |
 |-----------|-----------|--------------|--------------------------|---------------------------------------|
-| Aldemir   | Atendente | Call-Center  | Exames-Diagnostico       | `3examesdiagnostico-mackenzie.html`   |
-| Ana       | Atendente | Call-Center  | Atendimento-Cliente      | `1atendimento-mackenzie.html`         |
-| João      | Atendente | Recepção     | Portaria                 | `7portaria-mackenzie.html`            |
-| Francisca | Atendente | Ouvidoria    | Ouvidoria                | `8ouvidoria-mackenzie.html`           |
-| Daniele   | Atendente | Call-Center  | Agendamento-Ambulatorial | `2agendamento-mackenzie.html`         |
+| Aldemir   | Atendente | Call-Center  | Exames-Diagnostico       | `3examesdiagnostico-marcx.html`   |
+| Ana       | Atendente | Call-Center  | Atendimento-Cliente      | `1atendimento-marcx.html`         |
+| João      | Atendente | Recepção     | Portaria                 | `7portaria-marcx.html`            |
+| Francisca | Atendente | Ouvidoria    | Ouvidoria                | `8ouvidoria-marcx.html`           |
+| Daniele   | Atendente | Call-Center  | Agendamento-Ambulatorial | `2agendamento-marcx.html`         |
 
 **Regra:** Um usuário pertence a um **Departamento** e atende um **Canal**. O canal define qual fluxo de perguntas/respostas o paciente verá.
 
@@ -83,15 +83,15 @@ EcoChatMackenize/
 │
 ├── prototipos/                         ← HTMLs originais (referência visual)
 │   ├── hub_Menu.html                   Menu principal apresentado ao paciente
-│   ├── 1atendimento-mackenzie.html     Canal: Atendimento ao Cliente
-│   ├── 2agendamento-mackenzie.html     Canal: Agendamento Ambulatorial
-│   ├── 3examesdiagnostico-mackenzie.html Canal: Exames e Diagnósticos
-│   ├── 7portaria-mackenzie.html        Canal: Portaria e Recepção
-│   ├── 8ouvidoria-mackenzie.html       Canal: Ouvidoria
-│   ├── EcoChatMackenzieVs.html         Painel do atendente (protótipo completo)
+│   ├── 1atendimento-marcx.html     Canal: Atendimento ao Cliente
+│   ├── 2agendamento-marcx.html     Canal: Agendamento Ambulatorial
+│   ├── 3examesdiagnostico-marcx.html Canal: Exames e Diagnósticos
+│   ├── 7portaria-marcx.html        Canal: Portaria e Recepção
+│   ├── 8ouvidoria-marcx.html       Canal: Ouvidoria
+│   ├── EcoChatMarcxVs.html         Painel do atendente (protótipo completo)
 │   ├── dashboard_eco.html              Dashboard de análise
 │   ├── cadastro-usuarios.html          Tela de cadastro (protótipo)
-│   └── Painel_Escalas_Mackenzie.html   Gestão de escalas médicas
+│   └── Painel_Escalas_Marcx.html   Gestão de escalas médicas
 │
 ├── frontend/                           ← Angular 17 (interface web)
 │   └── src/
@@ -126,27 +126,29 @@ EcoChatMackenize/
 │           └── shared/
 │               └── components/layout/ Sidebar + topbar do painel admin
 │
-├── backend-python/                     ← Python 3.10+ + FastAPI
-│   ├── requirements.txt                Dependências Python
-│   ├── .env                            Variáveis de ambiente
-│   ├── init_db.py                      Script de inicialização do banco
+├── backend/                             ← Python 3.12 + FastAPI
+│   ├── requirements.txt                 Dependências Python
+│   ├── .env                             Variáveis de ambiente
+│   ├── init_db.py / seed_data.py        Inicialização e dados de seed do banco
+│   ├── run_migrations.py                Executor das migrações SQL
+│   ├── export_openapi.py                Exporta o schema OpenAPI (usado pelo codegen do Angular)
+│   ├── migrations/                      Migrações SQL versionadas
 │   └── app/
-│       ├── main.py                     Ponto de entrada da API FastAPI
-│       ├── database.py                 Configuração SQLAlchemy
-│       ├── models/                     Modelos ORM (SQLAlchemy)
-│       │   └── __init__.py             Usuario, Departamento, Canal, NivelUsuario
-│       ├── schemas/                    Schemas Pydantic (validação)
-│       │   └── __init__.py             DTOs para request/response
-│       ├── services/                   Regras de negócio
-│       │   ├── usuario_service.py      CRUD usuários + hash senha
-│       │   ├── departamento_service.py CRUD departamentos
-│       │   ├── canal_service.py        CRUD canais
-│       │   └── deepseek_service.py     Integração com IA DeepSeek
-│       └── routers/                    Endpoints REST
-│           ├── usuarios.py             GET/POST/PUT/DELETE /api/usuarios
-│           ├── departamentos.py        GET/POST/PUT/DELETE /api/departamentos
-│           ├── canais.py               GET/POST/PUT/DELETE /api/canais
-│           └── ia.py                   POST /api/ia/conversar, /api/ia/opcao
+│       ├── main.py                      Ponto de entrada da API FastAPI (docs em /docs e /redoc)
+│       ├── database.py                  Configuração SQLAlchemy
+│       ├── models/                      Modelos ORM (entities.py)
+│       ├── schemas/                     Schemas Pydantic (validação e DTOs)
+│       ├── services/                    Regras de negócio
+│       │   ├── usuario_service.py, departamento_service.py, canal_service.py
+│       │   ├── atendimento_service.py, menu_service.py, modelo_mensagem_service.py
+│       │   ├── bot_service.py           Lógica do fluxo conversacional do bot
+│       │   ├── deepseek_service.py      Integração com IA DeepSeek
+│       │   ├── evolution_service.py     Integração com WhatsApp (Evolution API)
+│       │   └── audio_service.py         Texto → fala (gTTS)
+│       └── routers/                     Endpoints REST (um por domínio)
+│           ├── auth.py, usuarios.py, departamentos.py, canais.py
+│           ├── ia.py, mensagem.py, menus.py, modelos_mensagem.py
+│           └── atendimento.py, webhook.py, audio.py
 
 └── docs/
     └── arquitetura.md                  Documentação técnica detalhada
@@ -160,11 +162,11 @@ Cada canal é uma entidade cadastrada no sistema que aponta para um arquivo HTML
 
 | Canal                    | Arquivo HTML                          | Fluxo Principal                                      |
 |--------------------------|---------------------------------------|------------------------------------------------------|
-| Atendimento-Cliente      | `1atendimento-mackenzie.html`         | Guia de pacientes, 2ª via de documentos, contato    |
-| Agendamento-Ambulatorial | `2agendamento-mackenzie.html`         | Marcar, confirmar, remarcar, cancelar consultas     |
-| Exames-Diagnostico       | `3examesdiagnostico-mackenzie.html`   | Agendar exames, resultados, orçamentos, preparo     |
-| Portaria                 | `7portaria-mackenzie.html`            | Visitas, estacionamento, achados/perdidos, PS       |
-| Ouvidoria                | `8ouvidoria-mackenzie.html`           | Reclamação, elogio, sugestão, denúncia, prontuário |
+| Atendimento-Cliente      | `1atendimento-marcx.html`         | Guia de pacientes, 2ª via de documentos, contato    |
+| Agendamento-Ambulatorial | `2agendamento-marcx.html`         | Marcar, confirmar, remarcar, cancelar consultas     |
+| Exames-Diagnostico       | `3examesdiagnostico-marcx.html`   | Agendar exames, resultados, orçamentos, preparo     |
+| Portaria                 | `7portaria-marcx.html`            | Visitas, estacionamento, achados/perdidos, PS       |
+| Ouvidoria                | `8ouvidoria-marcx.html`           | Reclamação, elogio, sugestão, denúncia, prontuário |
 
 O **nome do canal** determina qual botão aparece no WhatsApp para o paciente.
 O **arquivo HTML** define o roteiro completo de perguntas e respostas daquele canal.
@@ -179,21 +181,23 @@ ETAPA 1 — Ambiente (quando decidir rodar)
   │  pip3 install virtualenv
 
 ETAPA 2 — Banco de dados
-  │  createdb ecochat_mackenzie
-  │  cd backend-python && python3 -m venv venv
+  │  createdb ecochat_marcx
+  │  cd backend && python3 -m venv venv
   │  source venv/bin/activate  # Linux/Mac
   │  pip install -r requirements.txt
   │  cp .env.example .env  # Configurar variáveis
   │  python3 init_db.py  # Inicializa banco com dados seed
 
 ETAPA 3 — Backend FastAPI
-  │  cd backend-python
-  │  uvicorn app.main:app --reload --port 8080
-  │  Acesso API: http://localhost:8080
-  │  Docs Swagger: http://localhost:8080/docs
+  │  cd backend
+  │  uvicorn app.main:app --reload --port 8000
+  │  Acesso API: http://localhost:8000
+  │  Docs Swagger: http://localhost:8000/docs
 
 ETAPA 4 — Frontend Angular
-  │  cd frontend && npm install && ng serve
+  │  cd frontend && npm install
+  │  npm run generate:api   # gera o cliente TS a partir do OpenAPI do backend
+  │  ng serve
   │  Acesso: http://localhost:4200
 
 ETAPA 5 — WhatsApp Business API
@@ -233,11 +237,11 @@ ETAPA 7 — Futuro (multi-negócio)
 
 ## Variáveis de Ambiente Necessárias
 
-Crie um arquivo `.env` na pasta `backend-python/` com as seguintes variáveis:
+Crie um arquivo `.env` na pasta `backend/` com as seguintes variáveis:
 
 ```bash
 # Database
-DATABASE_URL=postgresql://ecochat:ecochat123@localhost:5432/ecochat_mackenzie
+DATABASE_URL=postgresql://ecochat:ecochat123@localhost:5432/ecochat_marcx
 
 # DeepSeek AI
 DEEPSEEK_API_KEY=sk-sua-chave-aqui
@@ -256,7 +260,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 Ou copie o exemplo:
 ```bash
-cd backend-python
+cd backend
 cp .env.example .env
 # Edite o arquivo .env com suas configurações
 ```
@@ -265,7 +269,7 @@ cp .env.example .env
 
 ## Sobre o Projeto
 
-- **Cliente:** Hospital Presbiteriano Mackenzie — Dourados/MS
+- **Cliente:** Hospital Presbiteriano Marcx — Dourados/MS
 - **Propósito atual:** Protótipo funcional para demonstração
 - **Visão futura:** Ecossistema de chat configurável para qualquer modelo de negócio
 - **Diferenciais:** Paciente clica nos botões (não digita), atendente recebe contexto completo, IA responde automaticamente quando necessário

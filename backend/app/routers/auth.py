@@ -1,39 +1,30 @@
 """
 app/routers/auth.py
 ──────────────────────────────────────────────────────────────────
-Autenticação do painel administrativo: login com e-mail/senha e emissão
-de JWT. Usa o hash de senha (bcrypt) já existente em usuario_service.py.
+Autenticação do painel administrativo: login com e-mail/senha, emissão de
+JWT, e as rotas que dependem dele (/me, /refresh, /logout).
 
-Variáveis de ambiente:
-    SECRET_KEY          Chave usada para assinar o JWT (obrigatória)
-    JWT_ALGORITHM       Algoritmo de assinatura (padrão: HS256)
-    JWT_EXPIRE_MINUTES  Validade do token em minutos (padrão: 480 = 8h)
+A verificação do token em si (assinatura, expiração, revogação) mora em
+app/security.py, reaproveitada aqui e pelos routers administrativos
+protegidos (ver ROUTERS_CONFIG em main.py).
 """
 
-import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from jose import jwt
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Usuario
+from app.models import TokenRevogado, Usuario
+from app.security import criar_token, decodificar_token, obter_usuario_atual
 from app.services.usuario_service import UsuarioService, verificar_senha
 
 router = APIRouter()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "")
-if not SECRET_KEY:
-    raise RuntimeError(
-        "ERRO CRÍTICO: SECRET_KEY não definida. "
-        "Copie .env.example para .env e defina uma chave forte antes de iniciar."
-    )
-
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "480"))
+_bearer = HTTPBearer()
 
 
 class LoginRequest(BaseModel):
@@ -56,16 +47,15 @@ class LoginResponse(BaseModel):
     usuario: UsuarioLogado
 
 
-def _criar_token(usuario: Usuario) -> str:
-    expira_em = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE_MINUTES)
-    payload = {
-        "sub": str(usuario.id),
-        "nome": usuario.nome,
-        "email": usuario.email,
-        "nivel": usuario.nivel.nome if usuario.nivel else None,
-        "exp": expira_em,
-    }
-    return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
+def _usuario_logado(usuario: Usuario) -> UsuarioLogado:
+    return UsuarioLogado(
+        id=usuario.id,
+        nome=usuario.nome,
+        email=usuario.email,
+        nivel=usuario.nivel.nome if usuario.nivel else None,
+        departamento_id=usuario.departamento_id,
+        canal_id=usuario.canal_id,
+    )
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -85,15 +75,32 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     if not usuario.ativo:
         raise HTTPException(status_code=403, detail="Usuário inativo. Fale com um administrador.")
 
-    token = _criar_token(usuario)
-    return LoginResponse(
-        access_token=token,
-        usuario=UsuarioLogado(
-            id=usuario.id,
-            nome=usuario.nome,
-            email=usuario.email,
-            nivel=usuario.nivel.nome if usuario.nivel else None,
-            departamento_id=usuario.departamento_id,
-            canal_id=usuario.canal_id,
-        ),
-    )
+    return LoginResponse(access_token=criar_token(usuario), usuario=_usuario_logado(usuario))
+
+
+@router.get("/me", response_model=UsuarioLogado)
+def me(usuario: Usuario = Depends(obter_usuario_atual)):
+    """Devolve o usuário do token atual — usado pelo frontend para validar a sessão no boot da app."""
+    return _usuario_logado(usuario)
+
+
+@router.post("/refresh", response_model=LoginResponse)
+def refresh(usuario: Usuario = Depends(obter_usuario_atual)):
+    """Emite um novo token a partir de um token ainda válido, sem exigir login de novo."""
+    return LoginResponse(access_token=criar_token(usuario), usuario=_usuario_logado(usuario))
+
+
+@router.post("/logout", status_code=204)
+def logout(credenciais: HTTPAuthorizationCredentials = Depends(_bearer), db: Session = Depends(get_db)):
+    """
+    Revoga o token atual — necessário porque JWT é stateless por natureza;
+    sem isso, um token roubado continuaria válido até expirar mesmo depois
+    do usuário sair. Ver TokenRevogado em app/models.
+    """
+    payload = decodificar_token(credenciais.credentials)
+    jti = payload.get("jti")
+    exp = payload.get("exp")
+    if jti and exp:
+        db.merge(TokenRevogado(jti=jti, expira_em=datetime.utcfromtimestamp(exp)))
+        db.commit()
+    return None

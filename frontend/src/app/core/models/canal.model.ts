@@ -13,7 +13,7 @@ export interface Canal {
   criadoEm?: string;
 }
 
-// Canais padrão do sistema Mackenzie
+// Canais padrão do sistema Marcx
 export const CANAIS_PADRAO: Partial<Canal>[] = [
   { nome: 'Atendimento-Cliente',          arquivoMenu: '1atendimento-ma.html',      icone: '📞', cor: '#2563eb' },
   { nome: 'Agendamento-Ambulatorial',     arquivoMenu: '2agendamento-ma.html',      icone: '📅', cor: '#f59e0b' },

@@ -16,7 +16,7 @@ class DeepSeekService:
         system_message = {
             "role": "system",
             "content": (
-                f"Você é um assistente virtual do Hospital Mackenzie atendendo pelo canal '{canal}'. "
+                f"Você é um assistente virtual do Hospital Marcx atendendo pelo canal '{canal}'. "
                 "Seja profissional, empático e objetivo nas respostas. "
                 "Responda sempre em português do Brasil."
             )
@@ -49,6 +49,6 @@ class DeepSeekService:
             f"Canal: {canal}\n"
             f"Opção selecionada pelo paciente: {opcao}\n"
             f"Contexto adicional: {contexto}\n\n"
-            "Gere uma resposta apropriada e profissional para esta opção no contexto do Hospital Mackenzie."
+            "Gere uma resposta apropriada e profissional para esta opção no contexto do Hospital Marcx."
         )
         return await self.conversar([{"role": "user", "content": prompt}], canal)

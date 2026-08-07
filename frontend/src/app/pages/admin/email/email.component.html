@@ -1,0 +1,84 @@
+<div class="page">
+
+  <div *ngIf="alerta" class="alert" [class.success]="alerta.tipo==='sucesso'" [class.error]="alerta.tipo==='erro'">
+    <i class="fas" [class.fa-check-circle]="alerta.tipo==='sucesso'" [class.fa-exclamation-circle]="alerta.tipo==='erro'"></i>
+    {{ alerta.msg }}
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-icon blue"><i class="fas fa-envelope"></i></div>
+      <h3>E-mail</h3>
+      <button class="btn primary" (click)="abrirNovo()">
+        <i class="fas fa-plus"></i> Novo e-mail
+      </button>
+    </div>
+
+    <div class="pb">
+      <h4 class="section-title">Histórico de envios</h4>
+
+      <div class="table-wrap">
+        <div *ngIf="emails.length === 0" class="empty">Nenhum e-mail enviado ainda</div>
+
+        <table class="tbl" *ngIf="emails.length > 0">
+          <thead>
+            <tr>
+              <th>Destinatário</th>
+              <th>Assunto</th>
+              <th>Status</th>
+              <th>Enviado em</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let e of emails; trackBy: trackById">
+              <td>{{ e.destinatario }}</td>
+              <td>{{ e.assunto }}</td>
+              <td>
+                <span class="status-badge" [class]="e.status">
+                  {{ e.status === 'enviado' ? 'Enviado' : e.status === 'erro' ? 'Erro' : e.status === 'simulado' ? 'Simulado' : 'Pendente' }}
+                </span>
+              </td>
+              <td>{{ (e.enviadoEm | date:'dd/MM/yyyy HH:mm') || '—' }}</td>
+              <td class="acoes-col">
+                <button class="btn-icon danger" (click)="deletar(e.id)" title="Remover"><i class="fas fa-trash"></i></button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVO E-MAIL -->
+<div class="overlay" [class.open]="modalAberto" (click.self)="fecharModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Novo e-mail</h2>
+      <button class="close-btn" (click)="fecharModal()">✕</button>
+    </div>
+
+    <div class="form-grid">
+      <div class="fg full">
+        <label>Destinatário *</label>
+        <input type="email" [(ngModel)]="form.destinatario" placeholder="Ex: contato@empresa.com">
+      </div>
+      <div class="fg full">
+        <label>Assunto *</label>
+        <input type="text" [(ngModel)]="form.assunto" placeholder="Assunto do e-mail">
+      </div>
+      <div class="fg full">
+        <label>Mensagem *</label>
+        <textarea [(ngModel)]="form.corpo" rows="6" placeholder="Escreva o corpo do e-mail..."></textarea>
+      </div>
+    </div>
+
+    <p class="helper">Se o SMTP não estiver configurado neste ambiente, o e-mail fica registrado como "simulado".</p>
+
+    <div class="modal-actions">
+      <button class="btn secondary" (click)="fecharModal()">Cancelar</button>
+      <button class="btn primary" [disabled]="enviando" (click)="enviar()"><i class="fas fa-paper-plane"></i> Enviar</button>
+    </div>
+  </div>
+</div>

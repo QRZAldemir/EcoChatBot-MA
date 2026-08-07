@@ -1,6 +1,6 @@
 """
 ================================================================================
-PONTO DE ENTRADA DA APLICAÇÃO (MAIN APP) - ECOCHAT MACKENZIE API
+PONTO DE ENTRADA DA APLICAÇÃO (MAIN APP) - ECOCHAT MARCX API
 ================================================================================
 Autor: Aldemir Queiroz da Silva
 Versão: 1.0.0
@@ -23,7 +23,7 @@ import os
 from typing import Dict, List
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # ==============================================================================
@@ -44,6 +44,11 @@ from app.routers import (
     usuarios,
     departamentos,
     canais,
+    conexoes,
+    contatos,
+    email,
+    campanhas,
+    arquivos,
     ia,
     mensagem,
     menus,
@@ -52,6 +57,7 @@ from app.routers import (
     webhook,
     audio
 )
+from app.security import obter_usuario_atual
 
 # ==============================================================================
 # 3. CONFIGURAÇÃO DA INSTÂNCIA FASTAPI
@@ -59,8 +65,8 @@ from app.routers import (
 # A variável 'app' é o coração da aplicação. Ela recebe metadados que são 
 # automaticamente expostos na documentação interativa (Swagger UI / OpenAPI).
 app = FastAPI(
-    title="EcoChat Mackenzie API",
-    description="API para sistema de atendimento inteligente do Hospital Mackenzie",
+    title="EcoChat Marcx API",
+    description="API para sistema de atendimento inteligente do Hospital Marcx",
     version="1.0.0",
     docs_url="/docs",      # URL para o Swagger UI (Documentação interativa)
     redoc_url="/redoc"     # URL para o ReDoc (Documentação alternativa)
@@ -92,25 +98,46 @@ app.add_middleware(
 # app.include_router() 8 vezes de forma repetitiva, agrupamos os routers em 
 # uma lista de tuplas. Se amanhã você precisar adicionar 10 novos módulos, 
 # basta inserir novas linhas nesta lista, mantendo o código limpo e escalável.
+#
+# NOTA DE ENGENHARIA (tags sem acentuação): as tags abaixo alimentam tanto o
+# Swagger UI (/docs) quanto o gerador de cliente TypeScript para o Angular
+# (openapi-typescript-codegen, ver frontend/package.json -> "generate:api").
+# Esse gerador usa a tag para nomear a classe do service (ex.: tag
+# "Usuários" -> "UsuRiosService" — a translieração de acentos quebra o
+# identificador). Por isso as tags são mantidas em ASCII aqui.
+#
+# NOTA DE SEGURANÇA (protegido=True): exige um JWT válido (ver
+# app/security.py::obter_usuario_atual) — reservado às rotas que a
+# verificação em código confirmou serem usadas *apenas* pelo painel Angular
+# /admin/* (nenhuma chamada do widget de chat público nem do bot_service).
+# canais/menus/modelos-mensagem ficam de fora por enquanto: misturam leitura
+# pública (widget de chat, sem login) com escrita administrativa — proteger
+# o router inteiro quebraria o chat; ver docs/Skill sobre Autenticação.md.
 ROUTERS_CONFIG: List[tuple] = [
-    (auth, "/api/auth", "Autenticação"),
-    (usuarios, "/api/usuarios", "Usuários"),
-    (departamentos, "/api/departamentos", "Departamentos"),
-    (canais, "/api/canais", "Canais"),
-    (ia, "/api/ia", "Inteligência Artificial"),
-    (mensagem, "/api/mensagem", "Mensagens"),
-    (menus, "/api/menus", "Menus"),
-    (modelos_mensagem, "/api/modelos-mensagem", "Modelos de Mensagem"),
-    (atendimento, "/api/atendimento", "Atendimento"),
-    (webhook, "/api/webhook", "Webhook"),
-    (audio, "/api/audio", "Áudio")
+    (auth, "/api/auth", "Autenticacao", False),
+    (usuarios, "/api/usuarios", "Usuarios", True),
+    (departamentos, "/api/departamentos", "Departamentos", True),
+    (canais, "/api/canais", "Canais", False),
+    (conexoes, "/api/conexoes", "Conexoes", True),
+    (contatos, "/api/contatos", "Contatos", True),
+    (email, "/api/emails", "Email", True),
+    (campanhas, "/api/campanhas", "Campanhas", True),
+    (arquivos, "/api/arquivos", "Arquivos", True),
+    (ia, "/api/ia", "Inteligencia Artificial", False),
+    (mensagem, "/api/mensagem", "Mensagens", False),
+    (menus, "/api/menus", "Menus", False),
+    (modelos_mensagem, "/api/modelos-mensagem", "Modelos de Mensagem", False),
+    (atendimento, "/api/atendimento", "Atendimento", True),
+    (webhook, "/api/webhook", "Webhook", False),
+    (audio, "/api/audio", "Audio", False)
 ]
 
-for router_module, prefix, tag in ROUTERS_CONFIG:
+for router_module, prefix, tag, protegido in ROUTERS_CONFIG:
     app.include_router(
-        router_module.router, 
-        prefix=prefix, 
-        tags=[tag]
+        router_module.router,
+        prefix=prefix,
+        tags=[tag],
+        dependencies=[Depends(obter_usuario_atual)] if protegido else [],
     )
 
 # ==============================================================================
@@ -123,7 +150,7 @@ def read_root() -> Dict[str, str]:
     Endpoint raiz. Serve como uma mensagem de boas-vindas e confirmação 
     de que a API está respondendo a requisições HTTP.
     """
-    return {"message": "EcoChat Mackenzie API - Backend Python FastAPI"}
+    return {"message": "EcoChat Marcx API - Backend Python FastAPI"}
 
 @app.get("/health", tags=["Monitoramento"])
 def health_check() -> Dict[str, str]:

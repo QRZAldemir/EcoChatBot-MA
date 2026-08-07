@@ -1,0 +1,110 @@
+/* Elementos próprios do painel de conexões — reutiliza .panel/.tbl/.btn/.modal
+   definidos globalmente em assets/styles/admin.css. */
+
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 7px;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  transition: opacity .15s, transform .1s;
+}
+.action-btn:hover:not(:disabled) { opacity: .88; }
+.action-btn:active:not(:disabled) { transform: translateY(1px); }
+.action-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.action-btn.blue   { background: var(--blue); }
+.action-btn.red    { background: var(--red); }
+.action-btn.yellow { background: var(--yellow); color: #3b2c00; }
+
+.info-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--blue-pale);
+  color: var(--blue-dark);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  margin-bottom: 8px;
+}
+
+.tbl tbody tr { cursor: pointer; }
+.tbl tbody tr.selecionada { background: var(--blue-pale); }
+
+.tipo-cell { display: inline-flex; align-items: center; gap: 6px; }
+.wa-ico { color: var(--wa); font-size: 15px; }
+
+.status-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.status-dot.on   { background: var(--green); box-shadow: 0 0 5px var(--green); }
+.status-dot.wait { background: var(--yellow); }
+.status-dot.off  { background: var(--muted); }
+
+.badge-padrao {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--blue-pale);
+  color: var(--blue-dark);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.badge-inativo-inline {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.mini-stat {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+}
+.mini-stat strong { color: var(--text); }
+
+.acoes-col { white-space: nowrap; }
+
+.lista-footer {
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 12px 0 2px;
+}
+
+/* ── Modal de QR Code ── */
+.qr-modal { max-width: 360px; }
+.qr-body { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 6px 0 18px; text-align: center; }
+.qr-img { width: 220px; height: 220px; border-radius: 8px; border: 1px solid var(--border); }
+.qr-indisponivel { color: var(--muted); }
+.qr-indisponivel i { font-size: 42px; opacity: .3; display: block; margin-bottom: 8px; }
+.pairing-code { font-size: 13px; }

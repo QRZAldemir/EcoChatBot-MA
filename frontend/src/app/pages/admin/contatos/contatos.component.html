@@ -1,0 +1,101 @@
+<div class="page">
+
+  <div *ngIf="alerta" class="alert" [class.success]="alerta.tipo==='sucesso'" [class.error]="alerta.tipo==='erro'">
+    <i class="fas" [class.fa-check-circle]="alerta.tipo==='sucesso'" [class.fa-exclamation-circle]="alerta.tipo==='erro'"></i>
+    {{ alerta.msg }}
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-icon blue"><i class="fas fa-address-card"></i></div>
+      <h3>Contatos</h3>
+      <button class="btn primary" (click)="abrirNovo()">
+        <i class="fas fa-plus"></i> Novo contato
+      </button>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" [(ngModel)]="busca" placeholder="Buscar por nome ou telefone...">
+      </div>
+    </div>
+
+    <div class="pb">
+      <div class="table-wrap">
+        <div *ngIf="contatosFiltrados.length === 0" class="empty">Nenhum contato cadastrado</div>
+
+        <table class="tbl" *ngIf="contatosFiltrados.length > 0">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Telefone</th>
+              <th>E-mail</th>
+              <th>Empresa</th>
+              <th>Origem</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of contatosFiltrados; trackBy: trackById">
+              <td>
+                <strong>{{ c.nome }}</strong>
+                <span *ngIf="!c.ativo" class="badge-inativo-inline">Inativo</span>
+              </td>
+              <td>{{ c.telefone }}</td>
+              <td>{{ c.email || '—' }}</td>
+              <td>{{ c.empresa || '—' }}</td>
+              <td><span class="origem-badge" [class.atendimento]="c.origem === 'atendimento'">{{ c.origem === 'atendimento' ? 'Atendimento' : 'Manual' }}</span></td>
+              <td class="acoes-col">
+                <button class="btn-icon" (click)="abrirEditar(c)" title="Editar"><i class="fas fa-edit"></i></button>
+                <button class="btn-icon danger" (click)="deletar(c.id)" title="Remover"><i class="fas fa-trash"></i></button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="lista-footer" *ngIf="contatosFiltrados.length > 0">
+        Listado {{ contatosFiltrados.length }} de {{ contatos.length }} registro(s)
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVO / EDITAR CONTATO -->
+<div class="overlay" [class.open]="modalAberto" (click.self)="fecharModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>{{ modo === 'novo' ? 'Novo contato' : 'Editar contato' }}</h2>
+      <button class="close-btn" (click)="fecharModal()">✕</button>
+    </div>
+
+    <div class="form-grid">
+      <div class="fg full">
+        <label>Nome *</label>
+        <input type="text" [(ngModel)]="form.nome" placeholder="Ex: Maria Silva">
+      </div>
+      <div class="fg">
+        <label>Telefone (WhatsApp) *</label>
+        <input type="text" [(ngModel)]="form.telefone" placeholder="Ex: 5567341678900">
+      </div>
+      <div class="fg">
+        <label>E-mail</label>
+        <input type="email" [(ngModel)]="form.email" placeholder="Ex: maria@empresa.com">
+      </div>
+      <div class="fg full">
+        <label>Empresa</label>
+        <input type="text" [(ngModel)]="form.empresa" placeholder="Ex: Hospital Marcx">
+      </div>
+      <div class="fg full">
+        <label>Observação</label>
+        <input type="text" [(ngModel)]="form.observacao" placeholder="Anotações sobre o contato">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn secondary" (click)="fecharModal()">Cancelar</button>
+      <button class="btn primary" (click)="salvar()"><i class="fas fa-save"></i> Salvar</button>
+    </div>
+  </div>
+</div>

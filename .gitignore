@@ -34,6 +34,15 @@ Thumbs.db
 # Áudios gerados (texto → fala)
 audios_gerados/
 
+# Arquivos enviados pela biblioteca de mídia do chat (módulo "Arquivos")
+backend/uploads/
+
 # Evolution API
 evolution-api.env
 .aider*
+
+# Cliente API gerado automaticamente (ver frontend/package.json -> "generate:api")
+# Nunca editar/commitar à mão - rode "npm run generate:api" para regenerar
+# a partir do schema OpenAPI atual do backend (backend/app/main.py).
+backend/openapi.json
+frontend/src/app/core/api/

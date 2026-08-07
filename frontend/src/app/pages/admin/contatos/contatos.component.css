@@ -1,0 +1,32 @@
+/* Elementos próprios da tela de Contatos — reutiliza .panel/.tbl/.btn/.modal
+   definidos globalmente em assets/styles/admin.css. */
+
+.badge-inativo-inline {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.origem-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+.origem-badge.atendimento { background: var(--blue-pale); color: var(--blue-dark); }
+
+.acoes-col { white-space: nowrap; }
+
+.lista-footer {
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 12px 0 2px;
+}

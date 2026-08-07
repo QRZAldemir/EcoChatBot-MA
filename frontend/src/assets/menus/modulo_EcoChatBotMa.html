@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EcoChat — Central de Atendimento Mackenzie</title>
+<title>EcoChat — Central de Atendimento Marcx</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
@@ -385,7 +385,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 <!-- ════════════════════════════════ SIDEBAR ════════════════════════════════ -->
 <aside class="sb">
   <div class="sb-brand">
-    <div class="sb-logo"><img src="LogoMackenzie.png" alt="Mackenzie Logo"></div>
+    <div class="sb-logo"><img src="LogoMarcx.png" alt="Marcx Logo"></div>
     <!-- docs/icone deixe o label suspenso...png — ícone com label em tooltip
          (só aparece no hover) que abre o relatório em tempo real. -->
     <a href="modulo_dashboard.html" target="_blank" class="icon-btn">
@@ -424,9 +424,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
   </div>
   <div class="ni" onclick="nav('conexoes',this)">
     <i class="fas fa-wifi"></i> Conexões
-  </div>
-  <div class="ni" onclick="abrirPainelEscalas()">
-    <i class="fas fa-calendar-days"></i> Escalas
   </div>
   <div class="ni" onclick="abrirModuloMensagens()">
     <i class="fas fa-comment-dots"></i> Mensagens
@@ -468,7 +465,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
   <div class="sbar off" id="sbar">
     <div class="sdot"></div>
-    <span id="sbarTxt">API ChatMackenzie não conectada — configure em API ChatMackenzie para ativar dados em tempo real</span>
+    <span id="sbarTxt">API ChatMarcx não conectada — configure em API ChatMarcx para ativar dados em tempo real</span>
     <button class="btn p sm" style="margin-left:auto" onclick="openModal('cfg')">Conectar</button>
   </div>
 
@@ -908,7 +905,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
           <div class="form-grid">
             <div class="fg">
               <label>E-mail *</label>
-              <input type="email" id="emailUsuario" placeholder="Ex: joao@mackenzie.com" required>
+              <input type="email" id="emailUsuario" placeholder="Ex: joao@marcx.com" required>
             </div>
             <div class="fg">
               <label>Telefone</label>
@@ -932,11 +929,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
               <label>Canal de Atendimento *</label>
               <select id="canalUsuario" required>
                 <option value="">Selecione um canal...</option>
-                <option value="7portaria">🚪 Portaria (7portaria-mackenzie.html)</option>
-                <option value="1atendimento">📞 Atendimento (1atendimento-mackenzie.html)</option>
-                <option value="2agendamento">📅 Agendamento (2agendamento-mackenzie.html)</option>
-                <option value="3exames">🩺 Exames Diagnóstico (3examesdiagnostico-mackenzie.html)</option>
-                <option value="8ouvidoria">📢 Ouvidoria (8ouvidoria-mackenzie.html)</option>
+                <option value="7portaria">🚪 Portaria (7portaria-marcx.html)</option>
+                <option value="1atendimento">📞 Atendimento (1atendimento-marcx.html)</option>
+                <option value="2agendamento">📅 Agendamento (2agendamento-marcx.html)</option>
+                <option value="3exames">🩺 Exames Diagnóstico (3examesdiagnostico-marcx.html)</option>
+                <option value="8ouvidoria">📢 Ouvidoria (8ouvidoria-marcx.html)</option>
               </select>
               <div class="fg-helper">Cada usuário tem um único vínculo com um canal</div>
             </div>
@@ -1024,7 +1021,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
     <!-- ══════════ CONFIG ══════════ -->
     <div class="page" id="page-config">
-      <div class="sh"><h2><i class="fas fa-plug" style="color:var(--red)"></i> API ChatMackenzie — Configurações</h2></div>
+      <div class="sh"><h2><i class="fas fa-plug" style="color:var(--red)"></i> API ChatMarcx — Configurações</h2></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
         <div class="panel">
           <div class="ph"><div class="ph-ico r"><i class="fas fa-server"></i></div><h3>Servidor de Mensagens</h3></div>
@@ -1251,7 +1248,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 </div></div>
 
 <div class="overlay" id="m-cfg"><div class="modal">
-  <h3><i class="fas fa-plug" style="color:var(--red)"></i> Conectar API ChatMackenzie</h3>
+  <h3><i class="fas fa-plug" style="color:var(--red)"></i> Conectar API ChatMarcx</h3>
   <p>Configure as credenciais para ativar os dados em tempo real</p>
   <div class="mfg"><label>URL BASE</label><input type="text" id="mc2-url" value="http://localhost:4002/v1"></div>
   <div class="mfg"><label>TOKEN DE ACESSO</label><input type="password" id="mc2-tok" placeholder="Seu token de acesso"></div>
@@ -1283,7 +1280,7 @@ const tickets = [
 ];
 
 const chats = {
-  1:[{f:'bot',m:'Olá! Sou a assistente do Hospital Mackenzie. Como posso ajudá-la?',t:'08:30'},{f:'user',m:'Boa tarde, preciso de consulta urgente com cardiologista.',t:'08:31'},{f:'bot',m:'Entendido! Verificando disponibilidade...',t:'08:31'},{f:'user',m:'Estou com dor no peito desde ontem.',t:'08:32'},{f:'bot',m:'⚠️ Caso urgente identificado. Transferindo agora.',t:'08:32'}],
+  1:[{f:'bot',m:'Olá! Sou a assistente do Hospital Marcx. Como posso ajudá-la?',t:'08:30'},{f:'user',m:'Boa tarde, preciso de consulta urgente com cardiologista.',t:'08:31'},{f:'bot',m:'Entendido! Verificando disponibilidade...',t:'08:31'},{f:'user',m:'Estou com dor no peito desde ontem.',t:'08:32'},{f:'bot',m:'⚠️ Caso urgente identificado. Transferindo agora.',t:'08:32'}],
   2:[{f:'bot',m:'Olá João! Como posso ajudá-lo?',t:'08:40'},{f:'user',m:'Quero o status do meu exame de sangue.',t:'08:41'},{f:'bot',m:'Seu exame foi processado. Posso detalhar?',t:'08:42'},{f:'user',m:'Ok, vou aguardar sim.',t:'08:43'}],
 };
 
@@ -1313,12 +1310,6 @@ const mockBil = Array.from({length:120},(_, i)=>{
   };
 });
 
-// ══ PAINEL DE ESCALAS / MENSAGENS ══
-// Mesmo arquivo (modulo_mensagens.html) atende os dois atalhos — o hash
-// na URL diz a ele qual página deve abrir já ativa.
-function abrirPainelEscalas() {
-  window.open('modulo_mensagens.html#pediatria', '_blank', 'width=1280,height=800,menubar=no,toolbar=no,location=no,status=no');
-}
 function abrirModuloMensagens() {
   window.open('modulo_mensagens.html#mensagens-interativas', '_blank', 'width=1280,height=800,menubar=no,toolbar=no,location=no,status=no');
 }
@@ -1592,14 +1583,14 @@ function exportCSV() {
   const csv=[header,...rows].join('\n');
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download='bilhetagem_mackenzie.csv';
+  a.download='bilhetagem_marcx.csv';
   a.click();
   toast('CSV exportado com sucesso!','ok');
 }
 
 // ══ API CALLS ══
 async function apiCall(method, path, body=null) {
-  if(!CFG.connected){ toast('Configure a API ChatMackenzie primeiro','err'); return null; }
+  if(!CFG.connected){ toast('Configure a API ChatMarcx primeiro','err'); return null; }
   try {
     const opts={method,headers:{'Content-Type':'application/json','Authorization':'Bearer '+CFG.token}};
     if(body) opts.body=JSON.stringify(body);
@@ -1685,7 +1676,7 @@ function saveConfig() {
   CFG.connected=!!CFG.token;
   const bar=document.getElementById('sbar');
   const txt=document.getElementById('sbarTxt');
-  if(CFG.connected){ bar.className='sbar on'; txt.textContent='API ChatMackenzie conectada — '+CFG.url+' · dados em tempo real ativos'; document.getElementById('nb-api').style.display='none'; toast('API conectada com sucesso!','ok'); }
+  if(CFG.connected){ bar.className='sbar on'; txt.textContent='API ChatMarcx conectada — '+CFG.url+' · dados em tempo real ativos'; document.getElementById('nb-api').style.display='none'; toast('API conectada com sucesso!','ok'); }
   closeModal();
 }
 
@@ -1744,11 +1735,11 @@ window.onload=()=>{
 
 // ━━━ MÓDULO USUÁRIOS ━━━
 const canaisMap = {
-  '7portaria':{ nome:'🚪 Portaria', arquivo:'7portaria-mackenzie.html', cor:'#c8102e' },
-  '1atendimento':{ nome:'📞 Atendimento', arquivo:'1atendimento-mackenzie.html', cor:'#2563eb' },
-  '2agendamento':{ nome:'📅 Agendamento', arquivo:'2agendamento-mackenzie.html', cor:'#f59e0b' },
-  '3exames':{ nome:'🩺 Exames Diagnóstico', arquivo:'3examesdiagnostico-mackenzie.html', cor:'#10b981' },
-  '8ouvidoria':{ nome:'📢 Ouvidoria', arquivo:'8ouvidoria-mackenzie.html', cor:'#8b5cf6' }
+  '7portaria':{ nome:'🚪 Portaria', arquivo:'7portaria-marcx.html', cor:'#c8102e' },
+  '1atendimento':{ nome:'📞 Atendimento', arquivo:'1atendimento-marcx.html', cor:'#2563eb' },
+  '2agendamento':{ nome:'📅 Agendamento', arquivo:'2agendamento-marcx.html', cor:'#f59e0b' },
+  '3exames':{ nome:'🩺 Exames Diagnóstico', arquivo:'3examesdiagnostico-marcx.html', cor:'#10b981' },
+  '8ouvidoria':{ nome:'📢 Ouvidoria', arquivo:'8ouvidoria-marcx.html', cor:'#8b5cf6' }
 };
 
 let usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
@@ -2003,7 +1994,7 @@ function exportarUsuariosCSV() {
   
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = 'usuarios_mackenzie_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.download = 'usuarios_marcx_' + new Date().toISOString().split('T')[0] + '.csv';
   a.click();
   
   mostrarAlert('CSV exportado com sucesso!', 'success');

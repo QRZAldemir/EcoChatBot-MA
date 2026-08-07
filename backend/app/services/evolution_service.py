@@ -147,6 +147,72 @@ async def enviar_template(
             raise
 
 
+async def criar_instancia(instance: str) -> dict:
+    """Cria a instância na Evolution API e devolve o QR Code inicial (se houver)."""
+    url = f"{EVOLUTION_API_URL}/instance/create"
+    payload = {"instanceName": instance, "qrcode": True, "integration": "WHATSAPP-BAILEYS"}
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            r = await client.post(url, headers=_headers(), json=payload)
+            r.raise_for_status()
+            return r.json()
+        except httpx.HTTPStatusError as e:
+            _log_erro("criar_instancia", e.response.status_code, e.response.text)
+            raise
+
+
+async def obter_qrcode(instance: str) -> dict:
+    """Busca/atualiza o QR Code de pareamento de uma instância existente."""
+    url = f"{EVOLUTION_API_URL}/instance/connect/{instance}"
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            r = await client.get(url, headers=_headers())
+            r.raise_for_status()
+            return r.json()
+        except httpx.HTTPStatusError as e:
+            _log_erro("obter_qrcode", e.response.status_code, e.response.text)
+            raise
+
+
+async def desconectar_instancia(instance: str) -> dict:
+    """Faz logout da sessão WhatsApp (a instância continua cadastrada na Evolution)."""
+    url = f"{EVOLUTION_API_URL}/instance/logout/{instance}"
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            r = await client.delete(url, headers=_headers())
+            r.raise_for_status()
+            return r.json()
+        except httpx.HTTPStatusError as e:
+            _log_erro("desconectar_instancia", e.response.status_code, e.response.text)
+            raise
+
+
+async def reiniciar_instancia(instance: str) -> dict:
+    """Reinicia a instância na Evolution API (usado para reconectar)."""
+    url = f"{EVOLUTION_API_URL}/instance/restart/{instance}"
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            r = await client.put(url, headers=_headers())
+            r.raise_for_status()
+            return r.json()
+        except httpx.HTTPStatusError as e:
+            _log_erro("reiniciar_instancia", e.response.status_code, e.response.text)
+            raise
+
+
+async def deletar_instancia(instance: str) -> dict:
+    """Remove a instância definitivamente da Evolution API."""
+    url = f"{EVOLUTION_API_URL}/instance/delete/{instance}"
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            r = await client.delete(url, headers=_headers())
+            r.raise_for_status()
+            return r.json()
+        except httpx.HTTPStatusError as e:
+            _log_erro("deletar_instancia", e.response.status_code, e.response.text)
+            raise
+
+
 async def verificar_conexao(instance: str) -> dict:
     """Verifica se a instância está conectada ao WhatsApp."""
     url = f"{EVOLUTION_API_URL}/instance/connectionState/{instance}"

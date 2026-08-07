@@ -1,0 +1,39 @@
+/* Elementos próprios da tela de Campanhas — reutiliza .panel/.tbl/.btn/.modal
+   definidos globalmente em assets/styles/admin.css. */
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.status-badge.rascunho { background: var(--bg); color: var(--muted); }
+.status-badge.enviando { background: var(--yellow-pale); color: var(--yellow-dark); }
+.status-badge.concluida { background: var(--green-pale); color: var(--green-dark); }
+.status-badge.erro { background: var(--red-pale); color: var(--red-dark); }
+
+.mini-stat { font-size: 11.5px; color: var(--muted); }
+
+.acoes-col { white-space: nowrap; }
+
+.campanha-modal { max-width: 560px; }
+
+.contatos-lista {
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px;
+}
+.contato-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: 12.5px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.contato-item:hover { background: var(--bg); }
+.contato-item small { color: var(--muted); margin-left: 4px; }

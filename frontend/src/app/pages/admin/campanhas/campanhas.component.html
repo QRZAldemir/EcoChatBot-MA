@@ -1,0 +1,97 @@
+<div class="page">
+
+  <div *ngIf="alerta" class="alert" [class.success]="alerta.tipo==='sucesso'" [class.error]="alerta.tipo==='erro'">
+    <i class="fas" [class.fa-check-circle]="alerta.tipo==='sucesso'" [class.fa-exclamation-circle]="alerta.tipo==='erro'"></i>
+    {{ alerta.msg }}
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-icon blue"><i class="fas fa-paper-plane"></i></div>
+      <h3>Campanhas</h3>
+      <button class="btn primary" (click)="abrirNovo()">
+        <i class="fas fa-plus"></i> Nova campanha
+      </button>
+    </div>
+
+    <div class="pb">
+      <div class="table-wrap">
+        <div *ngIf="campanhas.length === 0" class="empty">Nenhuma campanha cadastrada</div>
+
+        <table class="tbl" *ngIf="campanhas.length > 0">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Conexão</th>
+              <th>Status</th>
+              <th>Progresso</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of campanhas; trackBy: trackById">
+              <td><strong>{{ c.nome }}</strong></td>
+              <td>{{ nomeConexao(c.conexaoId) }}</td>
+              <td>
+                <span class="status-badge" [class]="c.status">
+                  {{ c.status === 'rascunho' ? 'Rascunho' : c.status === 'enviando' ? 'Enviando' : c.status === 'concluida' ? 'Concluída' : 'Erro' }}
+                </span>
+              </td>
+              <td>
+                <span class="mini-stat">{{ c.enviados }}/{{ c.totalContatos }} enviados<span *ngIf="c.falhas"> · {{ c.falhas }} falha(s)</span></span>
+              </td>
+              <td class="acoes-col">
+                <button class="btn-icon" *ngIf="c.status === 'rascunho'" [disabled]="disparando === c.id" (click)="disparar(c)" title="Disparar">
+                  <i class="fas fa-paper-plane"></i>
+                </button>
+                <button class="btn-icon danger" (click)="deletar(c.id)" title="Remover"><i class="fas fa-trash"></i></button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVA CAMPANHA -->
+<div class="overlay" [class.open]="modalAberto" (click.self)="fecharModal()">
+  <div class="modal campanha-modal">
+    <div class="modal-header">
+      <h2>Nova campanha</h2>
+      <button class="close-btn" (click)="fecharModal()">✕</button>
+    </div>
+
+    <div class="form-grid">
+      <div class="fg full">
+        <label>Nome da campanha *</label>
+        <input type="text" [(ngModel)]="form.nome" placeholder="Ex: Promoção de agosto">
+      </div>
+      <div class="fg full">
+        <label>Conexão de envio (WhatsApp) *</label>
+        <select [(ngModel)]="form.conexaoId">
+          <option *ngFor="let cx of conexoes" [value]="cx.id">{{ cx.nome }}</option>
+        </select>
+      </div>
+      <div class="fg full">
+        <label>Mensagem *</label>
+        <textarea [(ngModel)]="form.mensagem" rows="4" placeholder="Texto que será enviado a todos os contatos selecionados"></textarea>
+      </div>
+      <div class="fg full">
+        <label>Contatos ({{ form.contatoIds.length }} selecionado(s))</label>
+        <div class="contatos-lista">
+          <div *ngIf="contatos.length === 0" class="empty">Nenhum contato cadastrado — cadastre em "Contatos" primeiro.</div>
+          <label class="contato-item" *ngFor="let c of contatos; trackBy: trackById">
+            <input type="checkbox" [checked]="form.contatoIds.includes(c.id)" (change)="toggleContato(c.id)">
+            <span>{{ c.nome }} <small>{{ c.telefone }}</small></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn secondary" (click)="fecharModal()">Cancelar</button>
+      <button class="btn primary" (click)="salvar()"><i class="fas fa-save"></i> Salvar rascunho</button>
+    </div>
+  </div>
+</div>

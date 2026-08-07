@@ -1,0 +1,6 @@
+/* Elementos próprios da tela de Arquivos — reutiliza .panel/.tbl/.btn/.modal
+   definidos globalmente em assets/styles/admin.css. */
+
+.arquivo-ico { color: var(--muted); margin-right: 6px; }
+
+.acoes-col { white-space: nowrap; }

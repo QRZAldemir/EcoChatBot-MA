@@ -1,6 +1,6 @@
 """
 ================================================================================
-SERVIÇO DE ÁUDIO (TEXTO → FALA) - ECOCHAT MACKENZIE API
+SERVIÇO DE ÁUDIO (TEXTO → FALA) - ECOCHAT MARCX API
 ================================================================================
 Autor: Aldemir Queiroz da Silva
 Versão: 1.0.0

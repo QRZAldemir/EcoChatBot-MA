@@ -38,7 +38,7 @@ from app.services import audio_service, evolution_service
 
 logger = logging.getLogger(__name__)
 
-RODAPE = "Hospital Presbiteriano Mackenzie — Dourados/MS"
+RODAPE = "Hospital Presbiteriano Marcx — Dourados/MS"
 
 # URL pública pela qual o Evolution API busca os áudios gerados (ver
 # app/routers/audio.py). Precisa ser alcançável pela instância da Evolution,
@@ -553,7 +553,7 @@ async def _boot(db: Session, at: Atendimento, inst: str, tel: str) -> None:
 
     await _txt(inst, tel,
         "👋 *Olá! Seja bem-vindo ao*\n"
-        "*Hospital Presbiteriano Mackenzie*\n"
+        "*Hospital Presbiteriano Marcx*\n"
         "_Dr. e Sra. Goldsby King — Dourados/MS_\n\n"
         "Sou seu assistente virtual e estou aqui para iniciar "
         "seu atendimento com agilidade. 🤝\n\n"
@@ -709,7 +709,7 @@ async def _enviar_hub(db: Session, inst: str, tel: str) -> None:
         rows = [{"title": op.titulo, "description": op.descricao or "", "rowId": op.row_id} for op in hub.opcoes]
         await _lista(inst, tel, hub.titulo, hub.descricao or "Selecione o departamento:", hub.texto_botao or "Ver departamentos", rows, hub.rodape or RODAPE)
     else:
-        await _lista(inst, tel, "Central de Atendimento Mackenzie", "Selecione o departamento com o qual deseja falar:", "Ver departamentos", _HUB_ROWS)
+        await _lista(inst, tel, "Central de Atendimento Marcx", "Selecione o departamento com o qual deseja falar:", "Ver departamentos", _HUB_ROWS)
 
 
 async def _despachar_menu_dept(db, at, inst, tel, step, msg_type, content):
@@ -784,7 +784,7 @@ async def _atendimento(db, at, inst, tel, step, msg_type, content):
             await _lista(inst, tel, "📋 Guia de Pacientes", "O que você precisa saber?", "Ver opções", _AT_GUIA_ROWS)
         elif row == "AT_MATERNIDADE":
             await _txt(inst, tel,
-                "🤱 *Guia de Maternidade — H. P. Mackenzie*\n\n"
+                "🤱 *Guia de Maternidade — H. P. Marcx*\n\n"
                 "• *Pré-internação:* Realize o pré-cadastro com 48h de antecedência.\n"
                 "• *Acomodações:* Quartos individuais com acompanhante 24h.\n"
                 "• *Visitas:* Somente cônjuge/parceiro(a) como acompanhante fixo.\n"
@@ -859,11 +859,11 @@ async def _atendimento(db, at, inst, tel, step, msg_type, content):
         elif row == "AT_OI_CONTATO":
             await _txt(inst, tel,
                 "📞 *Informações de Contato*\n\n"
-                "🏥 *Hospital Presbiteriano Mackenzie*\n"
+                "🏥 *Hospital Presbiteriano Marcx*\n"
                 "Rua Hayel Bon Faker, 3797 — Dourados/MS\n\n"
                 "📞 Central: *(67) 3416-8000*\n"
                 "📞 Pronto Socorro: *(67) 3416-8010*\n"
-                "📧 E-mail: contato@mackenzie.org.br\n"
+                "📧 E-mail: contato@marcx.org.br\n"
                 "⏰ Funcionamento: *24h / 7 dias*"
             )
             await _lista(inst, tel, "Outras Orientações", "O que mais posso ajudar?", "Opções", _AT_INFO_ROWS)
@@ -1195,7 +1195,7 @@ async def _exames(db, at, inst, tel, step, msg_type, content):
             await _txt(inst, tel,
                 "📄 *Resultados e Laudos*\n\n"
                 "Para obter seu resultado, acesse:\n"
-                "🔗 *portal.mackenzie.ms.br/resultados*\n\n"
+                "🔗 *portal.marcx.ms.br/resultados*\n\n"
                 "Ou entre em contato:\n"
                 "📞 *(67) 3416-8040* — Laboratório\n"
                 "⏰ Retirada presencial: seg–sex 7h–18h | sáb 7h–12h"
@@ -1408,7 +1408,7 @@ async def _portaria(db, at, inst, tel, step, msg_type, content):
         elif row == "PO_LOCALIZACAO":
             await _txt(inst, tel,
                 "🔵 *Localização e Acesso*\n\n"
-                "🏥 *Hospital Presbiteriano Mackenzie*\n"
+                "🏥 *Hospital Presbiteriano Marcx*\n"
                 "Rua Hayel Bon Faker, 3797\n"
                 "Jardim Caramuru — Dourados/MS\n\n"
                 "🗺️ *Como chegar:*\n"

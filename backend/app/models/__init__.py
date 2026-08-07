@@ -164,3 +164,124 @@ class Usuario(Base):
     nivel = relationship("NivelUsuario", back_populates="usuarios")
     departamento = relationship("Departamento", back_populates="usuarios")
     canal = relationship("Canal", back_populates="usuarios")
+
+
+class Conexao(Base):
+    """Número WhatsApp (WABA) vinculado ao sistema via Evolution API.
+
+    'padrao' marca qual conexão é o número administrativo principal da
+    empresa — só uma pode ser padrão por vez (ver ConexaoService.tornar_padrao).
+    """
+    __tablename__ = "conexoes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String(100), nullable=False)          # rótulo exibido, ex: "67 3416-7800 - Oficial"
+    telefone = Column(String(20))
+    tipo = Column(String(20), default="whatsapp")        # whatsapp (reservado p/ outros canais futuros)
+    conexao = Column(String(30), default="waba")          # waba | qrcode
+    atendimento = Column(String(20), default="automatico")  # automatico | manual
+    status = Column(String(20), default="desconectada")   # conectada | desconectada | aguardando
+    padrao = Column(Boolean, default=False, nullable=False)
+    ativo = Column(Boolean, default=True, nullable=False)
+    evolution_instance_name = Column(String(100))
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Contato(Base):
+    """Agenda de clientes WhatsApp — base usada para disparo de Campanhas."""
+    __tablename__ = "contatos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String(100), nullable=False)
+    telefone = Column(String(20), unique=True, nullable=False, index=True)
+    email = Column(String(100))
+    empresa = Column(String(100))
+    observacao = Column(String(300))
+    origem = Column(String(20), default="manual")   # manual | atendimento
+    ativo = Column(Boolean, default=True, nullable=False)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    campanhas = relationship("CampanhaContato", back_populates="contato")
+
+
+class EmailEnviado(Base):
+    """Histórico de e-mails avulsos enviados pelo sistema (central de E-mail)."""
+    __tablename__ = "emails_enviados"
+
+    id = Column(Integer, primary_key=True, index=True)
+    contato_id = Column(Integer, ForeignKey("contatos.id"), nullable=True)
+    destinatario = Column(String(150), nullable=False)
+    assunto = Column(String(200), nullable=False)
+    corpo = Column(Text, nullable=False)
+    status = Column(String(20), default="pendente")   # enviado | erro | simulado
+    erro_mensagem = Column(String(300))
+    enviado_em = Column(DateTime)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+    contato = relationship("Contato")
+
+
+class Campanha(Base):
+    """Disparo em massa de mensagens WhatsApp para uma lista de Contatos."""
+    __tablename__ = "campanhas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String(100), nullable=False)
+    mensagem = Column(Text, nullable=False)
+    conexao_id = Column(Integer, ForeignKey("conexoes.id"), nullable=False)
+    status = Column(String(20), default="rascunho")   # rascunho | enviando | concluida | erro
+    total_contatos = Column(Integer, default=0)
+    enviados = Column(Integer, default=0)
+    falhas = Column(Integer, default=0)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    enviado_em = Column(DateTime)
+
+    conexao = relationship("Conexao")
+    contatos = relationship("CampanhaContato", back_populates="campanha", cascade="all, delete-orphan")
+
+
+class CampanhaContato(Base):
+    """Associação Campanha × Contato — status individual do disparo por destinatário."""
+    __tablename__ = "campanha_contatos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campanha_id = Column(Integer, ForeignKey("campanhas.id"), nullable=False, index=True)
+    contato_id = Column(Integer, ForeignKey("contatos.id"), nullable=False, index=True)
+    status = Column(String(20), default="pendente")   # pendente | enviado | erro | simulado
+    erro_mensagem = Column(String(300))
+    enviado_em = Column(DateTime)
+
+    campanha = relationship("Campanha", back_populates="contatos")
+    contato = relationship("Contato", back_populates="campanhas")
+
+
+class TokenRevogado(Base):
+    """JWTs invalidados antes do vencimento natural — suporta o /auth/logout real.
+
+    JWT é stateless por natureza; sem isso, um token roubado continuaria
+    válido até expirar mesmo depois do usuário fazer logout. 'jti' é o
+    identificador único gravado no payload do token (ver security.py).
+    """
+    __tablename__ = "tokens_revogados"
+
+    jti = Column(String(36), primary_key=True)
+    expira_em = Column(DateTime, nullable=False)   # cópia do "exp" do token — permite podar linhas antigas
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+
+class Arquivo(Base):
+    """Biblioteca de mídia do chat — arquivos trocados nos atendimentos, reutilizáveis em respostas."""
+    __tablename__ = "arquivos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nome_original = Column(String(200), nullable=False)
+    nome_arquivo = Column(String(200), nullable=False)   # nome único no disco (uploads/arquivos/)
+    tipo_mime = Column(String(100))
+    tamanho_bytes = Column(Integer)
+    descricao = Column(String(300))
+    atendimento_id = Column(Integer, ForeignKey("atendimentos.id"), nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+    atendimento = relationship("Atendimento")

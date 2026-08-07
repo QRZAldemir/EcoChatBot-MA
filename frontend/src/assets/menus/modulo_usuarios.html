@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cadastro de Usuários — EcoChat Mackenzie</title>
+<title>Cadastro de Usuários — EcoChat Marcx</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -175,7 +175,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
     <div class="sb-logo"><span>M</span></div>
     <div class="sb-txt">
       <strong>EcoChat</strong>
-      <small>Mackenzie · Central de Atendimento</small>
+      <small>Marcx · Central de Atendimento</small>
     </div>
   </div>
 
@@ -266,7 +266,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
             <div class="fg">
               <label>E-mail <span class="req">*</span></label>
-              <input type="email" id="emailField" placeholder="joao@mackenzie.com">
+              <input type="email" id="emailField" placeholder="joao@marcx.com">
             </div>
 
             <div class="fg-row">
@@ -560,7 +560,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
         </div>
         <div style="padding:0 12px;color:var(--muted);font-size:18px;font-weight:300">→</div>
         <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--yellow-pale);border:1.5px solid var(--yellow);border-radius:10px;font-size:12px;font-weight:700;color:var(--yellow-dark)">
-          <i class="fas fa-file-code"></i> Menu HTML <span style="font-weight:400;font-size:10px;margin-left:4px">ex: 7portaria-mackenzie.html</span>
+          <i class="fas fa-file-code"></i> Menu HTML <span style="font-weight:400;font-size:10px;margin-left:4px">ex: 7portaria-marcx.html</span>
         </div>
         <div style="padding:0 12px;color:var(--muted);font-size:18px;font-weight:300">→</div>
         <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--green-pale);border:1.5px solid var(--wa);border-radius:10px;font-size:12px;font-weight:700;color:var(--wa-dark)">
@@ -596,11 +596,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
               <label>Arquivo de Menu <span class="req">*</span></label>
               <select id="c-arquivo" onchange="atualizarPreviewMenu()">
                 <option value="">Selecione o arquivo HTML...</option>
-                <option value="1atendimento-mackenzie.html">📞 1atendimento-mackenzie.html</option>
-                <option value="2agendamento-mackenzie.html">📅 2agendamento-mackenzie.html</option>
-                <option value="3examesdiagnostico-mackenzie.html">🩺 3examesdiagnostico-mackenzie.html</option>
-                <option value="7portaria-mackenzie.html">🚪 7portaria-mackenzie.html</option>
-                <option value="8ouvidoria-mackenzie.html">📢 8ouvidoria-mackenzie.html</option>
+                <option value="1atendimento-marcx.html">📞 1atendimento-marcx.html</option>
+                <option value="2agendamento-marcx.html">📅 2agendamento-marcx.html</option>
+                <option value="3examesdiagnostico-marcx.html">🩺 3examesdiagnostico-marcx.html</option>
+                <option value="7portaria-marcx.html">🚪 7portaria-marcx.html</option>
+                <option value="8ouvidoria-marcx.html">📢 8ouvidoria-marcx.html</option>
               </select>
               <div id="menu-preview-box" style="display:none;margin-top:8px;padding:9px 12px;background:var(--green-pale);border:1.5px solid var(--green);border-radius:8px;align-items:center;gap:8px">
                 <i class="fas fa-file-code" style="color:var(--green-dark);font-size:13px;flex-shrink:0"></i>
@@ -863,11 +863,11 @@ if (departamentos.length === 0) {
 }
 if (canais.length === 0) {
   canais = [
-    { id: 1, nome: 'Atendimento-Cliente',      icone: '📞', desc: 'Central de atendimento ao cliente',         arquivo: '1atendimento-mackenzie.html',        status: 'ativo' },
-    { id: 2, nome: 'Agendamento-Ambulatorial', icone: '📅', desc: 'Agendamento de consultas ambulatoriais',    arquivo: '2agendamento-mackenzie.html',        status: 'ativo' },
-    { id: 3, nome: 'Exames-Diagnostico',       icone: '🩺', desc: 'Informações sobre exames diagnósticos',    arquivo: '3examesdiagnostico-mackenzie.html',  status: 'ativo' },
-    { id: 4, nome: 'Portaria',                 icone: '🚪', desc: 'Atendimento de portaria e controle',       arquivo: '7portaria-mackenzie.html',           status: 'ativo' },
-    { id: 5, nome: 'Ouvidoria',                icone: '📢', desc: 'Canal de ouvidoria e sugestões',           arquivo: '8ouvidoria-mackenzie.html',          status: 'ativo' },
+    { id: 1, nome: 'Atendimento-Cliente',      icone: '📞', desc: 'Central de atendimento ao cliente',         arquivo: '1atendimento-marcx.html',        status: 'ativo' },
+    { id: 2, nome: 'Agendamento-Ambulatorial', icone: '📅', desc: 'Agendamento de consultas ambulatoriais',    arquivo: '2agendamento-marcx.html',        status: 'ativo' },
+    { id: 3, nome: 'Exames-Diagnostico',       icone: '🩺', desc: 'Informações sobre exames diagnósticos',    arquivo: '3examesdiagnostico-marcx.html',  status: 'ativo' },
+    { id: 4, nome: 'Portaria',                 icone: '🚪', desc: 'Atendimento de portaria e controle',       arquivo: '7portaria-marcx.html',           status: 'ativo' },
+    { id: 5, nome: 'Ouvidoria',                icone: '📢', desc: 'Canal de ouvidoria e sugestões',           arquivo: '8ouvidoria-marcx.html',          status: 'ativo' },
   ];
   localStorage.setItem('ecochat_canais', JSON.stringify(canais));
 }

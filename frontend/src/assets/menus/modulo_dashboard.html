@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Atendimentos - Mackenzie v13</title>
+  <title>Dashboard Atendimentos - Marcx v13</title>
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <!-- SheetJS (XLSX) -->
@@ -1061,7 +1061,7 @@
   <!-- SIDEBAR -->
   <aside class="sb">
     <div class="sb-brand">
-      <div class="sb-logo"><img src="LogoMackenzie.png" alt="Mackenzie Logo"></div>
+      <div class="sb-logo"><img src="LogoMarcx.png" alt="Marcx Logo"></div>
       <div class="sb-txt"><strong>Dashboard</strong></div>
     </div>
 
@@ -1101,8 +1101,8 @@
 
     <div class="sb-div"></div>
     <div class="sb-sec">Sistema</div>
-    <!-- CORREÇÃO: Link alterado para apontar para o arquivo correto EchoChatMackenzieVs.html -->
-    <a href="EchoChatMackenzieVs.html" class="ni"><i class="fas fa-arrow-left"></i> Voltar ao Menu</a>
+    <!-- CORREÇÃO: Link alterado para apontar para o arquivo correto EchoChatMarcxVs.html -->
+    <a href="EchoChatMarcxVs.html" class="ni"><i class="fas fa-arrow-left"></i> Voltar ao Menu</a>
   </aside>
 
   <!-- MAIN -->
@@ -2007,7 +2007,7 @@
       const titleEl = document.querySelector('.tb-title');
       if (titleEl && titles[id]) {
         titleEl.innerHTML = `Dashboard <span style="color:var(--muted);font-weight:400;margin:0 5px">-</span> <span>${titles[id]}</span>`;
-        document.title = `Dashboard ${titles[id]} - EcoChat Mackenzie`;
+        document.title = `Dashboard ${titles[id]} - EcoChat Marcx`;
       }
     }
 
@@ -4209,7 +4209,7 @@ function buildGestorHTML() {
 
       // Header
       html += '<div class="hdr">';
-      html += '<img src="LogoMackenzie.png" alt="Mackenzie" onerror="this.style.display=\'none\'">';
+      html += '<img src="LogoMarcx.png" alt="Marcx" onerror="this.style.display=\'none\'">';
       html += '<div class="hdr-txt"><strong>Relatório Analítico de Atendimentos</strong><span>EcoChat · Período Filtrado · Dados precisos por filtro</span></div>';
       html += '<div class="hdr-periodo"><strong>' + periodo + '</strong><small>Gerado em ' + hoje + '</small></div>';
       html += '</div><div class="wrap">';
@@ -4331,7 +4331,7 @@ function buildGestorHTML() {
       }
 
       html += '</div>'; // wrap
-      html += '<div class="foot">Gerado em ' + hoje + ' · EcoChat Mackenzie · Período: ' + periodo + '</div>';
+      html += '<div class="foot">Gerado em ' + hoje + ' · EcoChat Marcx · Período: ' + periodo + '</div>';
 
       // Charts script
       html += `<script>
@@ -4759,7 +4759,7 @@ window.addEventListener('load', function() { setTimeout(function() {
       html += '<style>' + css + '</style></head><body>';
 
       // Header
-      html += '<div class="hdr"><img src="LogoMackenzie.png" alt="" onerror="this.style.display=\'none\'">';
+      html += '<div class="hdr"><img src="LogoMarcx.png" alt="" onerror="this.style.display=\'none\'">';
       html += '<div class="hdr-txt"><strong>Indicadores de Desempenho</strong><span>Operações · Satisfação · TMA · Análise Comparativa</span></div>';
       html += '<div class="hdr-r"><strong>' + periodo + '</strong><small>Gerado em ' + hoje + '</small></div></div>';
       html += '<div class="wrap">';
