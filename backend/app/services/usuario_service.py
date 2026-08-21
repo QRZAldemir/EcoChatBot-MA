@@ -1,6 +1,11 @@
 from sqlalchemy.orm import Session
 from app.models import Usuario, NivelUsuario
 from app.schemas import UsuarioCreate, UsuarioUpdate
+from app.exceptions import (
+    UsuarioAlreadyExists,
+    UsuarioInvalidPassword,
+    UsuarioNotFound,
+)
 from passlib.context import CryptContext
 from typing import List, Optional
 
@@ -92,3 +97,146 @@ class UsuarioService:
             depto_nome = usuario.departamento.nome if usuario.departamento else "Sem Departamento"
             resultado.setdefault(depto_nome, []).append(usuario)
         return resultado
+
+
+# =====================================================================
+# MÉTODOS DE INSTÂNCIA (multi-tenant) — usados pelo router /tenant/usuarios
+# =====================================================================
+# Mantêm os métodos estáticos acima para compatibilidade com /api/usuarios
+# e auth.py. Os métodos de instância recebem (db, cliente_id) e usam
+# usuario.cliente_id para isolar o tenant.
+# =====================================================================
+
+    def __init__(self, db: Session, cliente_id: Optional[int] = None):
+        self.db = db
+        self.cliente_id = cliente_id
+
+    def _base(self):
+        query = self.db.query(Usuario)
+        if self.cliente_id is not None:
+            query = query.filter(Usuario.cliente_id == self.cliente_id)
+        return query
+
+    async def list_all(self, page: int = 1, limit: int = 50,
+                       filtros: Optional[dict] = None) -> dict:
+        filtros = filtros or {}
+        query = self._base()
+
+        if filtros.get('nivel'):
+            query = query.join(NivelUsuario).filter(NivelUsuario.nome == filtros['nivel'])
+        if filtros.get('status'):
+            query = query.filter(Usuario.status == filtros['status'])
+        if filtros.get('search'):
+            termo = f"%{filtros['search']}%"
+            query = query.filter(
+                Usuario.nome.ilike(termo) | Usuario.email.ilike(termo)
+            )
+
+        total = query.count()
+        registros = query.order_by(Usuario.nome.asc()).offset((page - 1) * limit).limit(limit).all()
+        return {
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "data": registros,
+        }
+
+    async def get_by_id(self, usuario_id: int) -> Optional[Usuario]:
+        return self._base().filter(Usuario.id == usuario_id).first()
+
+    def _por_email(self, email: str) -> Optional[Usuario]:
+        return self.db.query(Usuario).filter(Usuario.email == email).first()
+
+    async def create(self, data) -> Usuario:
+        if self._por_email(data.email):
+            raise UsuarioAlreadyExists(f"Email {data.email} já cadastrado")
+        novo = Usuario(
+            cliente_id=self.cliente_id,
+            nome=data.nome,
+            email=data.email,
+            telefone=data.telefone,
+            senha_hash=hash_senha(data.senha),
+            nivel_id=data.nivel_id,
+            departamento_id=data.departamento_id,
+            canal_id=data.canal_id,
+            ativo=data.ativo,
+            status="ativo",
+        )
+        self.db.add(novo)
+        self.db.commit()
+        self.db.refresh(novo)
+        return novo
+
+    async def create_admin(self, data) -> Usuario:
+        return await self.create(data)
+
+    async def convidar(self, data) -> dict:
+        novo = await self.create(data)
+        return {
+            "usuario_id": novo.id,
+            "email": novo.email,
+            "mensagem": f"Usuário {novo.nome} criado com sucesso.",
+        }
+
+    async def update(self, usuario_id: int, data) -> Usuario:
+        usuario = await self.get_by_id(usuario_id)
+        if not usuario:
+            raise UsuarioNotFound(f"Usuário {usuario_id} não encontrado")
+        update_data = data.model_dump(exclude_unset=True)
+        for campo, valor in update_data.items():
+            setattr(usuario, campo, valor)
+        self.db.commit()
+        self.db.refresh(usuario)
+        return usuario
+
+    async def update_status(self, usuario_id: int, data) -> Usuario:
+        usuario = await self.get_by_id(usuario_id)
+        if not usuario:
+            raise UsuarioNotFound(f"Usuário {usuario_id} não encontrado")
+        usuario.status = data.status
+        usuario.ativo = data.status == "ativo"
+        self.db.commit()
+        self.db.refresh(usuario)
+        return usuario
+
+    async def delete(self, usuario_id: int) -> bool:
+        usuario = await self.get_by_id(usuario_id)
+        if not usuario:
+            raise UsuarioNotFound(f"Usuário {usuario_id} não encontrado")
+        usuario.ativo = False
+        usuario.status = "inativo"
+        self.db.commit()
+        return True
+
+    async def change_password(self, usuario_id: int, data) -> None:
+        usuario = self.db.query(Usuario).filter(Usuario.id == usuario_id).first()
+        if not usuario:
+            raise UsuarioNotFound("Usuário não encontrado")
+        if not verificar_senha(data.senha_atual, usuario.senha_hash):
+            raise UsuarioInvalidPassword("Senha atual incorreta")
+        usuario.senha_hash = hash_senha(data.nova_senha)
+        self.db.commit()
+
+    async def reset_password(self, usuario_id: int, data) -> None:
+        usuario = await self.get_by_id(usuario_id)
+        if not usuario:
+            raise UsuarioNotFound(f"Usuário {usuario_id} não encontrado")
+        usuario.senha_hash = hash_senha(data.nova_senha)
+        self.db.commit()
+
+    async def forgot_password(self, email: str) -> dict:
+        usuario = self._por_email(email)
+        if not usuario:
+            raise UsuarioNotFound("Email não encontrado")
+        # Em produção, gerar token e enviar email. Aqui retornamos instrução.
+        return {"message": f"Instruções de recuperação enviadas para {email}"}
+
+    async def get_estatisticas(self) -> dict:
+        query = self._base()
+        total = query.count()
+        ativos = query.filter(Usuario.ativo == True).count()
+        return {
+            "total": total,
+            "ativos": ativos,
+            "inativos": total - ativos,
+        }

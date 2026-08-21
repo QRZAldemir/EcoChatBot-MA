@@ -1,44 +1,15 @@
 <div class="app-shell">
 
   <!-- SIDEBAR -->
-  <aside class="sb" [class.fechado]="!menuAberto">
-    <div class="sb-brand">
-      <div class="sb-logo"><span>M</span></div>
-      <div class="sb-txt" *ngIf="menuAberto">
-        <strong>EcoChat</strong>
-        <small>Marcx</small>
-      </div>
-    </div>
-
-    <nav class="sb-nav">
-      <a *ngFor="let item of navItens"
-         [routerLink]="item.rota"
-         routerLinkActive="active"
-         class="ni">
-        <i [class]="'fas ' + item.icone"></i>
-        <span *ngIf="menuAberto">{{ item.label }}</span>
-      </a>
-    </nav>
-
-    <div class="sb-foot" *ngIf="menuAberto">
-      <small>EcoChat Marcx v1.0</small>
-    </div>
-  </aside>
+  <app-sidebar [aberto]="menuAberto" [navItens]="navItens"></app-sidebar>
 
   <!-- CONTEÚDO -->
-  <div class="main">
-    <div class="topbar">
-      <button class="menu-toggle" (click)="menuAberto = !menuAberto">
-        <i class="fas fa-bars"></i>
-      </button>
-      <div class="tb-title">Eco<span>Chat</span> <small>Marcx</small></div>
-      <div class="tb-user" *ngIf="usuario">
-        <span class="tb-user-nome">{{ usuario.nome }}</span>
-        <button class="tb-sair" (click)="sair()" title="Sair">
-          <i class="fas fa-right-from-bracket"></i>
-        </button>
-      </div>
-    </div>
+  <div class="main" [class.sb-fechado]="!menuAberto">
+    <app-topbar
+      [usuario]="usuario"
+      (toggleMenu)="menuAberto = !menuAberto"
+      (sairClick)="sair()">
+    </app-topbar>
     <div class="content">
       <router-outlet></router-outlet>
     </div>

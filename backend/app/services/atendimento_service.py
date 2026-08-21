@@ -1,242 +1,292 @@
+"""
+Serviço de Atendimento — versão adaptada à arquitetura real do EcoChatBot-MA.
+
+Usa os models definidos em app/models/__init__.py (Atendimento com status string,
+sem cliente_id/deletado_em/paciente_*). O isolamento multi-tenant é feito via
+filtro por departamento_id ou usuario_id do usuário autenticado quando aplicável.
+"""
+
+import uuid
+from typing import Optional, Dict, Any
+from datetime import datetime, timedelta
+
+from sqlalchemy import func, desc, asc
 from sqlalchemy.orm import Session
-from sqlalchemy import asc, desc, func
-from app.models import Atendimento, AtendimentoContext, Departamento
-from typing import Optional, List
-from datetime import datetime
+
+from app.models import Atendimento, Departamento, Usuario
+from app.schemas.atendimento import (
+    FiltroAtendimento,
+    AtendimentoCreate,
+    AtendimentoUpdate,
+    AtendimentoTransferir,
+    AtendimentoFinalizar,
+    AtendimentoIndicadores,
+)
 
 
 class AtendimentoService:
+    """
+    Serviço para gerenciar atendimentos.
+
+    Args:
+        db: Sessão do SQLAlchemy
+    """
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    # ============================================
+    # MÉTODOS PRIVADOS
+    # ============================================
+
+    def _get_base_query(self):
+        """Retorna query base filtrando apenas atendimentos ativos."""
+        return self.db.query(Atendimento).filter(Atendimento.ativo == True)
+
+    def _apply_filters(self, query, filtros: FiltroAtendimento):
+        """Aplica filtros à query."""
+        if filtros.id:
+            query = query.filter(Atendimento.id == filtros.id)
+
+        if filtros.status:
+            query = query.filter(Atendimento.status == filtros.status.value if hasattr(filtros.status, 'value') else filtros.status)
+
+        if filtros.tipo_canal is not None:
+            query = query.filter(Atendimento.tipo_canal == filtros.tipo_canal.value if hasattr(filtros.tipo_canal, 'value') else filtros.tipo_canal)
+
+        if filtros.departamento_id:
+            query = query.filter(Atendimento.departamento_id == filtros.departamento_id)
+
+        if filtros.usuario_id:
+            query = query.filter(Atendimento.usuario_id == filtros.usuario_id)
+
+        if filtros.cliente_whatsapp:
+            query = query.filter(Atendimento.telefone == filtros.cliente_whatsapp)
+
+        if filtros.protocolo:
+            query = query.filter(Atendimento.protocolo == filtros.protocolo)
+
+        if filtros.data_inicio:
+            query = query.filter(Atendimento.criado_em >= filtros.data_inicio)
+
+        if filtros.data_fim:
+            data_fim = filtros.data_fim + timedelta(days=1)
+            query = query.filter(Atendimento.criado_em < data_fim)
+
+        if filtros.ativo is not None:
+            query = query.filter(Atendimento.ativo == filtros.ativo)
+
+        return query
 
     @staticmethod
-    def listar(
-        db: Session,
-        id: Optional[int] = None,
-        canal: Optional[int] = None,  # Parâmetro: tipo de canal (1=WhatsApp, 2=Interno)
-        ativo: Optional[str] = None,
-        data_criacao_inicio: Optional[str] = None,
-        data_criacao_fim: Optional[str] = None,
-        tipo: Optional[int] = None,
-        departamento_id: Optional[int] = None,
-        atendente_usuario_id: Optional[int] = None,
-        cliente_id: Optional[int] = None,
-        protocolo: Optional[str] = None,
-        conexao_id: Optional[int] = None,
-        status: Optional[str] = None,
-        limit: int = 10,
+    def _gerar_protocolo() -> str:
+        """Gera protocolo único para o atendimento."""
+        timestamp = datetime.utcnow().strftime('%Y%m%d')
+        uid = uuid.uuid4().hex[:8].upper()
+        return f"ECO-{timestamp}-{uid}"
+
+    # ============================================
+    # MÉTODOS PÚBLICOS
+    # ============================================
+
+    async def listar(
+        self,
+        filtros: Optional[FiltroAtendimento] = None,
         page: int = 1,
+        limit: int = 50,
         order: str = "desc",
-    ) -> dict:
-        """
-        Lista atendimentos com filtros opcionais.
+    ) -> Dict[str, Any]:
+        """Lista atendimentos com filtros e paginação."""
+        if not filtros:
+            filtros = FiltroAtendimento()
 
-        ==================================================================
-        CORRIGIDO (2026-07-05): Filtro de canal atualizado
-        ==================================================================
-        Anteriormente: query.filter(Atendimento.canal == canal)
-        Agora: query.filter(Atendimento.tipo_canal == canal)
-
-        Motivo: A coluna 'canal' foi renomeada para 'tipo_canal' para
-        evitar conflito com o relacionamento ORM que também se chamava
-        'canal'. O parâmetro 'canal' continua sendo 1 ou 2 (tipo), mas
-        agora filtra a coluna correta.
-        ==================================================================
-        """
-        limit = min(limit, 50)
+        limit = min(limit, 100)
         offset = (page - 1) * limit
 
-        query = db.query(Atendimento)
-
-        if id:
-            query = query.filter(Atendimento.id == id)
-        if canal:
-            # CORRIGIDO: Filtro agora usa tipo_canal (coluna renomeada)
-            query = query.filter(Atendimento.tipo_canal == canal)
-        if ativo is not None:
-            query = query.filter(Atendimento.ativo == (ativo.upper() == "S"))
-        if tipo:
-            query = query.filter(Atendimento.tipo == tipo)
-        if departamento_id:
-            query = query.filter(Atendimento.departamento_id == departamento_id)
-        if atendente_usuario_id:
-            query = query.filter(Atendimento.usuario_id == atendente_usuario_id)
-        if cliente_id:
-            query = query.filter(Atendimento.cliente_id == cliente_id)
-        if protocolo:
-            query = query.filter(Atendimento.protocolo == protocolo)
-        if conexao_id:
-            query = query.filter(Atendimento.conexao_id == conexao_id)
-        if status:
-            query = query.filter(Atendimento.status == status)
-        if data_criacao_inicio:
-            query = query.filter(Atendimento.criado_em >= datetime.fromisoformat(data_criacao_inicio))
-        if data_criacao_fim:
-            query = query.filter(Atendimento.criado_em <= datetime.fromisoformat(data_criacao_fim + "T23:59:59"))
+        query = self._get_base_query()
+        query = self._apply_filters(query, filtros)
 
         total = query.count()
-        ordenar = desc(Atendimento.criado_em) if order == "desc" else asc(Atendimento.criado_em)
-        registros = query.order_by(ordenar).offset(offset).limit(limit).all()
+
+        order_by = desc(Atendimento.criado_em) if order == "desc" else asc(Atendimento.criado_em)
+        query = query.order_by(order_by)
+
+        registros = query.offset(offset).limit(limit).all()
 
         return {
             "total": total,
             "pagina": page,
             "limit": limit,
-            "paginas": (total + limit - 1) // limit,
+            "paginas": (total + limit - 1) // limit if total > 0 else 0,
             "registros": registros,
         }
 
-    @staticmethod
-    def buscar_por_id(db: Session, atendimento_id: int) -> Optional[Atendimento]:
-        return db.query(Atendimento).filter(Atendimento.id == atendimento_id).first()
-
-    @staticmethod
-    def transferir(
-        db: Session,
+    async def buscar_por_id(
+        self,
         atendimento_id: int,
-        departamento_id: Optional[int] = None,
-        atendente_usuario_id: Optional[int] = None,
-        canal_id: Optional[int] = None,
-    ) -> Optional[Atendimento]:
-        """
-        Transfere o atendimento para outro departamento/atendente/canal.
+        usuario_id: Optional[int] = None,
+    ) -> Atendimento:
+        """Busca um atendimento por ID."""
+        atendimento = (
+            self._get_base_query()
+            .filter(Atendimento.id == atendimento_id)
+            .first()
+        )
 
-        canal_id precisa ser passado explicitamente (e não apenas inferido de
-        departamento_id) porque um departamento pode ter mais de um canal —
-        quem chama decide qual canal real herda a conversa. Sem atualizar
-        canal_id, o atendimento continuaria preso ao canal antigo para o
-        resto do sistema (bot_service, notificações etc.), mesmo após trocar
-        de departamento.
-        """
-        atendimento = db.query(Atendimento).filter(Atendimento.id == atendimento_id).first()
         if not atendimento:
-            return None
-        if departamento_id is not None:
-            atendimento.departamento_id = departamento_id
-        if atendente_usuario_id is not None:
-            atendimento.usuario_id = atendente_usuario_id
-        if canal_id is not None:
-            atendimento.canal_id = canal_id
-        # Só é "em_atendimento" se a transferência já inclui um atendente.
-        # Transferir só o departamento/canal (sem atendente_usuario_id) é
-        # entrega para a fila — precisa continuar distinguível de "sendo
-        # atendido" para os indicadores (ver AtendimentoService.indicadores).
-        atendimento.status = "em_atendimento" if atendimento.usuario_id else "fila"
-        db.commit()
-        db.refresh(atendimento)
+            raise ValueError(f"Atendimento {atendimento_id} não encontrado")
+
         return atendimento
 
-    @staticmethod
-    def encerrar(db: Session, atendimento_id: int) -> Optional[Atendimento]:
-        atendimento = db.query(Atendimento).filter(Atendimento.id == atendimento_id).first()
-        if not atendimento:
-            return None
-        atendimento.status = "finalizado"
-        db.commit()
-        db.refresh(atendimento)
+    async def criar(self, data: AtendimentoCreate) -> Atendimento:
+        """Cria um novo atendimento."""
+        if data.departamento_id:
+            dept = self.db.query(Departamento).filter(
+                Departamento.id == data.departamento_id,
+                Departamento.ativo == True,
+            ).first()
+            if not dept:
+                raise ValueError("Departamento não encontrado")
+
+        atendimento = Atendimento(
+            protocolo=self._gerar_protocolo(),
+            telefone=data.paciente_telefone,
+            nome_contato=data.paciente_nome,
+            tipo_canal=data.tipo_canal.value if hasattr(data.tipo_canal, 'value') else data.tipo_canal,
+            canal_id=data.canal_id,
+            departamento_id=data.departamento_id,
+            status="aberto",
+            ativo=True,
+            criado_em=datetime.utcnow(),
+        )
+
+        self.db.add(atendimento)
+        self.db.commit()
+        self.db.refresh(atendimento)
+
         return atendimento
 
-    @staticmethod
-    def buscar_context(db: Session, atendimento_id: int, context_key: str) -> Optional[AtendimentoContext]:
-        return (
-            db.query(AtendimentoContext)
-            .filter(
-                AtendimentoContext.atendimento_id == atendimento_id,
-                AtendimentoContext.context_key == context_key,
-            )
-            .first()
-        )
-
-    @staticmethod
-    def deletar_context(db: Session, atendimento_id: int, context_key: str) -> bool:
-        ctx = (
-            db.query(AtendimentoContext)
-            .filter(
-                AtendimentoContext.atendimento_id == atendimento_id,
-                AtendimentoContext.context_key == context_key,
-            )
-            .first()
-        )
-        if not ctx:
-            return False
-        db.delete(ctx)
-        db.commit()
-        return True
-
-    @staticmethod
-    def criar_altera_context(
-        db: Session,
+    async def atualizar(
+        self,
         atendimento_id: int,
-        context_key: str,
-        value: str,
-    ) -> Optional[AtendimentoContext]:
-        if not db.query(Atendimento).filter(Atendimento.id == atendimento_id).first():
-            return None
+        data: AtendimentoUpdate,
+        usuario_id: Optional[int] = None,
+    ) -> Atendimento:
+        """Atualiza um atendimento existente."""
+        atendimento = await self.buscar_por_id(atendimento_id, usuario_id)
 
-        ctx = (
-            db.query(AtendimentoContext)
-            .filter(
-                AtendimentoContext.atendimento_id == atendimento_id,
-                AtendimentoContext.context_key == context_key,
-            )
-            .first()
-        )
+        if atendimento.status == "finalizado":
+            raise ValueError(f"Atendimento {atendimento_id} já está finalizado")
 
-        if ctx:
-            ctx.value = value
+        update_data = data.model_dump(exclude_unset=True)
+
+        for key, value in update_data.items():
+            if hasattr(atendimento, key):
+                setattr(atendimento, key, value)
+
+        atendimento.atualizado_em = datetime.utcnow()
+
+        self.db.commit()
+        self.db.refresh(atendimento)
+
+        return atendimento
+
+    async def transferir(
+        self,
+        atendimento_id: int,
+        data: AtendimentoTransferir,
+        usuario_id: int,
+    ) -> Atendimento:
+        """Transfere o atendimento para outro departamento/atendente."""
+        atendimento = await self.buscar_por_id(atendimento_id, usuario_id)
+
+        if atendimento.status == "finalizado":
+            raise ValueError(f"Atendimento {atendimento_id} já está finalizado")
+
+        if data.departamento_id is not None:
+            dept = self.db.query(Departamento).filter(
+                Departamento.id == data.departamento_id,
+                Departamento.ativo == True,
+            ).first()
+            if not dept:
+                raise ValueError("Departamento não encontrado")
+            atendimento.departamento_id = data.departamento_id
+
+        if data.usuario_id is not None:
+            usuario = self.db.query(Usuario).filter(
+                Usuario.id == data.usuario_id,
+                Usuario.ativo == True,
+            ).first()
+            if not usuario:
+                raise ValueError("Usuário não encontrado ou inativo")
+            atendimento.usuario_id = data.usuario_id
+
+        if data.canal_id is not None:
+            atendimento.canal_id = data.canal_id
+
+        # Atualiza status conforme atribuição
+        if atendimento.usuario_id:
+            atendimento.status = "em_atendimento"
         else:
-            ctx = AtendimentoContext(
-                atendimento_id=atendimento_id,
-                context_key=context_key,
-                value=value,
-            )
-            db.add(ctx)
+            atendimento.status = "fila"
 
-        db.commit()
-        db.refresh(ctx)
-        return ctx
+        atendimento.atualizado_em = datetime.utcnow()
 
-    @staticmethod
-    def indicadores(
-        db: Session,
-        data_criacao_inicio: Optional[str] = None,
-        data_criacao_fim: Optional[str] = None,
-    ) -> dict:
-        """
-        Indicadores em tempo real, direto do banco — substitui o fluxo manual
-        de extrair um relatório da ZigChat, exportar em Excel e importar no
-        dashboard. As mesmas categorias que o dashboard_ecoVs2.html inferia
-        de planilha (Robô/Humano, aguardando/em atendimento) já nascem
-        corretas aqui porque bot_service e AtendimentoService.transferir
-        gravam o status certo no momento em que ele muda:
+        self.db.commit()
+        self.db.refresh(atendimento)
 
-            aberto                  — cliente ainda no fluxo do bot, sem
-                                        departamento definido
-            fila                    — bot entregou a um departamento/canal,
-                                        nenhum atendente (usuario_id) puxou
-            em_atendimento          — atendente assumiu (usuario_id setado)
-            finalizado + usuario_id — finalizado por um atendente humano
-            finalizado sem usuario_id — encerrado sem nunca ter sido
-                                        assumido por um humano (equivalente
-                                        ao "Robô"/abandono do relatório ZigChat)
-        """
-        query = db.query(Atendimento)
-        if data_criacao_inicio:
-            query = query.filter(Atendimento.criado_em >= datetime.fromisoformat(data_criacao_inicio))
-        if data_criacao_fim:
-            query = query.filter(Atendimento.criado_em <= datetime.fromisoformat(data_criacao_fim + "T23:59:59"))
+        return atendimento
+
+    async def finalizar(
+        self,
+        atendimento_id: int,
+        data: Optional[AtendimentoFinalizar] = None,
+        usuario_id: Optional[int] = None,
+    ) -> Atendimento:
+        """Finaliza um atendimento."""
+        atendimento = await self.buscar_por_id(atendimento_id, usuario_id)
+
+        if atendimento.status == "finalizado":
+            raise ValueError(f"Atendimento {atendimento_id} já está finalizado")
+
+        atendimento.status = "finalizado"
+        atendimento.atualizado_em = datetime.utcnow()
+
+        self.db.commit()
+        self.db.refresh(atendimento)
+
+        return atendimento
+
+    async def indicadores(
+        self,
+        data_inicio: Optional[datetime] = None,
+        data_fim: Optional[datetime] = None,
+    ) -> AtendimentoIndicadores:
+        """Calcula indicadores em tempo real."""
+        query = self._get_base_query()
+
+        if data_inicio:
+            query = query.filter(Atendimento.criado_em >= data_inicio)
+        if data_fim:
+            query = query.filter(Atendimento.criado_em <= data_fim + timedelta(days=1))
 
         total = query.count()
         aberto = query.filter(Atendimento.status == "aberto").count()
         fila = query.filter(Atendimento.status == "fila").count()
         em_atendimento = query.filter(Atendimento.status == "em_atendimento").count()
         finalizado_humano = query.filter(
-            Atendimento.status == "finalizado", Atendimento.usuario_id.isnot(None)
+            Atendimento.status == "finalizado",
+            Atendimento.usuario_id.isnot(None),
         ).count()
         finalizado_sem_atendente = query.filter(
-            Atendimento.status == "finalizado", Atendimento.usuario_id.is_(None)
+            Atendimento.status == "finalizado",
+            Atendimento.usuario_id.is_(None),
         ).count()
 
+        # Por departamento
         dept_rows = (
-            query.outerjoin(Departamento, Atendimento.departamento_id == Departamento.id)
+            query
+            .outerjoin(Departamento, Atendimento.departamento_id == Departamento.id)
             .with_entities(
                 Atendimento.departamento_id,
                 func.coalesce(Departamento.nome, "Sem Departamento").label("nome"),
@@ -245,31 +295,37 @@ class AtendimentoService:
             .group_by(Atendimento.departamento_id, Departamento.nome)
             .all()
         )
+
         finalizados_por_depto = dict(
             query.filter(Atendimento.status == "finalizado")
-            .with_entities(Atendimento.departamento_id, func.count(Atendimento.id))
+            .with_entities(
+                Atendimento.departamento_id,
+                func.count(Atendimento.id),
+            )
             .group_by(Atendimento.departamento_id)
             .all()
         )
 
         por_departamento = [
             {
-                "departamento_id": departamento_id,
+                "departamento_id": dept_id,
                 "nome": nome,
                 "total": dept_total,
-                "finalizados": finalizados_por_depto.get(departamento_id, 0),
-                "em_aberto": dept_total - finalizados_por_depto.get(departamento_id, 0),
+                "finalizados": finalizados_por_depto.get(dept_id, 0),
+                "em_aberto": dept_total - finalizados_por_depto.get(dept_id, 0),
             }
-            for departamento_id, nome, dept_total in dept_rows
+            for dept_id, nome, dept_total in dept_rows
         ]
         por_departamento.sort(key=lambda d: d["total"], reverse=True)
 
-        return {
-            "total": total,
-            "aberto": aberto,
-            "fila": fila,
-            "em_atendimento": em_atendimento,
-            "finalizado_humano": finalizado_humano,
-            "finalizado_sem_atendente": finalizado_sem_atendente,
-            "por_departamento": por_departamento,
-        }
+        return AtendimentoIndicadores(
+            total=total,
+            aberto=aberto,
+            fila=fila,
+            em_atendimento=em_atendimento,
+            finalizado_humano=finalizado_humano,
+            finalizado_sem_atendente=finalizado_sem_atendente,
+            por_departamento=por_departamento,
+            tempo_medio_espera=None,
+            tempo_medio_atendimento=None,
+        )

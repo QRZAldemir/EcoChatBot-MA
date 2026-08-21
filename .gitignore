@@ -11,7 +11,16 @@ __pycache__/
 .env
 venv/
 .venv/
+venv_ia/
 *.egg-info/
+
+# Arquivo espúrio criado por comando mal formatado
+=1.5.0
+
+# Experimentos locais de IA (CodeGeeX) — não fazem parte do produto
+codegeex_simple.py
+run_codegeex.py
+/requirements.txt
 
 # Java / Maven
 target/

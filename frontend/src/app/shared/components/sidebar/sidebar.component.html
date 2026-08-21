@@ -1,0 +1,23 @@
+<aside class="sb" [class.fechado]="!aberto">
+  <div class="sb-brand">
+    <div class="sb-logo"><span>M</span></div>
+    <div class="sb-txt" *ngIf="aberto">
+      <strong>EcoChat</strong>
+      <small>Marcx</small>
+    </div>
+  </div>
+
+  <nav class="sb-nav">
+    <a *ngFor="let item of navItens"
+       [routerLink]="item.rota"
+       routerLinkActive="active"
+       class="ni">
+      <i [class]="'fas ' + item.icone"></i>
+      <span *ngIf="aberto">{{ item.label }}</span>
+    </a>
+  </nav>
+
+  <div class="sb-foot" *ngIf="aberto">
+    <small>EcoChat Marcx v1.0</small>
+  </div>
+</aside>

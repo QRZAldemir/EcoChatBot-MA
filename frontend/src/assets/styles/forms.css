@@ -1,0 +1,49 @@
+/* ━━━ FORMULÁRIO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.fg { display: flex; flex-direction: column; gap: 4px; }
+.fg.full { grid-column: 1 / -1; }
+.fg label { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: .3px; text-transform: uppercase; }
+.fg input, .fg select, .fg textarea {
+  padding: 9px 11px; border: 1.5px solid var(--border);
+  border-radius: 7px; font-size: 12px; font-family: var(--font);
+  background: var(--card); color: var(--text); outline: none; transition: border-color .14s;
+}
+.fg input:focus, .fg select:focus, .fg textarea:focus { border-color: var(--red); }
+.helper { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* ━━━ FILTRO (padrão "Filtrar Período") ━━━━━━━━━━━━━━━━━━━━━━ */
+.filter-panel {
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+}
+.filter-title {
+  font-size: 11px; font-weight: 700; letter-spacing: .4px;
+  text-transform: uppercase; color: var(--text); margin-bottom: 10px;
+}
+.filter-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.filter-field { display: flex; flex-direction: column; gap: 4px; min-width: 160px; }
+.filter-field label { font-size: 11px; font-weight: 600; color: var(--text); }
+.filter-field input, .filter-field select {
+  padding: 8px 11px; border: 1.5px solid var(--border); border-radius: 7px;
+  font-size: 12.5px; font-family: var(--font); background: var(--card);
+  color: var(--text); outline: none; transition: border-color .14s; height: 37px;
+}
+.filter-field input:focus, .filter-field select:focus { border-color: var(--red); }
+.filter-search-btn {
+  padding: 0 20px; height: 37px; border-radius: 7px; border: none;
+  background: var(--red); color: #fff; font-family: var(--font);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 7px; transition: .14s;
+}
+.filter-search-btn:hover { background: var(--red-dark); }
+.filter-shortcuts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.filter-shortcut-btn {
+  padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+  background: var(--card); color: var(--muted); font-family: var(--font);
+  font-size: 11.5px; font-weight: 600; cursor: pointer; transition: .14s;
+}
+.filter-shortcut-btn:hover,
+.filter-shortcut-btn.active { border-color: var(--blue); color: var(--blue); background: var(--blue-pale); }
+.filter-note {
+  display: flex; align-items: center; gap: 6px; margin-top: 12px;
+  font-size: 11px; font-style: italic; color: var(--muted);
+}

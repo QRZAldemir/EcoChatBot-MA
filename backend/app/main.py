@@ -57,6 +57,8 @@ from app.routers import (
     webhook,
     audio
 )
+from app.routers.tenant import atendimentos as tenant_atendimentos
+from app.routers.tenant import usuarios as tenant_usuarios
 from app.security import obter_usuario_atual
 
 # ==============================================================================
@@ -129,7 +131,9 @@ ROUTERS_CONFIG: List[tuple] = [
     (modelos_mensagem, "/api/modelos-mensagem", "Modelos de Mensagem", False),
     (atendimento, "/api/atendimento", "Atendimento", True),
     (webhook, "/api/webhook", "Webhook", False),
-    (audio, "/api/audio", "Audio", False)
+    (audio, "/api/audio", "Audio", False),
+    (tenant_atendimentos, "/api", "Tenant Atendimentos", True),
+    (tenant_usuarios, "/api", "Tenant Usuarios", True)
 ]
 
 for router_module, prefix, tag, protegido in ROUTERS_CONFIG:
