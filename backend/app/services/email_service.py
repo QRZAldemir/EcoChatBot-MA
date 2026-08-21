@@ -100,6 +100,67 @@ class EmailService:
             server.send_message(msg)
 
     @staticmethod
+    def send_invite_email(
+        db: Session,
+        to: str,
+        nome: str,
+        senha: str,
+        link: str = "",
+    ) -> EmailEnviado:
+        """Email de convite para novo usuário (primeiro acesso)."""
+        corpo = (
+            f"Olá {nome},\n\n"
+            f"Você foi convidado para o EcoChatBot.\n"
+            f"Sua senha temporária é: {senha}\n"
+            f"Acesse: {link or 'https://seu-dominio.com.br/login'}\n\n"
+            "Recomendamos trocar a senha no primeiro acesso."
+        )
+        return EmailService.enviar(
+            db,
+            EmailEnviarDTO(destinatario=to, assunto="Convite de acesso - EcoChatBot", corpo=corpo),
+        )
+
+    @staticmethod
+    def send_welcome_email(
+        db: Session,
+        to: str,
+        nome: str,
+        senha: str,
+    ) -> EmailEnviado:
+        """Email de boas-vindas (usuário criado pelo admin)."""
+        corpo = (
+            f"Olá {nome},\n\n"
+            f"Sua conta no EcoChatBot foi criada.\n"
+            f"Sua senha temporária é: {senha}\n"
+            f"Acesse: https://seu-dominio.com.br/login\n\n"
+            "Recomendamos trocar a senha no primeiro acesso."
+        )
+        return EmailService.enviar(
+            db,
+            EmailEnviarDTO(destinatario=to, assunto="Bem-vindo(a) ao EcoChatBot", corpo=corpo),
+        )
+
+    @staticmethod
+    def send_reset_password_email(
+        db: Session,
+        to: str,
+        nome: str,
+        link: str = "",
+    ) -> EmailEnviado:
+        """Email de recuperação de senha."""
+        corpo = (
+            f"Olá {nome},\n\n"
+            f"Recebemos uma solicitação para redefinir sua senha.\n"
+            f"Clique no link abaixo (válido por 24h):\n"
+            f"{link or 'https://seu-dominio.com.br/reset-password'}\n\n"
+            "Se você não solicitou, ignore este email."
+        )
+        return EmailService.enviar(
+            db,
+            EmailEnviarDTO(destinatario=to, assunto="Recuperação de senha - EcoChatBot", corpo=corpo),
+        )
+
+    @staticmethod
     def deletar(db: Session, email_id: int) -> bool:
         db_email = db.query(EmailEnviado).filter(EmailEnviado.id == email_id).first()
         if not db_email:

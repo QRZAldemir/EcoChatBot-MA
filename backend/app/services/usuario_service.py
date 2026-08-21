@@ -1,13 +1,21 @@
 from sqlalchemy.orm import Session
 from app.models import Usuario, NivelUsuario
 from app.schemas import UsuarioCreate, UsuarioUpdate
+from app.repositories.tenant_repository import UsuarioRepository
 from app.exceptions import (
     UsuarioAlreadyExists,
     UsuarioInvalidPassword,
     UsuarioNotFound,
 )
+from app.services.email_service import EmailService
+from app.security import SECRET_KEY, JWT_ALGORITHM
 from passlib.context import CryptContext
 from typing import List, Optional
+from datetime import datetime, timedelta
+import random
+import string
+
+from jose import jwt
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -103,79 +111,97 @@ class UsuarioService:
 # MÉTODOS DE INSTÂNCIA (multi-tenant) — usados pelo router /tenant/usuarios
 # =====================================================================
 # Mantêm os métodos estáticos acima para compatibilidade com /api/usuarios
-# e auth.py. Os métodos de instância recebem (db, cliente_id) e usam
-# usuario.cliente_id para isolar o tenant.
+# e auth.py. Os métodos de instância recebem (db, cliente_id) e usam a
+# camada de repositórios (UsuarioRepository) para isolar o tenant.
 # =====================================================================
 
     def __init__(self, db: Session, cliente_id: Optional[int] = None):
         self.db = db
         self.cliente_id = cliente_id
+        self.repository = UsuarioRepository(db, cliente_id)
 
-    def _base(self):
-        query = self.db.query(Usuario)
-        if self.cliente_id is not None:
-            query = query.filter(Usuario.cliente_id == self.cliente_id)
-        return query
+    # ----------------------------------------
+    # UTILITÁRIOS
+    # ----------------------------------------
+
+    def _generate_temp_password(self, length: int = 10) -> str:
+        """Gera senha temporária com caracteres especiais."""
+        chars = string.ascii_letters + string.digits + "!@#$%&*"
+        return ''.join(random.choice(chars) for _ in range(length))
+
+    def _generate_token(self, usuario_id: int, horas: int) -> str:
+        """Gera token JWT de convite/reset (mesma chave do security.py)."""
+        payload = {
+            "sub": str(usuario_id),
+            "tipo": "convite",
+            "iat": datetime.utcnow(),
+            "exp": datetime.utcnow() + timedelta(hours=horas),
+        }
+        return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+    def _link_tenant(self, path: str, token: str) -> str:
+        """Monta link público do tenant."""
+        dominio = f"{self.cliente_id}.ecochatmarcx.com.br" if self.cliente_id else "ecochatmarcx.com.br"
+        return f"https://{dominio}{path}?token={token}"
+
+    def _novo_usuario(self, data, senha: str, status: str) -> Usuario:
+        return Usuario(
+            cliente_id=self.cliente_id,
+            nome=data.nome,
+            email=data.email,
+            telefone=getattr(data, "telefone", None),
+            senha_hash=hash_senha(senha),
+            nivel_id=data.nivel_id,
+            departamento_id=getattr(data, "departamento_id", None),
+            canal_id=getattr(data, "canal_id", None),
+            ativo=status == "ativo",
+            status=status,
+        )
+
+    # ----------------------------------------
+    # CRUD
+    # ----------------------------------------
 
     async def list_all(self, page: int = 1, limit: int = 50,
                        filtros: Optional[dict] = None) -> dict:
-        filtros = filtros or {}
-        query = self._base()
-
-        if filtros.get('nivel'):
-            query = query.join(NivelUsuario).filter(NivelUsuario.nome == filtros['nivel'])
-        if filtros.get('status'):
-            query = query.filter(Usuario.status == filtros['status'])
-        if filtros.get('search'):
-            termo = f"%{filtros['search']}%"
-            query = query.filter(
-                Usuario.nome.ilike(termo) | Usuario.email.ilike(termo)
-            )
-
-        total = query.count()
-        registros = query.order_by(Usuario.nome.asc()).offset((page - 1) * limit).limit(limit).all()
-        return {
-            "total": total,
-            "page": page,
-            "limit": limit,
-            "data": registros,
-        }
+        return self.repository.list_all(page, limit, filtros)
 
     async def get_by_id(self, usuario_id: int) -> Optional[Usuario]:
-        return self._base().filter(Usuario.id == usuario_id).first()
+        return self.repository.get_by_id(usuario_id)
 
     def _por_email(self, email: str) -> Optional[Usuario]:
-        return self.db.query(Usuario).filter(Usuario.email == email).first()
+        return self.repository.get_by_email(email)
 
     async def create(self, data) -> Usuario:
         if self._por_email(data.email):
             raise UsuarioAlreadyExists(f"Email {data.email} já cadastrado")
-        novo = Usuario(
-            cliente_id=self.cliente_id,
-            nome=data.nome,
-            email=data.email,
-            telefone=data.telefone,
-            senha_hash=hash_senha(data.senha),
-            nivel_id=data.nivel_id,
-            departamento_id=data.departamento_id,
-            canal_id=data.canal_id,
-            ativo=data.ativo,
-            status="ativo",
-        )
-        self.db.add(novo)
-        self.db.commit()
-        self.db.refresh(novo)
-        return novo
+        novo = self._novo_usuario(data, data.senha, "ativo")
+        return self.repository.create(novo)
 
     async def create_admin(self, data) -> Usuario:
-        return await self.create(data)
+        if self._por_email(data.email):
+            raise UsuarioAlreadyExists(f"Email {data.email} já cadastrado")
+        novo = self._novo_usuario(data, data.senha, "ativo")
+        novo = self.repository.create(novo)
+        # Envio de boas-vindas (fallback simulado se SMTP ausente).
+        EmailService.send_welcome_email(self.db, novo.email, novo.nome, data.senha)
+        return novo
 
     async def convidar(self, data) -> dict:
-        novo = await self.create(data)
+        if self._por_email(data.email):
+            raise UsuarioAlreadyExists(f"Email {data.email} já cadastrado")
+        senha_temp = self._generate_temp_password()
+        novo = self._novo_usuario(data, senha_temp, "convidado")
+        novo = self.repository.create(novo)
+        token = self._generate_token(novo.id, horas=24 * 7)
+        link = self._link_tenant("/accept-invite", token)
+        EmailService.send_invite_email(self.db, novo.email, novo.nome, senha_temp, link)
         return {
             "usuario_id": novo.id,
             "email": novo.email,
-            "mensagem": f"Usuário {novo.nome} criado com sucesso.",
+            "link_convite": link,
+            "expira_em": datetime.utcnow() + timedelta(days=7),
+            "mensagem": f"Convite enviado para {novo.nome}",
         }
 
     async def update(self, usuario_id: int, data) -> Usuario:
@@ -183,60 +209,91 @@ class UsuarioService:
         if not usuario:
             raise UsuarioNotFound(f"Usuário {usuario_id} não encontrado")
         update_data = data.model_dump(exclude_unset=True)
-        for campo, valor in update_data.items():
-            setattr(usuario, campo, valor)
-        self.db.commit()
-        self.db.refresh(usuario)
-        return usuario
+        return self.repository.update(usuario_id, update_data)
 
     async def update_status(self, usuario_id: int, data) -> Usuario:
         usuario = await self.get_by_id(usuario_id)
         if not usuario:
             raise UsuarioNotFound(f"Usuário {usuario_id} não encontrado")
-        usuario.status = data.status
-        usuario.ativo = data.status == "ativo"
-        self.db.commit()
-        self.db.refresh(usuario)
-        return usuario
+        return self.repository.update(usuario_id, {
+            "status": data.status,
+            "ativo": data.status == "ativo",
+        })
 
     async def delete(self, usuario_id: int) -> bool:
         usuario = await self.get_by_id(usuario_id)
         if not usuario:
             raise UsuarioNotFound(f"Usuário {usuario_id} não encontrado")
-        usuario.ativo = False
-        usuario.status = "inativo"
-        self.db.commit()
-        return True
+        return self.repository.delete(usuario_id)
+
+    # ----------------------------------------
+    # SENHA
+    # ----------------------------------------
 
     async def change_password(self, usuario_id: int, data) -> None:
-        usuario = self.db.query(Usuario).filter(Usuario.id == usuario_id).first()
+        usuario = self.repository.get_by_id(usuario_id)
         if not usuario:
             raise UsuarioNotFound("Usuário não encontrado")
         if not verificar_senha(data.senha_atual, usuario.senha_hash):
             raise UsuarioInvalidPassword("Senha atual incorreta")
-        usuario.senha_hash = hash_senha(data.nova_senha)
-        self.db.commit()
+        self.repository.update(usuario_id, {"senha_hash": hash_senha(data.nova_senha)})
 
     async def reset_password(self, usuario_id: int, data) -> None:
         usuario = await self.get_by_id(usuario_id)
         if not usuario:
             raise UsuarioNotFound(f"Usuário {usuario_id} não encontrado")
-        usuario.senha_hash = hash_senha(data.nova_senha)
-        self.db.commit()
+        self.repository.update(usuario_id, {
+            "senha_hash": hash_senha(data.nova_senha),
+            "status": "ativo",
+            "ativo": True,
+        })
 
     async def forgot_password(self, email: str) -> dict:
         usuario = self._por_email(email)
         if not usuario:
             raise UsuarioNotFound("Email não encontrado")
-        # Em produção, gerar token e enviar email. Aqui retornamos instrução.
-        return {"message": f"Instruções de recuperação enviadas para {email}"}
+        token = self._generate_token(usuario.id, horas=24)
+        link = self._link_tenant("/reset-password", token)
+        EmailService.send_reset_password_email(self.db, usuario.email, usuario.nome, link)
+        return {"message": f"Instruções de recuperação enviadas para {email}", "email": email}
+
+    # ----------------------------------------
+    # PERMISSÕES / ESTATÍSTICAS
+    # ----------------------------------------
+
+    async def verificar_permissao(self, usuario_id: int, nivel_requerido: str) -> bool:
+        """Verifica se o usuário tem o nível requerido (nome do nível)."""
+        usuario = await self.get_by_id(usuario_id)
+        if not usuario or not usuario.ativo:
+            return False
+        return (usuario.nivel.nome == nivel_requerido) if usuario.nivel else False
+
+    async def get_atendentes_disponiveis(self) -> List[Usuario]:
+        """Lista atendentes/supervisores ativos disponíveis."""
+        return self.repository.list_all_flat({
+            "nivel_lista": ["atendente", "supervisor"],
+            "ativo": True,
+        })
 
     async def get_estatisticas(self) -> dict:
-        query = self._base()
-        total = query.count()
-        ativos = query.filter(Usuario.ativo == True).count()
-        return {
-            "total": total,
-            "ativos": ativos,
-            "inativos": total - ativos,
+        usuarios = self.repository.list_all_flat()
+        stats = {
+            "total": len(usuarios),
+            "por_nivel": {},
+            "por_status": {},
+            "ativos": 0,
+            "inativos": 0,
+            "convidados": 0,
         }
+        for u in usuarios:
+            nivel = u.nivel.nome if u.nivel else "sem-nivel"
+            stats["por_nivel"][nivel] = stats["por_nivel"].get(nivel, 0) + 1
+            status = u.status or ("ativo" if u.ativo else "inativo")
+            stats["por_status"][status] = stats["por_status"].get(status, 0) + 1
+            if status == "ativo" or u.ativo:
+                stats["ativos"] += 1
+            elif status == "inativo":
+                stats["inativos"] += 1
+            elif status == "convidado":
+                stats["convidados"] += 1
+        return stats
