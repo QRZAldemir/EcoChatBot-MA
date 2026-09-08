@@ -8,6 +8,12 @@
     </div>
   </div>
 
+  <!-- Componente de Filtro -->
+  <app-filter-bar 
+    [options]="filterOptions" 
+    (filterApplied)="onFilterApplied($event)">
+  </app-filter-bar>
+
   <div class="atalhos">
     <a *ngFor="let a of atalhos" [routerLink]="a.rota" class="atalho-card" [class]="a.cor">
       <i [class]="'fas ' + a.icone"></i>

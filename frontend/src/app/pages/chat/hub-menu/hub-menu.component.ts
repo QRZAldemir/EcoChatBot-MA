@@ -23,7 +23,7 @@ export class HubMenuComponent implements OnInit {
   constructor(
     private canalService: CanalService,
     private router: Router
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.canalService.listar().subscribe(c => this.canais = c.filter(x => x.ativo));

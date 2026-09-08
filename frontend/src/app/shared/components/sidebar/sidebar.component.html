@@ -1,23 +1,42 @@
-<aside class="sb" [class.fechado]="!aberto">
+<aside class="sb">
   <div class="sb-brand">
     <div class="sb-logo"><span>M</span></div>
-    <div class="sb-txt" *ngIf="aberto">
+    <div class="sb-txt">
       <strong>EcoChat</strong>
-      <small>Marcx</small>
+      <small>Marcx · Central de Atendimento</small>
     </div>
   </div>
 
   <nav class="sb-nav">
-    <a *ngFor="let item of navItens"
-       [routerLink]="item.rota"
-       routerLinkActive="active"
-       class="ni">
-      <i [class]="'fas ' + item.icone"></i>
-      <span *ngIf="aberto">{{ item.label }}</span>
-    </a>
+    <div class="sb-sec">Configuração</div>
+
+    <div class="ni" [class.active]="paginaAtual === 'usuarios'" (click)="navegar('usuarios')">
+      <i class="fas fa-users"></i> Usuários
+    </div>
+
+    <div class="ni" [class.active]="paginaAtual === 'turnos'" (click)="navegar('turnos')">
+      <i class="fas fa-clock"></i> Turnos de Trabalho
+    </div>
+
+    <div class="ni" [class.active]="paginaAtual === 'departamentos'" (click)="navegar('departamentos')">
+      <i class="fas fa-building"></i> Departamentos
+    </div>
+
+    <div class="ni" [class.active]="paginaAtual === 'canais'" (click)="navegar('canais')">
+      <i class="fas fa-project-diagram"></i> Canais
+    </div>
   </nav>
 
-  <div class="sb-foot" *ngIf="aberto">
-    <small>EcoChat Marcx v1.0</small>
+  <div class="sb-foot">
+    <div class="agent-row">
+      <div class="av">
+        AD
+        <div class="dot-status on"></div>
+      </div>
+      <div>
+        <strong>Administrador</strong>
+        <small>Online</small>
+      </div>
+    </div>
   </div>
 </aside>

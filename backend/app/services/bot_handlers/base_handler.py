@@ -5,7 +5,7 @@ BASE HANDLER - NÚCLEO DO SISTEMA
 Arquivo: bot_handlers/base_handler.py
 Propósito: Classe base para todos os handlers (similar ao ZigChat)
 
-DESENVOLVEDOR: Aldemir Queiroz da Silva
+DESENVOLVEDOR: Aldemir Queiroz
 DATA: 2026-08-16
 
 CONCEITOS OOP:
@@ -30,6 +30,7 @@ from datetime import datetime
 import json
 import uuid
 import re
+import hashlib
 import logging
 from typing import Optional, Dict, List, Any, Tuple
 
@@ -64,7 +65,7 @@ class DepartamentoHandler:
             session: Sessão do banco de dados
         """
         self.session = session
-        self.contexto_cache = {}  # Cache para contexto em memória
+        self.contexto_cache: Dict[int, Dict[str, Any]] = {}  # Cache para contexto em memória
         
     # ══════════════════════════════════════════════════════════════
     # MÉTODOS ABSTRATOS (Devem ser implementados pelos filhos)
@@ -242,7 +243,7 @@ class DepartamentoHandler:
             - Nenhum dado pessoal
         """
         atendimento.step = novo_step
-        # TODO: Salvar no banco de dados
+        # TODO: self.session.commit()
         
         logger.debug(
             "avancar_step",
@@ -263,7 +264,7 @@ class DepartamentoHandler:
             - Nenhum dado pessoal
         """
         atendimento.step = step_anterior
-        # TODO: Salvar no banco de dados
+        # TODO: self.session.commit()
         
         logger.debug(
             "voltar_step",
@@ -486,9 +487,9 @@ class DepartamentoHandler:
         valor: str,
         tipo: str = "texto",
         obrigatorio: bool = False,
-        minimo: int = None,
-        maximo: int = None,
-        regex: str = None,
+        minimo: Optional[int] = None,
+        maximo: Optional[int] = None,
+        regex: Optional[str] = None,
     ) -> Tuple[bool, Optional[str]]:
         """
         Valida um campo de acordo com regras definidas
@@ -541,37 +542,31 @@ class DepartamentoHandler:
                 return False, "Digite um número válido."
                 
         elif tipo == "email":
-            import re
             padrao = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
             if not re.match(padrao, valor):
                 return False, "Email inválido."
                 
         elif tipo == "telefone":
-            import re
             padrao = r"^\([0-9]{2}\) [0-9]{4,5}-[0-9]{4}$"
             if not re.match(padrao, valor):
                 return False, "Formato: (XX) XXXXX-XXXX"
                 
         elif tipo == "cpf":
-            import re
             if not re.match(r"^[0-9]{11}$", valor):
                 return False, "CPF inválido."
             # TODO: Validação de dígitos verificadores do CPF
                 
         elif tipo == "data":
-            import re
             if not re.match(r"^\d{2}/\d{2}/\d{4}$", valor):
                 return False, "Formato: DD/MM/AAAA"
             # TODO: Validar data real (30/02/2024, etc.)
                 
         elif tipo == "hora":
-            import re
             if not re.match(r"^([0-1][0-9]|2[0-3]):[0-5][0-9]$", valor):
                 return False, "Formato: HH:MM"
         
         # Regex personalizado
         if regex:
-            import re
             if not re.match(regex, valor):
                 return False, "Formato inválido."
         
@@ -589,10 +584,9 @@ class DepartamentoHandler:
     def _formatar_data(self, data: str) -> str:
         """Formata data para exibição"""
         try:
-            from datetime import datetime
             dt = datetime.strptime(data, "%Y-%m-%d")
             return dt.strftime("%d/%m/%Y")
-        except:
+        except ValueError:
             return data
     
     def _formatar_moeda(self, valor: float) -> str:
@@ -602,21 +596,20 @@ class DepartamentoHandler:
     def _formatar_telefone(self, telefone: str) -> str:
         """Formata telefone para exibição"""
         try:
-            import re
             num = re.sub(r"\D", "", telefone)
             if len(num) == 11:
                 return f"({num[:2]}) {num[2:7]}-{num[7:]}"
             elif len(num) == 10:
                 return f"({num[:2]}) {num[2:6]}-{num[6:]}"
             return telefone
-        except:
+        except Exception:
             return telefone
     
     # ══════════════════════════════════════════════════════════════
     # MÉTODOS DE ANONIMIZAÇÃO PARA LOGGING (PRIVACIDADE)
     # ══════════════════════════════════════════════════════════════
     
-    def _hash_telefone(self, telefone: str) -> str:
+    def _hash_telefone(self, telefone: str) -> Optional[str]:
         """
         Gera hash do telefone para logging seguro
         
@@ -628,7 +621,6 @@ class DepartamentoHandler:
         if not telefone:
             return None
         
-        import hashlib
         return hashlib.sha256(telefone.encode('utf-8')).hexdigest()[:16]
     
     def _is_chave_sensivel(self, chave: str) -> bool:

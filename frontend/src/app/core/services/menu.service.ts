@@ -8,7 +8,7 @@ import { environment } from '../../../environments/environment';
 export class MenuService {
   private api = `${environment.apiUrl}/menus`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   listar(canalId?: number, apenasAtivos = false): Observable<Menu[]> {
     let params: Record<string, string> = {};

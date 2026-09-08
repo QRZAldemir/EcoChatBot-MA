@@ -1,0 +1,158 @@
+<div class="card">
+  <!-- Foto -->
+  <div class="foto-wrap">
+    <div class="foto-circle" (click)="fileInput.click()">
+      <i class="fas fa-user-tie placeholder" *ngIf="fotoPlaceholder" id="fotoPlaceholder"></i>
+      <img *ngIf="!fotoPlaceholder" [src]="fotoPreview" alt="Foto">
+      <div class="foto-overlay"><i class="fas fa-camera"></i></div>
+    </div>
+    <input type="file" #fileInput accept="image/*" (change)="onFotoSelecionada($event)" style="display:none">
+    <button class="btn-foto" (click)="fileInput.click()">
+      <i class="fas fa-plus"></i> Alterar foto
+    </button>
+  </div>
+
+  <div class="cb">
+    <div class="sec-title"><i class="fas fa-id-card"></i> Dados do Usuário</div>
+
+    <div class="fg-row">
+      <div class="fg">
+        <label>Usuário <span class="req">*</span></label>
+        <input type="text" formControlName="usuario" placeholder="ex: joao.silva"
+          [class.invalid]="usuario?.invalid && usuario?.touched">
+        <small class="error" *ngIf="usuario?.invalid && usuario?.touched">Campo obrigatório</small>
+      </div>
+      <div class="fg">
+        <label>Tipo <span class="req">*</span></label>
+        <select formControlName="tipo">
+          <option value="atendente">Atendente</option>
+          <option value="supervisor">Supervisor</option>
+          <option value="gerente">Gerente</option>
+          <option value="administrador">Administrador</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label>Nome Completo <span class="req">*</span></label>
+      <input type="text" formControlName="nome" placeholder="Ex: João da Silva"
+        [class.invalid]="nome?.invalid && nome?.touched">
+      <small class="error" *ngIf="nome?.invalid && nome?.touched">Campo obrigatório</small>
+    </div>
+
+    <div class="fg">
+      <label>E-mail <span class="req">*</span></label>
+      <input type="email" formControlName="email" placeholder="joao@marcx.com"
+        [class.invalid]="email?.invalid && email?.touched">
+      <small class="error" *ngIf="email?.invalid && email?.touched">E-mail inválido</small>
+    </div>
+
+    <div class="fg-row">
+      <div class="fg">
+        <label>Departamento <span class="req">*</span></label>
+        <select formControlName="depto" [class.invalid]="depto?.invalid && depto?.touched">
+          <option value="">Selecione...</option>
+          <option *ngFor="let d of departamentos" [value]="d.nome">{{ d.nome }}</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Canal <span class="req">*</span></label>
+        <select formControlName="canal" [class.invalid]="canal?.invalid && canal?.touched">
+          <option value="">Selecione...</option>
+          <option *ngFor="let c of canais" [value]="c.nome">{{ c.icone }} {{ c.nome }}</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="fg-row">
+      <div class="fg">
+        <label>Senha <span class="req">*</span></label>
+        <input type="password" formControlName="senha" placeholder="Mín. 6 caracteres"
+          [class.invalid]="senha?.invalid && senha?.touched">
+        <small class="error" *ngIf="senha?.invalid && senha?.touched">Mínimo 6 caracteres</small>
+      </div>
+      <div class="fg">
+        <label>Confirmar Senha <span class="req">*</span></label>
+        <input type="password" formControlName="senhaConf" placeholder="Repita a senha"
+          [class.invalid]="senhaConf?.invalid && senhaConf?.touched">
+        <small class="error" *ngIf="usuarioForm.hasError('senhasNaoCoincidem') && senhaConf?.touched">
+          As senhas não conferem
+        </small>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label>Status</label>
+      <select formControlName="status">
+        <option value="ativo">🟢 Ativo</option>
+        <option value="inativo">🔴 Inativo</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- Conexões WhatsApp -->
+<div class="card">
+  <div class="card-hd">
+    <div class="card-ico g"><i class="fab fa-whatsapp"></i></div>
+    <h3>Conexões Vinculadas</h3>
+  </div>
+  <div class="cb">
+    <div class="sec-title"><i class="fas fa-link"></i> Número WhatsApp Business</div>
+    <div class="fg">
+      <label>Conexão <span class="req">*</span></label>
+      <select formControlName="conexao" [class.invalid]="conexao?.invalid && conexao?.touched">
+        <option value="">Selecione...</option>
+        <option *ngFor="let c of conexoes" [value]="c.value">{{ c.label }}</option>
+      </select>
+    </div>
+    <div class="conexao-tag" *ngIf="conexao?.value; else conexaoVazia">
+      <i class="fab fa-whatsapp"></i> {{ conexaoSelecionada }}
+    </div>
+    <ng-template #conexaoVazia>
+      <div class="conexao-vazia">Nenhuma conexão selecionada.</div>
+    </ng-template>
+
+    <div class="fg" style="margin-top:12px">
+      <label>Conexão Padrão</label>
+      <select formControlName="conexaoPadrao">
+        <option value="">Selecione...</option>
+        <option *ngFor="let c of conexoes" [value]="c.value">{{ c.label }}</option>
+      </select>
+    </div>
+    <small class="helper">O atendente receberá conversas somente das conexões vinculadas.</small>
+  </div>
+</div>
+
+<!-- Turno -->
+<div class="card">
+  <div class="card-hd">
+    <div class="card-ico y"><i class="fas fa-clock"></i></div>
+    <h3>Turno Vinculado</h3>
+  </div>
+  <div class="cb">
+    <div class="fg">
+      <label>Turno</label>
+      <select formControlName="turno">
+        <option value="">Selecione...</option>
+        <option *ngFor="let t of turnos" [value]="t.desc">{{ t.desc }}</option>
+      </select>
+    </div>
+    <div class="turno-tag" *ngIf="usuarioForm.get('turno')?.value; else turnoVazio">
+      <i class="fas fa-clock"></i> {{ turnoSelecionado }}
+    </div>
+    <ng-template #turnoVazio>
+      <div class="turno-vazio">Nenhum turno selecionado.</div>
+    </ng-template>
+  </div>
+</div>
+
+<!-- Ações -->
+<div class="acoes">
+  <button class="btn p" (click)="salvar()">
+    <i class="fas fa-save"></i> Salvar Usuário
+  </button>
+  <button class="btn s" (click)="limparForm()">
+    <i class="fas fa-times"></i> Limpar
+  </button>
+</div>

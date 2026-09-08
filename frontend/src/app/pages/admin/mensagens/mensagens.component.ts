@@ -62,7 +62,7 @@ export class MensagensComponent implements OnInit {
     private departamentoService: DepartamentoService,
     private canalService: CanalService,
     private http: HttpClient,
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.departamentoService.listar().subscribe(d => this.departamentos = d);

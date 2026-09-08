@@ -25,7 +25,7 @@ export class ArquivosComponent implements OnInit {
 
   alerta: { tipo: 'sucesso' | 'erro'; msg: string } | null = null;
 
-  constructor(private arquivoService: ArquivoService) {}
+  constructor(private arquivoService: ArquivoService) { }
 
   ngOnInit(): void {
     this.carregar();

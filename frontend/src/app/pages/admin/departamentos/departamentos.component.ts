@@ -22,7 +22,7 @@ export class DepartamentosComponent implements OnInit {
   form: Partial<Departamento> = {};
   alerta: { tipo: 'sucesso' | 'erro'; msg: string } | null = null;
 
-  constructor(private departamentoService: DepartamentoService) {}
+  constructor(private departamentoService: DepartamentoService) { }
 
   ngOnInit(): void {
     this.carregar();

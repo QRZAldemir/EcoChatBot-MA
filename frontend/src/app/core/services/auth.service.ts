@@ -11,7 +11,7 @@ const CHAVE_USUARIO = 'ecochat_usuario';
 export class AuthService {
   private api = `${environment.apiUrl}/auth`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   login(email: string, senha: string): Observable<LoginResponse> {
     return this.http.post<any>(`${this.api}/login`, { email, senha }).pipe(
@@ -31,7 +31,7 @@ export class AuthService {
   logout(): void {
     // Revoga o token no backend (JWT é stateless — sem isso ele continuaria
     // válido até expirar). Best-effort: a sessão local é limpa de qualquer forma.
-    this.http.post(`${this.api}/logout`, {}).subscribe({ next: () => {}, error: () => {} });
+    this.http.post(`${this.api}/logout`, {}).subscribe({ next: () => { }, error: () => { } });
     this.limparSessaoLocal();
   }
 

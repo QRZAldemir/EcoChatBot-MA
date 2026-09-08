@@ -28,7 +28,7 @@ export class ConexoesComponent implements OnInit {
 
   alerta: { tipo: 'sucesso' | 'erro'; msg: string } | null = null;
 
-  constructor(private conexaoService: ConexaoService) {}
+  constructor(private conexaoService: ConexaoService) { }
 
   ngOnInit(): void {
     this.carregar();

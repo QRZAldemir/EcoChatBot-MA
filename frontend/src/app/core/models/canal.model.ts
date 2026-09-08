@@ -10,14 +10,15 @@ export interface Canal {
   departamentoId?: number;
   departamentoNome?: string;
   ativo: boolean;
+  status?: 'ativo' | 'inativo';
   criadoEm?: string;
 }
 
 // Canais padrão do sistema Marcx
 export const CANAIS_PADRAO: Partial<Canal>[] = [
-  { nome: 'Atendimento-Cliente',          arquivoMenu: '1atendimento-ma.html',      icone: '📞', cor: '#2563eb' },
-  { nome: 'Agendamento-Ambulatorial',     arquivoMenu: '2agendamento-ma.html',      icone: '📅', cor: '#f59e0b' },
-  { nome: 'Exames-Diagnostico',           arquivoMenu: '3examesdiagnostico-ma.html',icone: '🩺', cor: '#22c55e' },
-  { nome: 'Portaria',                     arquivoMenu: '7portaria-ma.html',         icone: '🚪', cor: '#c8102e' },
-  { nome: 'Ouvidoria',                    arquivoMenu: '8ouvidoria-ma.html',        icone: '📢', cor: '#7c3aed' },
+  { nome: 'Atendimento-Cliente', arquivoMenu: '1atendimento-ma.html', icone: '📞', cor: '#2563eb' },
+  { nome: 'Agendamento-Ambulatorial', arquivoMenu: '2agendamento-ma.html', icone: '📅', cor: '#f59e0b' },
+  { nome: 'Exames-Diagnostico', arquivoMenu: '3examesdiagnostico-ma.html', icone: '🩺', cor: '#22c55e' },
+  { nome: 'Portaria', arquivoMenu: '7portaria-ma.html', icone: '🚪', cor: '#c8102e' },
+  { nome: 'Ouvidoria', arquivoMenu: '8ouvidoria-ma.html', icone: '📢', cor: '#7c3aed' },
 ];

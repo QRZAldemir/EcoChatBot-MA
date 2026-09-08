@@ -1,0 +1,97 @@
+<div class="card">
+  <div class="card-hd">
+    <div class="card-ico b"><i class="fas fa-list"></i></div>
+    <h3>Usuários Cadastrados</h3>
+    <span class="cont-lbl">{{ usuariosFiltrados.length }} usuário(s)</span>
+  </div>
+
+  <div class="toolbar-wrapper">
+    <div class="toolbar">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" [(ngModel)]="filtroNome" placeholder="Pesquisar nome..." (input)="onFiltroChange()">
+      </div>
+      <select [(ngModel)]="filtroDepto" (change)="onFiltroChange()">
+        <option value="">Todos os Departamentos</option>
+        <option *ngFor="let d of departamentos" [value]="d.nome">{{ d.nome }}</option>
+      </select>
+      <select [(ngModel)]="filtroStatus" (change)="onFiltroChange()">
+        <option value="">Todos os Status</option>
+        <option value="ativo">🟢 Ativo</option>
+        <option value="inativo">🔴 Inativo</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Usuário / Nome</th>
+          <th>Departamento</th>
+          <th>Canal</th>
+          <th>Conexão WhatsApp</th>
+          <th>Turno</th>
+          <th>Tipo</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngIf="usuariosFiltrados.length === 0; else listaUsuarios">
+          <tr>
+            <td colspan="8" class="sem-dados">Nenhum usuário cadastrado</td>
+          </tr>
+        </ng-container>
+        <ng-template #listaUsuarios>
+          <ng-container *ngFor="let grupo of usuariosAgrupados | keyvalue">
+            <tr class="dept-row">
+              <td colspan="8">
+                <i class="fas fa-building"></i> {{ getDeptoLabel(grupo.key) }}
+                <span class="dept-count">{{ grupo.value.length }}</span>
+              </td>
+            </tr>
+            <tr *ngFor="let u of grupo.value">
+              <td>
+                <div class="usuario-cell">
+                  <div class="avatar" *ngIf="u.foto; else avatarPlaceholder">
+                    <img [src]="u.foto" alt="Foto">
+                  </div>
+                  <ng-template #avatarPlaceholder>
+                    <div class="avatar placeholder">
+                      <i class="fas fa-user"></i>
+                    </div>
+                  </ng-template>
+                  <div>
+                    <strong>{{ u.nome }}</strong>
+                    <div class="username">{{ '@' }}{{ u.usuario }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>{{ getDeptoLabel(u.depto) }}</td>
+              <td>{{ getCanalLabel(u.canal) }}</td>
+              <td>
+                <span class="whatsapp-label">
+                  <i class="fab fa-whatsapp"></i> {{ getConexaoLabel(u.conexao) }}
+                </span>
+              </td>
+              <td>
+                <span *ngIf="u.turno; else semTurno">
+                  <i class="fas fa-clock clock-icon"></i> {{ u.turno }}
+                </span>
+                <ng-template #semTurno>—</ng-template>
+              </td>
+              <td><span class="badge" [class]="u.tipo">{{ u.tipo }}</span></td>
+              <td><span class="badge" [class]="u.status">● {{ u.status === 'ativo' ? 'Ativo' : 'Inativo' }}</span></td>
+              <td>
+                <button class="btn-ico del" (click)="deletar(u.id)" title="Excluir">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </ng-container>
+        </ng-template>
+      </tbody>
+    </table>
+  </div>
+</div>

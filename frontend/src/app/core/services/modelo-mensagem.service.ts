@@ -8,7 +8,7 @@ import { environment } from '../../../environments/environment';
 export class ModeloMensagemService {
   private api = `${environment.apiUrl}/modelos-mensagem`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   listar(): Observable<ModeloMensagem[]> {
     return this.http.get<ModeloMensagem[]>(this.api).pipe(map(ms => ms.map(m => this._normalizar(m))));

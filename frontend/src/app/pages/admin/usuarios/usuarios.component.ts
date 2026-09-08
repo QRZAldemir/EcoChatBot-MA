@@ -49,7 +49,7 @@ export class UsuariosComponent implements OnInit {
     private usuarioService: UsuarioService,
     private departamentoService: DepartamentoService,
     private canalService: CanalService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.carregarDados();

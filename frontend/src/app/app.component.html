@@ -1,0 +1,147 @@
+<!--
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  PROJETO.......: EcoChatBotMarcx — Sistema de Atendimento Digital          ║
+║  ARQUIVO.......: app.component.html                                        ║
+║  LOCALIZAÇÃO...: Frontend/App/app.component.html                           ║
+║  AUTOR.........: Ademir Queiroz                                            ║
+║  DATA..........: 08/09/2026                                                ║
+║  VERSÃO........: 1.0.0                                                     ║
+║                                                                            ║
+║  DESCRIÇÃO                                                                 ║
+║  Template raiz da aplicação Angular. Define o layout global composto por:  ║
+║    • Barra lateral de navegação (sidebar)                                  ║
+║    • Barra superior fixa (topbar) com título e ações rápidas               ║
+║    • Área de conteúdo dinâmico onde as rotas filhas são renderizadas       ║
+║                                                                            ║
+║  RESPONSABILIDADE                                                          ║
+║  Este arquivo é o "esqueleto visual" da aplicação. Todo componente         ║
+║  renderizado pelo Angular será injetado dentro da tag <router-outlet>,     ║
+║  preservando o layout consistente (sidebar + topbar) em todas as telas.    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+-->
+
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  CONTAINER PRINCIPAL — .app-container
+  ─────────────────────────────────────────────────────────────────────────
+  Elemento <div> que envolve toda a aplicação.
+  A classe "app-container" é estilizada no app.component.scss e utiliza
+  Flexbox para posicionar sidebar (esquerda) e área principal (direita).
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<div class="app-container">
+
+  <!--
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │ SIDEBAR — <app-sidebar>                                             │
+    ├─────────────────────────────────────────────────────────────────────┤
+    │ Componente Angular reutilizável definido em:                        │
+    │   shared/components/sidebar/sidebar.component.ts                    │
+    │                                                                     │
+    │ A tag <app-sidebar> é o "selector" declarado no @Component.         │
+    │ O Angular substitui essa tag pelo template do SidebarComponent.     │
+    │                                                                     │
+    │ SINTAXE:                                                            │
+    │   <nome-do-selector></nome-do-selector>                             │
+    │   → carrega o componente registrado com esse selector               │
+    └─────────────────────────────────────────────────────────────────────┘
+  -->
+  <app-sidebar></app-sidebar>
+
+  <!--
+    ═════════════════════════════════════════════════════════════════════
+    ÁREA PRINCIPAL — .main
+    ─────────────────────────────────────────────────────────────────────
+    Contém a topbar e o conteúdo dinâmico.
+    O CSS posiciona esta área à direita da sidebar (margin-left: 248px)
+    e ocupa todo o espaço horizontal disponível (flex: 1).
+    ═════════════════════════════════════════════════════════════════════
+  -->
+  <div class="main">
+
+    <!--
+      ┌───────────────────────────────────────────────────────────────────┐
+      │ TOPBAR — .topbar                                                  │
+      ├───────────────────────────────────────────────────────────────────┤
+      │ Barra superior fixa (sticky) com título da tela e botão de ação.  │
+      │                                                                   │
+      │ SINTAXE CSS APLICADA:                                             │
+      │   position: sticky; top: 0;                                       │
+      │   → mantém a barra visível mesmo ao rolar a página                │
+      │                                                                   │
+      │   z-index: 100;                                                   │
+      │   → garante que a topbar fique acima de outros elementos          │
+      └───────────────────────────────────────────────────────────────────┘
+    -->
+    <div class="topbar">
+
+      <!-- Título da tela atual -->
+      <div class="tb-title">
+        <!--
+          ┌─────────────────────────────────────────────────────────────┐
+          │ ÍCONE FONTAWESOME                                           │
+          ├─────────────────────────────────────────────────────────────┤
+          │ <i> é a tag HTML para conteúdo inline (ícones, ênfase).     │
+          │                                                             │
+          │ class="fas fa-users":                                       │
+          │   fas      → Font Awesome Solid (família de ícones sólidos) │
+          │   fa-users → ícone específico de "usuários" (pessoas)       │
+          │                                                             │
+          │ style="color:var(--red);margin-right:8px":                  │
+          │   CSS inline usando variável CSS --red definida em          │
+          │   assets/styles/variables.scss                              │
+          └─────────────────────────────────────────────────────────────┘
+        -->
+        <i class="fas fa-users" style="color:var(--red);margin-right:8px"></i>
+        Cadastro de <span>Usuários</span>
+      </div>
+
+      <!--
+        ┌───────────────────────────────────────────────────────────────┐
+        │ BOTÃO DE ATUALIZAÇÃO                                          │
+        ├───────────────────────────────────────────────────────────────┤
+        │ SINTAXE ANGULAR — EVENT BINDING:                              │
+        │   (click)="reload()"                                          │
+        │                                                               │
+        │ Os parênteses () indicam BINDING DE EVENTO.                   │
+        │ Quando o usuário clicar no botão, o método reload() do        │
+        │ app.component.ts será executado.                              │
+        │                                                               │
+        │ DIFERENÇA IMPORTANTE:                                         │
+        │   (click)   → binding de evento (saída do template)           │
+        │   [title]   → binding de propriedade (entrada no elemento)    │
+        │   title     → valor estático (sem interpolação)               │
+        └───────────────────────────────────────────────────────────────┘
+      -->
+      <button class="tb-btn" title="Atualizar" (click)="reload()">
+        <i class="fas fa-rotate-right"></i>
+      </button>
+    </div>
+
+    <!--
+      ═══════════════════════════════════════════════════════════════════
+      ÁREA DE CONTEÚDO DINÂMICO — <router-outlet>
+      ─────────────────────────────────────────────────────────────────
+      <router-outlet> é uma DIRETIVA do módulo RouterModule.
+
+      FUNÇÃO:
+        Marca o ponto exato onde o Angular injetará o componente
+        correspondente à rota ativa.
+
+      FUNCIONAMENTO:
+        URL acessada         → Componente renderizado
+        /admin/dashboard     → DashboardComponent
+        /admin/usuarios      → UsuariosComponent
+        /admin/canais        → CanaisComponent
+        /admin/relatorio     → RelatorioComponent
+
+      O componente renderizado HERDA o layout (sidebar + topbar),
+      garantindo consistência visual em todas as telas.
+      ═══════════════════════════════════════════════════════════════════
+    -->
+    <div class="content">
+      <router-outlet></router-outlet>
+    </div>
+
+  </div>
+</div>

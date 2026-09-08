@@ -1,0 +1,232 @@
+.filter-panel {
+  background: var(--card);
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  box-shadow: var(--sh);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.filter-header {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg);
+}
+
+.filter-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--blue-pale);
+  color: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.filter-header h3 {
+  font-size: 13px;
+  font-weight: 700;
+  flex: 1;
+  margin: 0;
+}
+
+.btn-clear {
+  padding: 4px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font);
+}
+
+.btn-clear:hover {
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-pale);
+}
+
+.filter-body {
+  padding: 14px 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 130px;
+  flex: 0 1 auto;
+}
+
+.filter-group label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.filter-group label i {
+  font-size: 10px;
+}
+
+.filter-group input,
+.filter-group select {
+  padding: 6px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--font);
+  font-size: 12px;
+  background: var(--card);
+  color: var(--text);
+  height: 36px;
+  min-width: 130px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+.filter-group input::placeholder {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.search-group {
+  flex: 0 1 220px;
+}
+
+.search-input {
+  min-width: 180px !important;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.btn-search {
+  padding: 0 24px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: var(--red);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn-search:hover {
+  background: var(--red-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(200, 16, 46, 0.3);
+}
+
+.filter-shortcuts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 10px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.shortcuts-label {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-right: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.shortcut-btn {
+  padding: 4px 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.shortcut-btn:hover,
+.shortcut-btn.active {
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-pale);
+}
+
+.filter-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px 12px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--muted);
+  background: var(--bg);
+}
+
+.filter-note i {
+  color: var(--blue);
+  font-size: 12px;
+}
+
+@media (max-width: 1024px) {
+  .filter-body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-group {
+    min-width: 100%;
+  }
+
+  .filter-group input,
+  .filter-group select {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .filter-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .btn-search {
+    width: 100%;
+    justify-content: center;
+  }
+}

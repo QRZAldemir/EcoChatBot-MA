@@ -25,7 +25,7 @@ export class ContatosComponent implements OnInit {
 
   alerta: { tipo: 'sucesso' | 'erro'; msg: string } | null = null;
 
-  constructor(private contatoService: ContatoService) {}
+  constructor(private contatoService: ContatoService) { }
 
   ngOnInit(): void {
     this.carregar();

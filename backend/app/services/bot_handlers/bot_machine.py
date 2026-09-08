@@ -1,38 +1,45 @@
 """
 ================================================================================
-MÁQUINA DE ESTADOS DA CONVERSA (ENCAPSULADA EM CLASSE OOP)
-================================================================================
-Arquivo: bot_handlers/bot_machine.py
-Propósito: Orquestrador principal da máquina de estados
+PROJETO.......: EcoChatBotMarcx — Sistema de Atendimento Digital Configurável
+ARQUIVO.......: bot_handlers/bot_machine.py
+AUTOR.........: Aldemir Queiroz
+DATA..........: 08/09/2026
+VERSÃO........: 1.0.0
 
-ANTES (Anti-pattern):
-  - bot_service.py tinha 1692 linhas procedurais
-  - Contexto global via ContextVar (anti-pattern)
-  - Sem encapsulamento de estado
+PROPÓSITO:
+Orquestrador principal da máquina de estados do bot.
+Recebe o webhook, identifica o estado atual e despacha para o handler correto.
 
-DEPOIS (OOP Puro):
-  - BotMáquinaEstados como classe que encapsula tudo
-  - Estado do bot é atributo privado (_handlers, _db)
-  - Cada handler é uma instância injetada (Dependency Injection)
-  - Totalmente testável e extensível
+EVOLUÇÃO ARQUITETURAL:
+  ANTES (Anti-pattern): Lógica procedural gigante, contexto global (ContextVar).
+  DEPOIS (OOP Puro): Classe que encapsula estado, injeção de dependência (DI),
+                     totalmente testável e extensível (White-Label).
+
+CONCEITOS PYTHON APLICADOS:
+  1. Type Hinting: Documenta o tipo de variáveis (como no Delphi moderno).
+  2. Async/Await: Programação assíncrona não-bloqueante.
+  3. Dependency Injection: Receber dependências no construtor.
+  4. Tuplas de Retorno: Retornar múltiplos valores (sucesso + mensagem de erro).
 ================================================================================
 """
 
 import logging
+import traceback
 from datetime import datetime
 import uuid
-from typing import Optional, Dict
+from typing import Optional, Dict, Any, Tuple
 
 from sqlalchemy.orm import Session
 
-from app.models import Atendimento, AtendimentoContext, Canal, Menu, Mensagem
-from .base_handler import DepartamentoHandler
+from app.models import Atendimento, AtendimentoContext, Mensagem
+from .core import DepartamentoHandler
 from .evolution_client import EvolutionApiClient
 
 logger = logging.getLogger(__name__)
 
-# Constantes de Estado (Enum melhorado)
-# Em Delphi seria: type TEstadoBot = (BOOT, AGUARDAR_LGPD, ...)
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONSTANTES DE ESTADO (MÁQUINA DE ESTADOS)
+# ═══════════════════════════════════════════════════════════════════════════════
 ESTADO_BOOT = "BOOT"
 ESTADO_AGUARDAR_LGPD = "AGUARDAR_LGPD"
 ESTADO_AGUARDAR_NOME = "AGUARDAR_NOME"
@@ -41,32 +48,10 @@ ESTADO_EM_ATENDIMENTO = "EM_ATENDIMENTO"
 ESTADO_FINALIZADO = "FINALIZADO"
 
 
-class BotMáquinaEstados:
+class BotMaquinaEstados:
     """
-    CLASSE PRINCIPAL: Orquestra toda a máquina de estados
-
-    Responsabilidades (SRP):
-      1. Gerenciar transições de estado
-      2. Despachar mensagens para handlers apropriados
-      3. Persistir contexto do atendimento
-      4. Integrar com Evolution API
-
-    Equivalente em Delphi:
-        type
-          TBotMaquinaEstados = class(TObject)
-          private
-            FDb: TDataset;
-            FEvolution: TEvolutionApiClient;
-            FHandlers: TDictionary<string, IDepartamentoHandler>;
-            procedure TransicionarEstado(...);
-          public
-            procedure ProcessarMensagem(...);
-          end;
+    CLASSE PRINCIPAL: Orquestra toda a máquina de estados.
     """
-
-    # ──────────────────────────────────────────────────────────────────────────
-    # ENCAPSULAMENTO: Atributos privados
-    # ──────────────────────────────────────────────────────────────────────────
 
     def __init__(
         self,
@@ -74,26 +59,18 @@ class BotMáquinaEstados:
         evolution_client: EvolutionApiClient,
         handlers: Optional[Dict[str, DepartamentoHandler]] = None,
     ):
-        """
-        DEPENDENCY INJECTION: Recebe dependências no construtor
-
-        Args:
-            db: Sessão do banco (injetada)
-            evolution_client: Cliente Evolution API (injetado)
-            handlers: Dicionário de handlers por prefixo (ex: {"AT": AtendimentoHandler(...)})
-        """
         self._db = db
         self._evolution = evolution_client
         self._handlers = handlers or {}
 
         logger.info(
-            "BotMáquinaEstados inicializado | handlers=%s",
+            "BotMaquinaEstados inicializado | handlers_registrados=%s",
             list(self._handlers.keys()),
         )
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # MÉTODO PRINCIPAL (Ponto de entrada)
-    # ──────────────────────────────────────────────────────────────────────────
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # PONTO DE ENTRADA PÚBLICO
+    # ═══════════════════════════════════════════════════════════════════════════════
 
     async def processar_mensagem_recebida(
         self,
@@ -104,59 +81,54 @@ class BotMáquinaEstados:
         content: str,
     ) -> None:
         """
-        ABSTRAÇÃO PÚBLICA: Processa mensagem recebida do webhook
-
-        Args:
-            instance_nome: Nome da instância WhatsApp
-            remote_jid: JID do remetente (ex: "67999999999@s.whatsapp.net")
-            push_name: Nome do contato (opcional)
-            msg_type: Tipo de mensagem ("text", "list_response", etc)
-            content: Conteúdo da mensagem
-
-        Notas:
-          - Ignora mensagens de grupo (@g.us)
-          - Busca ou cria atendimento
-          - Recupera estado atual
-          - Despacha para handler apropriado
+        Ponto de entrada chamado pelo Webhook da Evolution API.
         """
-        # Ignora grupos
         if remote_jid.endswith("@g.us"):
+            logger.debug("Mensagem de grupo ignorada: %s", remote_jid)
             return
 
-        # Extrai telefone e busca/cria atendimento
         telefone = self._extrair_telefone(remote_jid)
         atendimento, eh_novo = self._buscar_ou_criar_atendimento(
             telefone, instance_nome, push_name
         )
 
-        # Recupera estado atual
         estado_atual = self._obter_estado(atendimento.id) or ESTADO_BOOT
 
         logger.info(
-            "bot_machine | processar | estado=%s | telefone=%s | tipo=%s | protocolo=%s",
+            "processar_mensagem | estado=%s | telefone=%s | tipo=%s | protocolo=%s",
             estado_atual,
             telefone,
             msg_type,
             atendimento.protocolo,
         )
 
+        # TRATAMENTO DE ERROS ROBUSTO (Fail-Safe)
         try:
-            # DESPACHA para handler apropriado (pattern matching em estado)
-            await self._despachar_estado(
-                atendimento, estado_atual, msg_type, content
-            )
-
-        except Exception as e:
-            logger.exception("bot_machine | erro | protocolo=%s", atendimento.protocolo)
+            await self._despachar_estado(atendimento, estado_atual, msg_type, content)
+        except ValueError as e:
+            # Erro de validação de dados (ex: nome inválido, formato errado)
+            logger.warning("Erro de validação no fluxo | protocolo=%s | erro=%s", atendimento.protocolo, str(e))
+            await self._evolution.enviar_texto(instance_nome, telefone, f"⚠️ {str(e)}")
+        except KeyError as e:
+            # Erro de configuração ou chave de contexto faltando
+            logger.error("Chave de configuração ou contexto faltando | protocolo=%s | chave=%s", atendimento.protocolo, str(e))
             await self._evolution.enviar_texto(
                 instance_nome,
                 telefone,
-                "Desculpe, ocorreu um erro. Tente novamente.",
+                "⚠️ Ocorreu um erro de configuração no sistema. Por favor, tente novamente mais tarde.",
+            )
+        except Exception as e:
+            # Catch-all: Garante que o bot NUNCA trave silenciosamente
+            logger.exception("Erro crítico inesperado no processamento | protocolo=%s", atendimento.protocolo)
+            await self._evolution.enviar_texto(
+                instance_nome,
+                telefone,
+                "Desculpe, ocorreu um erro interno inesperado. Tente novamente ou digite *MENU* para reiniciar.",
             )
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # DESPACHO DE ESTADO (Pattern Matching)
-    # ──────────────────────────────────────────────────────────────────────────
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # ROTEADOR DE ESTADOS
+    # ═══════════════════════════════════════════════════════════════════════════════
 
     async def _despachar_estado(
         self,
@@ -165,16 +137,6 @@ class BotMáquinaEstados:
         msg_type: str,
         content: str,
     ) -> None:
-        """
-        ABSTRAÇÃO INTERNA: Despacha para handler baseado no estado
-
-        Args:
-            atendimento: Objeto atendimento
-            estado: Estado atual (ex: "AT:MENU")
-            msg_type: Tipo de mensagem
-            content: Conteúdo
-        """
-        # Estados do hub (pré-departamento)
         if estado in (ESTADO_BOOT, ESTADO_FINALIZADO):
             await self._handler_boot(atendimento)
             return
@@ -192,66 +154,62 @@ class BotMáquinaEstados:
             return
 
         if estado == ESTADO_EM_ATENDIMENTO:
-            # Bot silencioso, humano atendendo
+            logger.info("Atendimento em modo humano. Bot ignorando mensagem.")
             return
 
-        # Despacha para handlers de departamento
-        prefixo = estado.split(":")[0]  # Extrai "AT", "AG", etc
+        # Despacho para Handlers de Departamento (White-Label)
+        prefixo = estado.split(":")[0]
         handler = self._handlers.get(prefixo)
 
         if handler:
-            await handler.processar(atendimento, estado, None)  # TODO: passar Mensagem
+            msg_obj = Mensagem(tipo=msg_type, conteudo=content)
+            await handler.processar(atendimento, estado, msg_obj)
         else:
-            logger.warning("bot_machine | handler não encontrado | prefixo=%s", prefixo)
+            logger.warning("Handler não encontrado para o prefixo: %s. Retornando ao Hub.", prefixo)
+            await self._handler_hub(atendimento, msg_type, "HUB_VOLTAR")
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # HANDLERS DO HUB (Boot, LGPD, Nome, Menu)
-    # ──────────────────────────────────────────────────────────────────────────
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # HANDLERS DO FLUXO INICIAL
+    # ═══════════════════════════════════════════════════════════════════════════════
 
     async def _handler_boot(self, atendimento: Atendimento) -> None:
-        """Boot: Mensagem inicial + LGPD"""
-        telefone = atendimento.telefone
         instancia = self._obter_instancia(atendimento)
+        telefone = atendimento.telefone
+        nome_empresa = "Nossa Empresa" # TODO: Buscar dinamicamente da config do tenant
 
         await self._evolution.enviar_texto(
             instancia,
             telefone,
-            "👋 *Olá! Seja bem-vindo ao*\n"
-            "*Hospital Presbiteriano Mackenzie*\n"
-            "Sou seu assistente virtual. 🤖",
+            f"👋 *Olá! Seja bem-vindo(a) ao*\n*{nome_empresa}*\nSou seu assistente virtual. 🤖",
         )
 
         await self._evolution.enviar_lista(
             instancia,
             telefone,
             "🔒 Política de Privacidade (LGPD)",
-            "Você declara que leu e concorda?",
+            "Para continuar, você declara que leu e concorda com nossa política de tratamento de dados?",
             "Responder",
             [
-                {"title": "✅ Sim, concordo", "description": "", "rowId": "LGPD_ACEITO"},
-                {"title": "❌ Não concordo", "description": "", "rowId": "LGPD_RECUSADO"},
+                {"title": "✅ Sim, concordo", "description": "Aceitar e continuar", "rowId": "LGPD_ACEITO"},
+                {"title": "❌ Não concordo", "description": "Encerrar atendimento", "rowId": "LGPD_RECUSADO"},
             ],
         )
-
         self._avancar_estado(atendimento, ESTADO_AGUARDAR_LGPD)
 
-    async def _handler_lgpd(
-        self, atendimento: Atendimento, msg_type: str, content: str
-    ) -> None:
-        """LGPD: Validar aceite"""
-        telefone = atendimento.telefone
+    async def _handler_lgpd(self, atendimento: Atendimento, msg_type: str, content: str) -> None:
         instancia = self._obter_instancia(atendimento)
+        telefone = atendimento.telefone
 
         recusou = (
             (msg_type == "list_response" and content.upper() == "LGPD_RECUSADO")
-            or content.strip().lower() in ("não", "nao", "n")
+            or content.strip().lower() in ("não", "nao", "n", "cancelar")
         )
 
         if recusou:
             await self._evolution.enviar_texto(
                 instancia,
                 telefone,
-                "Entendemos. Se mudar de ideia, nos chame novamente. 💙",
+                "Entendemos. Seus dados não serão processados. Se mudar de ideia, nos chame novamente. 💙",
             )
             atendimento.status = "finalizado"
             atendimento.ativo = False
@@ -260,80 +218,97 @@ class BotMáquinaEstados:
             return
 
         await self._evolution.enviar_texto(
-            instancia, telefone, "Obrigado! 🙏\n\nInforme seu nome completo:"
+            instancia, telefone, "Obrigado! 🙏\n\nPara melhor atendê-lo(a), por favor, informe seu *nome completo*:"
         )
         self._avancar_estado(atendimento, ESTADO_AGUARDAR_NOME)
 
     async def _handler_nome(self, atendimento: Atendimento, content: str) -> None:
-        """Nome: Coleta nome do usuário"""
-        nome = content.strip().title()
-        if len(nome) < 2:
-            return
-
-        atendimento.nome_contato = nome
-        self._db.commit()
-        self._guardar_contexto(atendimento.id, "nome", nome)
-
-        telefone = atendimento.telefone
         instancia = self._obter_instancia(atendimento)
+        telefone = atendimento.telefone
+
+        # Validação robusta (A solução que o CodeGeex sugeriu já está aqui!)
+        valido, erro = self._validar_nome(content)
+        if not valido:
+            await self._evolution.enviar_texto(instancia, telefone, f"⚠️ {erro}\n\nPor favor, digite seu nome completo:")
+            return # Sai do método, mantendo o estado em AGUARDAR_NOME
+
+        nome_formatado = content.strip().title()
+        atendimento.nome_contato = nome_formatado
+        self._db.commit()
+        
+        self._guardar_contexto(atendimento.id, "nome", nome_formatado)
 
         await self._evolution.enviar_texto(
-            instancia, telefone, f"Obrigado, *{nome}*! Bem-vindo(a). 😊"
+            instancia, telefone, f"Obrigado, *{nome_formatado}*! É um prazer atendê-lo(a). 😊"
         )
 
-        # Envia hub e avança estado
         await self._enviar_hub(atendimento)
         self._avancar_estado(atendimento, ESTADO_AGUARDAR_HUB)
 
-    async def _handler_hub(
-        self, atendimento: Atendimento, msg_type: str, content: str
-    ) -> None:
-        """Hub: Menu principal de departamentos"""
-        if msg_type != "list_response":
+    async def _handler_hub(self, atendimento: Atendimento, msg_type: str, content: str) -> None:
+        instancia = self._obter_instancia(atendimento)
+        telefone = atendimento.telefone
+
+        if msg_type != "list_response" or not content.startswith("HUB_"):
             nome = self._obter_contexto(atendimento.id, "nome") or "cliente"
-            await self._evolution.enviar_texto(
-                self._obter_instancia(atendimento),
-                atendimento.telefone,
-                f"Olá, *{nome}*!",
-            )
+            await self._evolution.enviar_texto(instancia, telefone, f"Por favor, *{nome}*, selecione uma das opções abaixo:")
             await self._enviar_hub(atendimento)
             return
 
-        # Processa seleção de departamento
-        # TODO: Implementar mapeamento de departamentos
+        prefixo_departamento = content.replace("HUB_", "")
+        novo_estado = f"{prefixo_departamento}:MENU"
+
+        logger.info("Transição de Hub para Departamento: %s", novo_estado)
+        
+        self._avancar_estado(atendimento, novo_estado)
+        await self._despachar_estado(atendimento, novo_estado, msg_type, content)
 
     async def _enviar_hub(self, atendimento: Atendimento) -> None:
-        """Envia menu hub personalizado"""
+        instancia = self._obter_instancia(atendimento)
+        telefone = atendimento.telefone
+
         hub_rows = [
-            {"title": "1️⃣ Atendimento", "description": "Info e guias", "rowId": "HUB_AT"},
-            {"title": "2️⃣ Agendamentos", "description": "Marcar consulta", "rowId": "HUB_AG"},
-            {"title": "3️⃣ Exames", "description": "Agendar exames", "rowId": "HUB_EX"},
-            {"title": "4️⃣ Portaria", "description": "Visitas", "rowId": "HUB_PO"},
-            {"title": "5️⃣ Ouvidoria", "description": "Sugestões", "rowId": "HUB_OV"},
+            {"title": "1️⃣ Atendimento Geral", "description": "Dúvidas e informações", "rowId": "HUB_AT"},
+            {"title": "2️⃣ Agendamentos", "description": "Marcar ou cancelar", "rowId": "HUB_AG"},
+            {"title": "3️⃣ Financeiro", "description": "2ª via de boletos", "rowId": "HUB_FIN"},
+            {"title": "4️⃣ Ouvidoria", "description": "Elogios e reclamações", "rowId": "HUB_OV"},
         ]
 
         await self._evolution.enviar_lista(
-            self._obter_instancia(atendimento),
-            atendimento.telefone,
+            instancia,
+            telefone,
             "Central de Atendimento",
-            "Selecione o departamento:",
+            "Selecione o departamento desejado:",
             "Ver departamentos",
             hub_rows,
         )
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # UTILITÁRIOS PRIVADOS (Implementação interna)
-    # ──────────────────────────────────────────────────────────────────────────
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # UTILITÁRIOS E VALIDAÇÕES
+    # ═══════════════════════════════════════════════════════════════════════════════
+
+    def _validar_nome(self, nome: str) -> Tuple[bool, Optional[str]]:
+        """
+        Valida se o nome fornecido é aceitável.
+        RETORNO: Tupla (Sucesso: bool, Mensagem_de_Erro: str ou None)
+        
+        NOTA DELPHI: Isso equivale a usar parâmetros 'out' ou 'var' no Delphi 
+        para retornar múltiplos valores de uma função.
+        """
+        nome_limpo = nome.strip()
+        if len(nome_limpo) < 3:
+            return False, "O nome parece muito curto. Por favor, digite seu nome completo."
+        if len(nome_limpo) > 100:
+            return False, "O nome parece muito longo. Verifique se não houve erro de digitação."
+        
+        if not nome_limpo.replace(" ", "").replace("-", "").isalpha():
+            return False, "O nome deve conter apenas letras. Evite números ou símbolos."
+            
+        return True, None
 
     def _buscar_ou_criar_atendimento(
         self, telefone: str, instancia: str, push_name: Optional[str]
-    ) -> tuple[Atendimento, bool]:
-        """
-        ABSTRAÇÃO: Busca atendimento ativo ou cria novo
-
-        Returns:
-            (atendimento, eh_novo)
-        """
+    ) -> Tuple[Atendimento, bool]:
         at = (
             self._db.query(Atendimento)
             .filter(
@@ -351,11 +326,10 @@ class BotMáquinaEstados:
                 self._db.commit()
             return at, False
 
-        # Cria novo atendimento
         at = Atendimento(
             protocolo=self._gerar_protocolo(),
             telefone=telefone,
-            nome_contato=push_name or "",
+            nome_contato=push_name or "Desconhecido",
             tipo=1,
             ativo=True,
             status="aberto",
@@ -370,11 +344,9 @@ class BotMáquinaEstados:
         return at, True
 
     def _obter_estado(self, atendimento_id: int) -> Optional[str]:
-        """Recupera estado atual do atendimento"""
         return self._obter_contexto(atendimento_id, "step")
 
     def _obter_contexto(self, atendimento_id: int, chave: str) -> Optional[str]:
-        """Recupera valor do contexto"""
         row = (
             self._db.query(AtendimentoContext)
             .filter(
@@ -385,10 +357,7 @@ class BotMáquinaEstados:
         )
         return row.value if row else None
 
-    def _guardar_contexto(
-        self, atendimento_id: int, chave: str, valor: str
-    ) -> None:
-        """Persiste valor no contexto"""
+    def _guardar_contexto(self, atendimento_id: int, chave: str, valor: str) -> None:
         row = (
             self._db.query(AtendimentoContext)
             .filter(
@@ -397,6 +366,7 @@ class BotMáquinaEstados:
             )
             .first()
         )
+        
         if row:
             row.value = valor
         else:
@@ -410,20 +380,19 @@ class BotMáquinaEstados:
         self._db.commit()
 
     def _avancar_estado(self, atendimento: Atendimento, novo_estado: str) -> None:
-        """Transiciona para novo estado"""
         self._guardar_contexto(atendimento.id, "step", novo_estado)
+        logger.debug("Transição de estado | protocolo=%s | novo_estado=%s", atendimento.protocolo, novo_estado)
 
     @staticmethod
     def _extrair_telefone(remote_jid: str) -> str:
-        """Extrai número do JID (ex: "67999@s.whatsapp.net" -> "67999")"""
         return remote_jid.split("@")[0]
 
     @staticmethod
     def _obter_instancia(atendimento: Atendimento) -> str:
-        """Obtém instância WhatsApp (nome ou default)"""
         return getattr(atendimento, "instancia", "default")
 
     @staticmethod
     def _gerar_protocolo(prefixo: str = "WP") -> str:
-        """Gera ID único para rastreamento"""
-        return f"{prefixo}-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        data_str = datetime.utcnow().strftime('%Y%m%d')
+        uuid_curto = uuid.uuid4().hex[:6].upper()
+        return f"{prefixo}-{data_str}-{uuid_curto}"

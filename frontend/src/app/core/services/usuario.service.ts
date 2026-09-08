@@ -1,80 +1,174 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { BehaviorSubject, Observable, of } from 'rxjs';
 import { Usuario } from '../models/usuario.model';
-import { environment } from '../../../environments/environment';
 
-export interface FiltroUsuario {
-  nome?: string;
-  departamentoId?: number;
-  canalId?: number;
-  nivel?: string;
-  status?: string;
-}
-
-@Injectable({ providedIn: 'root' })
+@Injectable({
+  providedIn: 'root'
+})
 export class UsuarioService {
-  private api = `${environment.apiUrl}/usuarios`;
+  private readonly STORAGE_KEY = 'ecochat_usuarios';
+  private usuariosSubject = new BehaviorSubject<Usuario[]>([]);
+  public usuarios$ = this.usuariosSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
-
-  listar(filtro?: FiltroUsuario): Observable<Usuario[]> {
-    let params = new HttpParams();
-    if (filtro?.nome)           params = params.set('nome', filtro.nome);
-    if (filtro?.departamentoId) params = params.set('departamento_id', filtro.departamentoId);
-    if (filtro?.canalId)        params = params.set('canal_id', filtro.canalId);
-    if (filtro?.nivel)          params = params.set('nivel', filtro.nivel);
-    if (filtro?.status)         params = params.set('ativo', filtro.status === 'ativo' ? 'true' : 'false');
-    return this.http.get<any[]>(this.api, { params }).pipe(map(us => us.map(u => this._normalizar(u))));
+  constructor() {
+    this.carregarUsuarios();
   }
 
-  buscarPorId(id: number): Observable<Usuario> {
-    return this.http.get<any>(`${this.api}/${id}`).pipe(map(u => this._normalizar(u)));
+  private carregarUsuarios(): void {
+    const data = localStorage.getItem(this.STORAGE_KEY);
+    const usuarios = data ? JSON.parse(data) : [];
+    this.usuariosSubject.next(usuarios);
   }
 
-  criar(dto: Partial<Usuario>): Observable<Usuario> {
-    return this.http.post<any>(this.api, this._serializar(dto)).pipe(map(u => this._normalizar(u)));
+  private salvarUsuarios(usuarios: Usuario[]): void {
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(usuarios));
+    this.usuariosSubject.next(usuarios);
   }
 
-  atualizar(id: number, dto: Partial<Usuario>): Observable<Usuario> {
-    return this.http.put<any>(`${this.api}/${id}`, this._serializar(dto)).pipe(map(u => this._normalizar(u)));
+  listar(filtros?: { nivel?: string; departamento?: string; departamentoId?: number; canalId?: number; status?: string; nome?: string }): Observable<Usuario[]> {
+    const usuarios = this.filtrarUsuarios(filtros ?? {});
+    return of(usuarios);
   }
 
-  deletar(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.api}/${id}`);
+  getUsuarios(): Usuario[] {
+    return this.usuariosSubject.value;
+  }
+
+  getUsuarioById(id: number): Usuario | undefined {
+    return this.usuariosSubject.value.find(u => u.id === id);
+  }
+
+  getUsuariosPorDepartamento(depto: string): Usuario[] {
+    return this.usuariosSubject.value.filter(u => u.depto === depto);
+  }
+
+  getUsuariosPorCanal(canal: string): Usuario[] {
+    return this.usuariosSubject.value.filter(u => u.canal === canal);
+  }
+
+  getUsuariosPorTurno(turno: string): Usuario[] {
+    return this.usuariosSubject.value.filter(u => u.turno === turno);
+  }
+
+  getStats() {
+    const usuarios = this.usuariosSubject.value;
+    const deptos = new Set(usuarios.map(u => u.depto)).size;
+    const canais = new Set(usuarios.map(u => u.canal)).size;
+    return {
+      total: usuarios.length,
+      departamentos: deptos,
+      canais: canais,
+      conexoes: 1
+    };
+  }
+
+  criar(usuario: Partial<Usuario>): Observable<Usuario> {
+    const novoUsuario: Usuario = {
+      ...usuario,
+      id: Date.now(),
+      nome: usuario.nome ?? 'Novo Usuário',
+      usuario: usuario.usuario ?? 'novo.usuario',
+      email: usuario.email ?? '',
+      depto: usuario.depto ?? '',
+      canal: usuario.canal ?? '',
+      tipo: usuario.tipo ?? 'atendente',
+      status: usuario.status ?? 'ativo',
+      conexao: usuario.conexao ?? '',
+      turno: usuario.turno ?? '',
+      data: new Date().toLocaleDateString('pt-BR')
+    } as Usuario;
+    this.salvarUsuarios([...this.usuariosSubject.value, novoUsuario]);
+    return of(novoUsuario);
+  }
+
+  atualizar(id: number, dados: Partial<Usuario>): Observable<Usuario | null> {
+    const usuarios = this.usuariosSubject.value;
+    const index = usuarios.findIndex(u => u.id === id);
+    if (index === -1) return of(null);
+
+    const atualizado = { ...usuarios[index], ...dados };
+    usuarios[index] = atualizado;
+    this.salvarUsuarios(usuarios);
+    return of(atualizado);
+  }
+
+  deletar(id: number): Observable<boolean> {
+    const usuarios = this.usuariosSubject.value.filter(u => u.id !== id);
+    if (usuarios.length === this.usuariosSubject.value.length) return of(false);
+    this.salvarUsuarios(usuarios);
+    return of(true);
+  }
+
+  adicionarUsuario(usuario: Omit<Usuario, 'id'>): Usuario {
+    const novoUsuario = {
+      ...usuario,
+      id: Date.now(),
+      data: new Date().toLocaleDateString('pt-BR')
+    } as Usuario;
+    this.salvarUsuarios([...this.usuariosSubject.value, novoUsuario]);
+    return novoUsuario;
+  }
+
+  atualizarUsuario(id: number, dados: Partial<Usuario>): Usuario | null {
+    const usuarios = this.usuariosSubject.value;
+    const index = usuarios.findIndex(u => u.id === id);
+    if (index === -1) return null;
+
+    const atualizado = { ...usuarios[index], ...dados };
+    usuarios[index] = atualizado;
+    this.salvarUsuarios(usuarios);
+    return atualizado;
+  }
+
+  deletarUsuario(id: number): boolean {
+    const usuarios = this.usuariosSubject.value.filter(u => u.id !== id);
+    if (usuarios.length === this.usuariosSubject.value.length) return false;
+    this.salvarUsuarios(usuarios);
+    return true;
+  }
+
+  filtrarUsuarios(filtros: { nome?: string; depto?: string; departamentoId?: number; canalId?: number; status?: string; nivel?: string }): Usuario[] {
+    let usuarios = this.usuariosSubject.value;
+
+    if (filtros.nome) {
+      const nome = filtros.nome.toLowerCase();
+      usuarios = usuarios.filter(u =>
+        (u.nome ?? '').toLowerCase().includes(nome) ||
+        (u.usuario ?? '').toLowerCase().includes(nome)
+      );
+    }
+
+    if (filtros.depto) {
+      usuarios = usuarios.filter(u => (u.depto ?? '') === filtros.depto);
+    }
+
+    if (filtros.departamentoId != null) {
+      usuarios = usuarios.filter(u => (u.departamentoId ?? 0) === filtros.departamentoId);
+    }
+
+    if (filtros.canalId != null) {
+      usuarios = usuarios.filter(u => (u.canalId ?? 0) === filtros.canalId);
+    }
+
+    if (filtros.status) {
+      usuarios = usuarios.filter(u => (u.status ?? 'ativo') === filtros.status);
+    }
+
+    if (filtros.nivel) {
+      usuarios = usuarios.filter(u => (u.tipo ?? u.nivel ?? 'atendente') === filtros.nivel);
+    }
+
+    return usuarios;
   }
 
   agruparPorDepartamento(usuarios: Usuario[]): Map<string, Usuario[]> {
-    return usuarios.reduce((mapa, u) => {
-      const depto = u.departamentoNome ?? 'Sem Departamento';
-      if (!mapa.has(depto)) mapa.set(depto, []);
-      mapa.get(depto)!.push(u);
-      return mapa;
-    }, new Map<string, Usuario[]>());
-  }
-
-  private _normalizar(raw: any): Usuario {
-    return {
-      ...raw,
-      departamentoId: raw.departamento_id ?? raw.departamentoId,
-      departamentoNome: raw.departamento?.nome ?? raw.departamentoNome,
-      canalId: raw.canal_id ?? raw.canalId,
-      canalNome: raw.canal?.nome ?? raw.canalNome,
-      canalArquivo: raw.canal?.arquivo_menu ?? raw.canalArquivo,
-      nivel: raw.nivel ?? 'atendente',
-      ativo: raw.ativo ?? true,
-      status: (raw.ativo !== false) ? 'ativo' : 'inativo',
-      criado_em: raw.criado_em,
-    } as Usuario;
-  }
-
-  private _serializar(dto: Partial<Usuario>): Record<string, unknown> {
-    const { departamentoId, canalId, status, ...rest } = dto as any;
-    return {
-      ...rest,
-      ...(departamentoId !== undefined && { departamento_id: departamentoId }),
-      ...(canalId !== undefined         && { canal_id: canalId }),
-      ...(status !== undefined          && { ativo: status === 'ativo' }),
-    };
+    const grupos = new Map<string, Usuario[]>();
+    usuarios.forEach(usuario => {
+      const nomeDepartamento = usuario.depto || usuario.departamentoId?.toString() || 'Sem departamento';
+      const existentes = grupos.get(nomeDepartamento) ?? [];
+      existentes.push(usuario);
+      grupos.set(nomeDepartamento, existentes);
+    });
+    return grupos;
   }
 }

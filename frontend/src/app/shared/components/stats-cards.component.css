@@ -1,0 +1,129 @@
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: var(--card);
+    border-radius: var(--r);
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    box-shadow: var(--sh);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shl);
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3.5px;
+    border-radius: var(--r) var(--r) 0 0;
+}
+
+.stat-card.green::before {
+    background: var(--green);
+}
+
+.stat-card.blue::before {
+    background: var(--blue);
+}
+
+.stat-card.red::before {
+    background: var(--red);
+}
+
+.stat-card.purple::before {
+    background: var(--purple);
+}
+
+.stat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.stat-card.green .stat-icon {
+    background: var(--green-pale);
+    color: var(--green);
+}
+
+.stat-card.blue .stat-icon {
+    background: var(--blue-pale);
+    color: var(--blue);
+}
+
+.stat-card.red .stat-icon {
+    background: var(--red-pale);
+    color: var(--red);
+}
+
+.stat-card.purple .stat-icon {
+    background: var(--purple-pale);
+    color: var(--purple);
+}
+
+.stat-value {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--text);
+    letter-spacing: -0.5px;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+    font-weight: 500;
+}
+
+.stat-trend {
+    font-size: 10px;
+    margin-top: 4px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.stat-card.green .stat-trend {
+    color: var(--green-dark);
+}
+
+.stat-card.blue .stat-trend {
+    color: var(--blue-dark);
+}
+
+.stat-card.red .stat-trend {
+    color: var(--red);
+}
+
+.stat-card.purple .stat-trend {
+    color: var(--purple-dark);
+}
+
+@media (max-width: 1024px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}

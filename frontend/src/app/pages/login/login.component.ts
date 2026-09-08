@@ -17,7 +17,7 @@ export class LoginComponent {
   carregando = false;
   erro: string | null = null;
 
-  constructor(private auth: AuthService, private router: Router) {}
+  constructor(private auth: AuthService, private router: Router) { }
 
   entrar(): void {
     if (!this.email || !this.senha) {

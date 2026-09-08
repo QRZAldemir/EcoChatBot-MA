@@ -39,7 +39,7 @@ export class AtendimentoComponent implements OnInit {
     private canalService: CanalService,
     private menuService: MenuService,
     private modeloMensagemService: ModeloMensagemService,
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     // Tenta pegar o canal passado via router state (quando vem do hub-menu)

@@ -1,0 +1,118 @@
+<div class="dashboard-container">
+    <!-- TOPBAR -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <h1>
+                Dashboard
+                <span class="title-separator">-</span>
+                <span class="title-page">{{ paginaAtiva | titlecase }}</span>
+            </h1>
+        </div>
+
+        <div class="topbar-center">
+            <span *ngIf="atendimentos().length > 0" class="data-info">
+                <i class="fas fa-database"></i>
+                {{ atendimentos().length }} registros carregados
+            </span>
+        </div>
+
+        <div class="topbar-actions">
+            <button class="tb-btn" (click)="setPage('upload')">
+                <i class="fas fa-upload"></i> Importar
+            </button>
+            <button class="tb-btn icon" (click)="refreshData()">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <button class="tb-btn icon" (click)="exportData()">
+                <i class="fas fa-file-export"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- LOADING -->
+    <div *ngIf="loading()" class="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+        <!-- PAGE: ATENDIMENTOS -->
+        <div class="page" [class.active]="paginaAtiva === 'ecochat'">
+
+            <!-- Filtros -->
+            <app-filter-bar [options]="filterOptions" (filterApplied)="onFilterApplied($event)"
+                (filterCleared)="onFilterCleared()"></app-filter-bar>
+
+            <!-- Stats -->
+            <app-stats-cards [stats]="stats()"></app-stats-cards>
+
+            <!-- Charts -->
+            <app-charts [atendimentos]="atendimentosFiltrados()" [avaliacoes]="avaliacoes()"></app-charts>
+
+            <!-- Lista de Atendimentos -->
+            <app-atendimento-list [atendimentos]="atendimentosFiltrados()" [loading]="loading()"></app-atendimento-list>
+        </div>
+
+        <!-- PAGE: AVALIAÇÃO -->
+        <div class="page" [class.active]="paginaAtiva === 'avaliacao'">
+            <!-- Conteúdo da página de avaliação -->
+            <div class="page-placeholder">
+                <i class="fas fa-star"></i>
+                <h2>Avaliação dos Clientes</h2>
+                <p>Módulo em desenvolvimento</p>
+            </div>
+        </div>
+
+        <!-- PAGE: ANALÍTICA -->
+        <div class="page" [class.active]="paginaAtiva === 'analitica'">
+            <div class="page-placeholder">
+                <i class="fas fa-chart-line"></i>
+                <h2>Informações Analíticas</h2>
+                <p>Módulo em desenvolvimento</p>
+            </div>
+        </div>
+
+        <!-- PAGE: TELEFONIA -->
+        <div class="page" [class.active]="paginaAtiva === 'telefonia'">
+            <div class="page-placeholder">
+                <i class="fas fa-phone-alt"></i>
+                <h2>Bilhetagem Telefonia</h2>
+                <p>Módulo em desenvolvimento</p>
+            </div>
+        </div>
+
+        <!-- PAGE: UPLOAD -->
+        <div class="page" [class.active]="paginaAtiva === 'upload'">
+            <div class="upload-section">
+                <h2><i class="fas fa-upload"></i> Importar Dados</h2>
+                <p class="upload-description">
+                    Importe os arquivos gerados diariamente para análise.
+                </p>
+
+                <div class="upload-grid">
+                    <app-upload-zone title="Relatório de Atendimento" icon="fa-file-excel" fileType="atendimento"
+                        accept=".xlsx,.xls" (fileUploaded)="onFileUploaded($event)"></app-upload-zone>
+
+                    <app-upload-zone title="Avaliação dos Clientes" icon="fa-star" fileType="avaliacao"
+                        accept=".xlsx,.xls" (fileUploaded)="onFileUploaded($event)"></app-upload-zone>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <h3>Atalhos Rápidos</h3>
+        <div class="actions-grid">
+            <a *ngFor="let action of quickActions" [routerLink]="action.route" class="action-card"
+                [class]="action.color">
+                <i class="fas {{ action.icon }}"></i>
+                <span>{{ action.label }}</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <app-toast></app-toast>
+</div>

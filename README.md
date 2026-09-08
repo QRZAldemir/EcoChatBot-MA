@@ -1,4 +1,4 @@
-# EcoChatBot-MA
+# EcoChatBotMarcx
 ## Sistema de Atendimento Digital Configurável
 ### Adaptável para qualquer segmento: saúde, comércio, serviços, indústria, instituições e mais
 
