@@ -1,5 +1,20 @@
-<div class="login-shell">
+<!--╔══════════════════════════════════════════════════════════════════════════════╗
+ ║  PROJETO.......: EcoChatBotMarcx — Sistema de Atendimento Digital          ║
+ ║  ARQUIVO.......: login.component.html                                      ║
+ ║  LOCALIZAÇÃO...: Frontend/App/pages/login/login.component.html            ║
+ ║  AUTOR.........: Ademir Queiroz                                            ║
+ ║  DATA..........: 08/09/2026                                                ║
+ ║  VERSÃO........: 1.0.0                                                     ║
+ ║                                                                            ║
+ ║  DESCRIÇÃO                                                                 ║
+ ║  Template do formulário de login com:                                       ║
+ ║    • Design responsivo e moderno                                            ║
+ ║    • Validações em tempo real                                              ║
+ ║    • Feedback visual durante o carregamento                                ║
+ ║    • Mensagens de erro dinâmicas                                           ║
+ ╚══════════════════════════════════════════════════════════════════════════════-->
 
+<div class="login-shell">
   <!-- LADO ESQUERDO — MARCA + FORMULÁRIO -->
   <div class="login-left">
     <div class="brand">
@@ -12,25 +27,27 @@
     <div class="login-card">
       <h1>Faça login para acessar sua conta</h1>
 
-      <form (ngSubmit)="entrar()" #f="ngForm" novalidate>
+      <form (ngSubmit)="entrar()">
+        <!-- Campo de E-mail -->
         <label for="email">E-mail</label>
-        <input
-          id="email" name="email" type="email"
-          [(ngModel)]="email" required
-          autocomplete="username" placeholder="seu.nome@marcx.com" />
+        <input id="email" name="email" type="email" [(ngModel)]="email" required autocomplete="username"
+          placeholder="seu.nome@marcx.com" [class.error]="erro && !email" />
 
+        <!-- Campo de Senha -->
         <label for="senha">Senha</label>
-        <input
-          id="senha" name="senha" type="password"
-          [(ngModel)]="senha" required
-          autocomplete="current-password" placeholder="••••••••" />
+        <input id="senha" name="senha" type="password" [(ngModel)]="senha" required autocomplete="current-password"
+          placeholder="••••••••" [class.error]="erro && !senha" />
 
+        <!-- Mensagem de erro -->
         <div class="erro" *ngIf="erro">
           <i class="fas fa-triangle-exclamation"></i> {{ erro }}
         </div>
 
+        <!-- Botão de submit -->
         <button type="submit" [disabled]="carregando">
-          <i class="fas" [class.fa-arrow-right-to-bracket]="!carregando" [class.fa-spinner]="carregando" [class.fa-spin]="carregando"></i>
+          <i class="fas" [class.fa-arrow-right-to-bracket]="!carregando" [class.fa-spinner]="carregando"
+            [class.fa-spin]="carregando">
+          </i>
           {{ carregando ? 'Entrando...' : 'Entrar' }}
         </button>
       </form>
@@ -45,5 +62,4 @@
     <h2>Hospital Presbiteriano Marcx</h2>
     <p>Atendimento inteligente e humanizado, em um só lugar.</p>
   </div>
-
 </div>

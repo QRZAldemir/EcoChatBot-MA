@@ -41,3 +41,22 @@ class TenantService:
         db.commit()
         db.refresh(cliente)
         return cliente
+        # backend/app/services/tenant_service.py
+class TenantService:
+    def get_config(self, tenant_id: int) -> Dict[str, Any]:
+        # Busca configuração do tenant no banco
+        pass
+    
+    def get_departments(self, tenant_id: int) -> Dict[str, Any]:
+        # Busca departamentos customizados
+        pass
+# Exemplo de modelo para configurações
+class TenantConfig(Base):
+    __tablename__ = "tenant_configs"
+    
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, unique=True)
+    footer_text = Column(String)
+    hub_menu = Column(JSON)
+    # Outras configurações
+
