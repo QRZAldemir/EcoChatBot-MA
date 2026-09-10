@@ -1,114 +1,158 @@
-# Função de Identificação de Contatos — Retorno Pendente e Atendimento em Andamento
+SKILL: IMPLEMENTAÇÃO DA FUNÇÃO DE IDENTIFICAÇÃO DE STATUS DE CONTATO (RETORNO PENDENTE E EM ATENDIMENTO) NO ECOCHATMARCX
+1. CONTEXTO E OBJETIVO
+Você atuará como um Arquiteto de Software Sênior especialista em Angular, Python (FastAPI) e sistemas de atendimento ao cliente (Chatbot/Helpdesk).
+Durante a análise de referência de mercado (ZigChat), identificou-se uma lacuna crítica no EcoChatMarcx: o sistema não identifica automaticamente quando um contato que está iniciando uma conversa já possui um retorno pendente (atendimento anterior sem sucesso com promessa de recontato) ou já está sendo atendido simultaneamente por outro colaborador.
+Objetivo: Projetar e implementar a função identificarStatusContato(contatoId) e toda a infraestrutura de backend, frontend e regras de negócio necessárias para classificar, alertar e gerenciar esses cenários, evitando atendimentos duplicados e honrando compromissos de retorno.
+2. DEFINIÇÃO DOS STATUS DO CONTATO
+A função deve classificar o contato em um destes quatro estados mutuamente exclusivos (com prioridade definida):
+Status
+Prioridade
+Significado
+EM_ATENDIMENTO
+1 (Máxima)
+O contato já possui um atendimento em aberto (status = em_atendimento) com outro atendente neste exato momento.
+RETORNO_PENDENTE
+2
+O último atendimento foi encerrado sem_sucesso, o cliente aceitou ser recontatado (deseja_retorno = true) e a data do atendimento é anterior ao dia atual.
+NOVO
+3
+Primeiro contato do cliente ou sem histórico relevante de atendimento.
+FINALIZADO
+4
+Último atendimento foi concluído com sucesso, sem pendências de retorno.
+3. REGRAS DE NEGÓCIO (CRÍTICAS)
+Exclusividade de Atendimento: Um contato só pode ter um atendimento com status em_atendimento por vez.
+Condição de Retorno Pendente: O status RETORNO_PENDENTE só é válido se:
+status_anterior == 'sem_sucesso'
+deseja_retorno == true
+data_fim_atendimento < data_atual (evita conflitos no mesmo dia).
+Prioridade de Alerta: O status EM_ATENDIMENTO sempre sobrescreve e tem prioridade de exibição sobre RETORNO_PENDENTE.
+Isolamento Multi-Tenant: Todas as consultas e validações devem ser estritamente filtradas pelo tenant_id do EcoChatMarcx.
+Limpeza Automática: Ao abrir um atendimento a partir da lista de retornos pendentes, o sistema deve automaticamente invalidar o status de pendência (criando um novo registro de atendimento ou atualizando o flag).
+4. MODELAGEM DE DADOS (BACKEND - PYTHON/SQLALCHEMY)
+Extensão necessária no modelo de Atendimento (ou Ticket/Conversa):
+class StatusAtendimento(str, Enum):
+    EM_ATENDIMENTO = "em_atendimento"
+    SEM_SUCESSO = "sem_sucesso"
+    FINALIZADO = "finalizado"
 
-> Status: **análise / backlog** — funcionalidade observada no ZigChat, ainda em fase de teste comparativo. Este documento é o *prompt* de especificação a ser usado futuramente para implementar a função no EcoChatBot-MA. Não afeta o fluxo atual de XLSX → dashboard (`modulo_dashboard.html`).
+class Atendimento(Base):
+    __tablename__ = "atendimentos"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False, index=True)
+    contato_id = Column(UUID(as_uuid=True), ForeignKey("contatos.id"), nullable=False, index=True)
+    atendente_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)
+    
+    status = Column(Enum(StatusAtendimento), nullable=False, index=True)
+    data_inicio = Column(DateTime(timezone=True), nullable=False)
+    data_fim = Column(DateTime(timezone=True), nullable=True)
+    
+    # Campos específicos para a regra de retorno
+    deseja_retorno = Column(Boolean, default=False)
+    data_retorno_sugerida = Column(Date, nullable=True)
+    
+    # Índices compostos para performance na identificação rápida
+    __table_args__ = (
+        Index('ix_atendimentos_contato_status', 'contato_id', 'status'),
+        Index('ix_atendimentos_tenant_retorno', 'tenant_id', 'deseja_retorno', 'status'),
+    )
 
-## 1. Contexto
+    5. DESIGN DA API RESTFUL (FASTAPI)
+5.1. Identificação de Status (Trigger ao receber mensagem)
+GET /api/v1/contacts/{contato_id}/status
 
-Durante a análise do ZigChat como referência de mercado, foi identificada uma funcionalidade que ainda não existe no EcoChatBot-MA: o sistema reconhece automaticamente quando um contato que está entrando em conversa **já tentou ser atendido antes sem sucesso**, ou **já está sendo atendido no momento** por outro colaborador/fila.
-
-## 2. Problema a resolver
-
-1. Um cliente entra em contato, mas o atendimento não é concluído (ex.: cliente some, atendente não consegue resolver na hora).
-2. O atendente pergunta: *"Você deseja que entremos em contato em outro dia?"*
-3. Se o cliente aceitar, esse contato deveria ficar **marcado para retorno**.
-4. Quando esse mesmo contato voltar a escrever (em outro dia), o sistema hoje **não identifica** que se trata de um retorno pendente — o atendente não tem visibilidade disso.
-5. Além disso, se um cliente que **já está em atendimento ativo** (com outro atendente) tentar abrir conversa novamente, o sistema também não avisa isso, podendo gerar atendimento duplicado/concorrente.
-
-## 3. Objetivo da função
-
-Criar uma função — sugestão de nome `identificarStatusContato(contatoId)` — que, a cada novo contato recebido (ou reaberto), consulte o histórico e classifique o contato em um destes status:
-
-| Status | Significado |
-|---|---|
-| `NOVO` | Primeiro contato, sem histórico de atendimento. |
-| `RETORNO_PENDENTE` | Atendimento anterior não teve sucesso **e** o cliente aceitou ser recontatado em outro dia. |
-| `EM_ATENDIMENTO` | O contato já possui um atendimento em aberto, com outro atendente, neste exato momento. |
-| `FINALIZADO` | Último atendimento foi concluído com sucesso — sem pendência. |
-
-## 4. Regras de negócio
-
-- Um atendimento é considerado **"sem sucesso"** quando é encerrado sem resolução e o atendente registra a resposta do cliente à pergunta de reagendamento.
-- O campo `deseja_retorno` só é `true` se o cliente responder afirmativamente à pergunta *"Você deseja que entremos em contato em outro dia?"*.
-- O status `RETORNO_PENDENTE` só é válido a partir do **dia seguinte** ao atendimento sem sucesso (evita confundir com o mesmo dia).
-- O status `EM_ATENDIMENTO` tem prioridade sobre `RETORNO_PENDENTE` — se o contato está sendo atendido agora, isso deve aparecer primeiro.
-- Um contato só pode ter **um atendimento em aberto por vez** (regra de exclusividade), servindo de base para o alerta de duplicidade.
-
-## 5. Fluxo proposto
-
-1. Mensagem recebida → sistema busca o contato pelo identificador único (telefone/WhatsApp ID).
-2. Verifica se existe atendimento com `status = em_atendimento` para esse contato:
-   - Se sim → retorna `EM_ATENDIMENTO`, identifica o atendente responsável e **alerta** o operador atual (impede ou avisa antes de abrir novo atendimento).
-3. Caso não esteja em atendimento, verifica o último atendimento encerrado:
-   - Se `status = sem_sucesso` e `deseja_retorno = true` e `data_atendimento < hoje` → retorna `RETORNO_PENDENTE`.
-4. Contatos com `RETORNO_PENDENTE` alimentam uma **lista/painel de retornos pendentes**, visível ao atendente/operador, com ordenação por data (mais antigos primeiro).
-5. Ao abrir o atendimento a partir dessa lista, o sistema marca o retorno como tratado (`deseja_retorno = false` ou novo registro de atendimento).
-
-## 6. Dados / modelo necessário
-
-Extensão sugerida na tabela/coleção de atendimentos:
-
-```
-atendimentos {
-  id
-  contato_id
-  atendente_id
-  status            // em_atendimento | sem_sucesso | finalizado
-  data_inicio
-  data_fim
-  deseja_retorno    // boolean, só relevante quando status = sem_sucesso
-  data_retorno_sugerida
+Headers: Authorization, X-Tenant-ID
+Response 200 OK:
+json
+{
+  "contato_id": "uuid",
+  "status_classificacao": "EM_ATENDIMENTO", 
+  "detalhes": {
+    "atendente_atual": "Maria Silva",
+    "atendimento_id": "uuid-atendimento-aberto"
+  }
 }
-```
+(Se for RETORNO_PENDENTE, detalhes retorna data_ultimo_contato e motivo)
+5.2. Listagem de Retornos Pendentes (Painel do Atendente)
 
-- Índice por `contato_id + status` para consulta rápida na entrada de cada mensagem.
+GET /api/v1/attendances/pending-returns
 
-## 7. Interface / UX (proposta)
+GET /api/v1/attendances/pending-returns
 
-- Painel **"Retornos Pendentes"** na lateral do dashboard do atendente, com filtro por data/atendente de origem.
-- Badge/alerta no card do contato quando ele já estiver **em atendimento** por outro colaborador (ex.: "Em atendimento com [nome do atendente]").
-- Ao abrir uma conversa de um contato marcado como retorno pendente, exibir aviso no topo: "Este contato solicitou retorno em [data]".
 
-## 8. Critérios de aceite
+5.3. Resolução de Retorno (Ao abrir o chat)
 
-- [ ] Sistema identifica corretamente contatos com atendimento anterior sem sucesso e retorno aceito, apresentando-os na lista de retornos pendentes.
-- [ ] Sistema identifica e alerta quando um contato já está em atendimento simultâneo, evitando duplicidade.
-- [ ] Lista de retornos pendentes é visível e filtrável pelo atendente/operador.
-- [ ] Marcação de retorno pendente é limpa automaticamente após o novo atendimento ser aberto.
+PATCH /api/v1/attendances/{atendimento_id}/resolve-return
+Ação: Marca o atendimento anterior como "tratado" e inicia um novo com status em_atendimento.
 
-## 9. Referência
 
-Comportamento observado e usado como referência: **ZigChat** (em fase de teste/análise comparativa pelo time — ainda não implementado no EcoChatBot-MA).
+Ação: Marca o atendimento anterior como "tratado" e inicia um novo com status em_atendimento.
+6. ARQUITETURA FRONTEND (ANGULAR)
+6.1. Componentes Necessários
+ContactStatusBadgeComponent: Exibido no card do contato na lista de conversas.
+Vermelho: EM_ATENDIMENTO (ex: "🔴 Em atendimento com [Nome]")
+Amarelo: RETORNO_PENDENTE (ex: "🟡 Solicitou retorno em [Data]")
+PendingReturnsPanelComponent: Painel lateral ou aba no dashboard do atendente, listando os retornos pendentes com filtros de data.
+ChatHeaderWarningComponent: Banner no topo da janela de chat ativa: "⚠️ Este contato solicitou retorno em [Data]. Último motivo: [Motivo]".
+6.2. Serviço Angular (ContactStatusService)
+Método checkContactStatus(contatoId: string) chamado via WebSocket ou polling assim que uma nova mensagem chega ou o atendente clica no contato.
+Método getPendingReturns(filters) para alimentar o painel lateral.
+7. FLUXO DE EXECUÇÃO PROPOSTO
+Gatilho: Nova mensagem recebida do contato_id = X.
+Consulta: Backend executa identificarStatusContato(X).
+Verificação 1 (Concorrência): Existe Atendimento com contato_id = X e status = em_atendimento?
+Sim: Retorna EM_ATENDIMENTO. Frontend exibe badge vermelho e bloqueia ou emite alerta severo antes de permitir que o novo atendente assuma.
+Verificação 2 (Retorno): Não está em atendimento. O último atendimento tem status = sem_sucesso E deseja_retorno = true E data_fim < hoje?
+Sim: Retorna RETORNO_PENDENTE. Frontend exibe badge amarelo e insere o contato no painel lateral de "Retornos Pendentes".
+Ação do Atendente: Ao clicar no contato pendente, o frontend chama o endpoint resolve-return, que cria o novo atendimento e limpa a pendência visual.
+8. CHECKLIST DE IMPLEMENTAÇÃO
+Fase 1: Backend (Python/FastAPI)
+Atualizar Model SQLAlchemy Atendimento com os novos campos e índices.
+Criar Migration Alembic para aplicar as mudanças no PostgreSQL.
+Implementar a lógica da função identificarStatusContato no Service Layer.
+Criar endpoints: GET /contacts/{id}/status, GET /attendances/pending-returns, PATCH /attendances/{id}/resolve-return.
+Garantir que todas as queries incluam a cláusula WHERE tenant_id = :tenant_id.
+Criar testes unitários (pytest) cobrindo as 4 classificações de status e a regra de data < hoje.
+Fase 2: Frontend (Angular)
+Criar ContactStatusService e atualizar os Models TypeScript.
+Desenvolver ContactStatusBadgeComponent com as cores e textos condicionais.
+Desenvolver PendingReturnsPanelComponent com tabela, ordenação por data e paginação.
+Integrar o banner de aviso no cabeçalho do componente de Chat ativo.
+Disparar a checagem de status automaticamente ao selecionar um contato na lista.
+Fase 3: Integração e UX
+Testar o fluxo completo: simular atendimento sem sucesso -> marcar retorno -> simular nova mensagem no dia seguinte -> verificar alerta.
+Testar a concorrência: dois atendentes tentando abrir o mesmo contato simultaneamente.
+Validar a limpeza automática do status de "Retorno Pendente" após a abertura do chat.
+9. CRITÉRIOS DE ACEITE
+O sistema identifica e classifica corretamente os 4 status (NOVO, RETORNO_PENDENTE, EM_ATENDIMENTO, FINALIZADO).
+O sistema impede ou alerta visivelmente quando um contato já está em EM_ATENDIMENTO com outro colaborador, exibindo o nome do atendente responsável.
+A lista/painel de "Retornos Pendentes" é visível, filtrável e ordenada (mais antigos primeiro).
+A marcação de RETORNO_PENDENTE é limpa automaticamente (ou arquivada) no momento em que um atendente abre a conversa desse contato.
+Nenhuma regra de negócio vaza dados entre tenants diferentes (isolamento total).
+10. PROMPT EMBUTIDO PARA DESENVOLVIMENTO FUTURO
+Copie e use o texto abaixo ao delegar esta tarefa para um desenvolvedor ou outra IA, garantindo a manutenção do contexto do EcoChatMarcx:
 
----
+Implemente no EcoChatMarcx (stack: Angular 17+ frontend, Python/FastAPI backend, PostgreSQL) a função de identificação de status de contato, acionada ao receber uma nova mensagem ou ao selecionar um contato. 
 
-## 10. Prompt para desenvolvimento futuro
+Regras obrigatórias:
+1. Se o contato já possui um atendimento em aberto (status = 'em_atendimento') com outro colaborador no mesmo tenant, retornar status 'EM_ATENDIMENTO', identificar o atendente responsável e gerar um alerta visual severo no frontend, impedindo ou avisando antes de abrir um novo atendimento.
+2. Se o último atendimento do contato foi encerrado com status = 'sem_sucesso', E o campo 'deseja_retorno' é true, E a 'data_fim' desse atendimento é estritamente anterior ao dia atual, retornar status 'RETORNO_PENDENTE'.
+3. Contatos classificados como 'RETORNO_PENDENTE' devem alimentar um painel lateral "Retornos Pendentes" no dashboard do atendente, ordenado por data mais antiga primeiro.
+4. Ao abrir a conversa de um contato com 'RETORNO_PENDENTE', o sistema deve chamar um endpoint que invalida essa pendência e inicia o novo atendimento.
+5. Basear-se no modelo de dados de "atendimentos", estendendo-o com os campos 'deseja_retorno' (boolean) e 'data_retorno_sugerida' (date), garantindo índices compostos por (tenant_id, contato_id, status) para performance.
+6. Garantir isolamento total de dados por tenant_id em todas as queries.
 
-> Use o texto abaixo como prompt ao retomar esta tarefa (para si mesmo ou para uma IA de apoio ao desenvolvimento):
+Implemente no EcoChatMarcx (stack: Angular 17+ frontend, Python/FastAPI backend, PostgreSQL) a função de identificação de status de contato, acionada ao receber uma nova mensagem ou ao selecionar um contato. 
 
-```
-Implemente no EcoChatBot-MA uma função de identificação de status de contato,
-chamada ao receber uma nova mensagem/atendimento, com as seguintes regras:
+Regras obrigatórias:
+1. Se o contato já possui um atendimento em aberto (status = 'em_atendimento') com outro colaborador no mesmo tenant, retornar status 'EM_ATENDIMENTO', identificar o atendente responsável e gerar um alerta visual severo no frontend, impedindo ou avisando antes de abrir um novo atendimento.
+2. Se o último atendimento do contato foi encerrado com status = 'sem_sucesso', E o campo 'deseja_retorno' é true, E a 'data_fim' desse atendimento é estritamente anterior ao dia atual, retornar status 'RETORNO_PENDENTE'.
+3. Contatos classificados como 'RETORNO_PENDENTE' devem alimentar um painel lateral "Retornos Pendentes" no dashboard do atendente, ordenado por data mais antiga primeiro.
+4. Ao abrir a conversa de um contato com 'RETORNO_PENDENTE', o sistema deve chamar um endpoint que invalida essa pendência e inicia o novo atendimento.
+5. Basear-se no modelo de dados de "atendimentos", estendendo-o com os campos 'deseja_retorno' (boolean) e 'data_retorno_sugerida' (date), garantindo índices compostos por (tenant_id, contato_id, status) para performance.
+6. Garantir isolamento total de dados por tenant_id em todas as queries.
 
-1. Se o contato já possui um atendimento em aberto (status = em_atendimento)
-   com outro colaborador, retornar EM_ATENDIMENTO e alertar o operador atual
-   antes de permitir abrir um novo atendimento para o mesmo contato.
+Referência de comportamento: funcionalidade equivalente observada no ZigChat, adaptada para a arquitetura multi-tenant do EcoChatMarcx.
 
-2. Se o último atendimento do contato foi encerrado sem sucesso
-   (status = sem_sucesso) E o cliente respondeu "sim" à pergunta
-   "Você deseja que entremos em contato em outro dia?" (deseja_retorno = true)
-   E a data desse atendimento é anterior ao dia atual, retornar
-   RETORNO_PENDENTE.
 
-3. Contatos com RETORNO_PENDENTE devem aparecer em uma lista/painel
-   "Retornos Pendentes" visível ao atendente/operador, ordenada por data
-   mais antiga primeiro.
-
-4. Contatos em EM_ATENDIMENTO devem gerar alerta visual (badge) mostrando
-   qual atendente já está responsável por aquele contato.
-
-5. Basear-se no modelo de dados de "atendimentos" já existente no projeto,
-   estendendo os campos deseja_retorno e data_retorno_sugerida quando
-   necessário.
-
-Referência de comportamento: funcionalidade equivalente observada no ZigChat.
-```

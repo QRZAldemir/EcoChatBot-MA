@@ -250,9 +250,9 @@ def _buscar_instancia(db: Session, atendimento_id: int) -> Optional[str]:
     return ctx.value if ctx and ctx.value else None
 
 
-async def _avisar_paciente_transferencia(db: Session, atendimento, mensagem: Optional[str]) -> None:
+async def _avisar_cliente_transferencia(db: Session, atendimento, mensagem: Optional[str]) -> None:
     """
-    Avisa o paciente por WhatsApp que seu atendimento mudou de setor/atendente.
+    Avisa o cliente por WhatsApp que seu atendimento mudou de setor/atendente.
     Nunca deixa uma falha de envio derrubar a transferência em si — só loga.
     """
     if not atendimento.telefone:
@@ -319,7 +319,7 @@ async def transferir_atendimento(body: TransferirAtendimentoRequest, db: Session
         if not atendimento:
             return ZigResponse(codigo=1, erro=f"Atendimento {body.atendimento_id} não encontrado.")
 
-        await _avisar_paciente_transferencia(db, atendimento, body.mensagem)
+        await _avisar_cliente_transferencia(db, atendimento, body.mensagem)
 
         return ZigResponse(
             codigo=0,

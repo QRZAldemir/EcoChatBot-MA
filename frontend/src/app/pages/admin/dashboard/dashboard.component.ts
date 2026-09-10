@@ -1,6 +1,17 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { AuthService } from '../../../core/services/auth.service';
+import { NivelAcesso } from '../../../core/models/nivel-usuario.model';
+import { temNivelMinimo } from '../../../core/auth/niveis';
+
+interface Atalho {
+  rota: string;
+  icone: string;
+  label: string;
+  cor: string;
+  nivelMinimo?: NivelAcesso;
+}
 
 @Component({
   selector: 'app-dashboard',
@@ -10,12 +21,18 @@ import { RouterLink } from '@angular/router';
   styleUrls: ['./dashboard.component.css']
 })
 export class DashboardComponent {
-  atalhos = [
-    { rota: '/chat/menu',            icone: 'fa-comments',       label: 'Abrir Chat',         cor: 'green'  },
-    { rota: '/admin/canais',         icone: 'fa-project-diagram', label: 'Configurar Canais',  cor: 'blue'   },
-    { rota: '/admin/usuarios',       icone: 'fa-users',           label: 'Gerenciar Usuários', cor: 'red'    },
-    { rota: '/admin/departamentos',  icone: 'fa-building',        label: 'Departamentos',      cor: 'purple' },
-    { rota: '/admin/escalas',        icone: 'fa-calendar-alt',    label: 'Painel de Escalas',  cor: 'teal'   },
-    { rota: '/admin/relatorio',      icone: 'fa-chart-bar',       label: 'Relatórios',         cor: 'yellow' },
+  private readonly todosAtalhos: Atalho[] = [
+    { rota: '/admin/atendimentos',  icone: 'fa-comments',       label: 'Abrir Chat',         cor: 'green',  nivelMinimo: 'atendente' },
+    { rota: '/admin/canais',         icone: 'fa-project-diagram', label: 'Configurar Canais',  cor: 'blue',   nivelMinimo: 'gerente' },
+    { rota: '/admin/usuarios',       icone: 'fa-users',           label: 'Gerenciar Usuários', cor: 'red',    nivelMinimo: 'supervisor' },
+    { rota: '/admin/departamentos',  icone: 'fa-building',        label: 'Departamentos',      cor: 'purple', nivelMinimo: 'gerente' },
+    { rota: '/admin/relatorio',      icone: 'fa-chart-bar',       label: 'Relatórios',         cor: 'yellow', nivelMinimo: 'supervisor' },
   ];
+
+  atalhos: Atalho[];
+
+  constructor(private auth: AuthService) {
+    const nivel = this.auth.getUsuarioAtual()?.nivel;
+    this.atalhos = this.todosAtalhos.filter(a => temNivelMinimo(nivel, a.nivelMinimo));
+  }
 }

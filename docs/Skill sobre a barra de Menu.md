@@ -1,103 +1,193 @@
-# Skill — Barra de Menu (Sidebar)
+================================================================================
+SKILL: SISTEMA DE GESTÃO COM 11 MÓDULOS - MENU LATERAL DE ÍCONES
+ARQUIVO: skill_11_modulos.txt
+VERSÃO: 1.0.0
+================================================================================
 
-## Referência visual
+--------------------------------------------------------------------------------
+1. ARQUITETURA DA SKILL
+--------------------------------------------------------------------------------
+A skill consiste em um menu lateral fixo com 11 ícones de navegação. Cada ícone,
+ao ser clicado, invoca a função do módulo correspondente e carrega a interface
+associada, conforme demonstrado nas telas entregues.
 
-`docs/Barra Menu.png` é a fonte da verdade para ícone, ordem e estilo da
-sidebar. Qualquer alteração no menu deve ser comparada com essa imagem antes
-de ser considerada concluída.
+Características arquiteturas:
+  - Barra lateral fixa (sidebar) contendo os 11 ícones, na ordem definida.
+  - Área de conteúdo única, com troca de interface por invocação de função.
+  - Destaque visual (azul) para o ícone do módulo ativo.
+  - Identidade visual uniforme e textos em português em todas as telas.
+  - Padrão de navegação: 1 ícone = 1 função = 1 interface.
 
-A imagem mostra uma sidebar **só com ícones** (sem seções, sem títulos de
-grupo), tema claro, nesta ordem:
+--------------------------------------------------------------------------------
+2. MAPEAMENTO DAS 11 FUNCIONALIDADES
+--------------------------------------------------------------------------------
 
-1. Início (casa)
-2. Usuários (pessoa)
-3. Contatos (cartão de identificação)
-4. Setor / Departamento (prédio)
-5. Chat (balão de conversa)
-6. E-mail (envelope)
-7. Histórico (seta circular)
-8. Conexões (wifi)
-9. Sinal (barras)
-10. Calendário
-11. Campanhas (avião de papel)
-12. Arquivos (pasta)
+01) ÍCONE: Casa
+    FUNÇÃO: modulo_dashboard
+    INTERFACE: Painel de relatórios das ações executadas pelo programa.
+               Indicadores: Ações executadas, Mensagens enviadas, Atendimentos
+               realizados, Empresas ativas. Gráficos de ações por dia (linha e
+               barras) e tabela "Relatório das ações executadas do programa"
+               (Data, Módulo, Ação, Usuário, Status).
 
-## Implementação atual
+02) ÍCONE: Dois bonecos
+    FUNÇÃO: modulo_usuarios
+    INTERFACE: Tela de cadastro de usuários. Formulário "Novo Usuário": Nome
+               completo, E-mail, Telefone, Perfil de acesso (Administrador,
+               Atendente, Gestor) e Senha; botão "Salvar usuário". Listagem
+               "Usuários cadastrados" com ações Editar e Desativar.
 
-Componente: `frontend/src/app/shared/components/layout/layout.component.ts`
-(`.html` / `.css` no mesmo diretório).
+03) ÍCONE: Cartão de identificação
+    FUNÇÃO: modulo_contatos
+    INTERFACE: Cadastro de clientes/contatos vinculado à API do WhatsApp (selo
+               "Integrado à API do WhatsApp"). Formulário "Novo Contato
+               (Cliente)": Nome, Número WhatsApp, E-mail, Tags, Observações;
+               botão "Salvar contato". Tabela "Contatos vinculados" (Nome,
+               WhatsApp, Tags, Última mensagem, Status).
 
-- A sidebar é uma lista **plana** de `navItens` (sem agrupamento por seção —
-  isso foi removido para bater com a referência).
-- Tema: fundo branco (`--sb: #ffffff`), destaque azul no item ativo
-  (`--blue: #5c8ad6`), borda sutil (`--border: #e5ddd8`) em vez do antigo
-  tema escuro/vermelho.
-- Cada item é `{ rota, icone, label }`; `icone` é uma classe Font Awesome
-  (`fa-*`).
+04) ÍCONE: Prédio
+    FUNÇÃO: modulo_empresas
+    INTERFACE: Cadastro da empresa contratante (que compra/paga o sistema).
+               Formulário "Nova Empresa Contratante": Razão Social, CNPJ,
+               E-mail administrativo, Plano (Mensal/Anual), Status de
+               pagamento. Centralização administrativa: cada empresa que aluga
+               o espaço vincula 1 ou vários números administrativos de
+               WhatsApp, com botão "+ Adicionar número". Tabela "Empresas
+               contratadas" (Empresa, CNPJ, Números vinculados, Plano, Status).
 
-### Regra de inclusão
+05) ÍCONE: Balões de chat
+    FUNÇÃO: modulo_atendimento
+    INTERFACE: Central de atendimento ao cliente. Conforme a configuração, os
+               contatos dos clientes caem para a determinada empresa
+               contratada. Composição: "Fila de contatos recebidos", painel de
+               conversa (chat com campo de mensagem e botão de envio) e
+               "Detalhes do contato" com a empresa contratada responsável.
 
-**Um item só entra no menu quando a página correspondente existe de fato.**
-Itens presentes na imagem mas sem rota implementada ainda ficam de fora —
-não adicionar ícone "morto" sem destino.
+06) ÍCONE: Envelope
+    FUNÇÃO: modulo_mensagens
+    INTERFACE: Caixa de mensagens. Lista de mensagens recebidas (Assunto e
+               pré-visualização), painel de leitura ("Enviado em"), botões
+               Responder e Arquivar, e botão "Nova mensagem".
 
-Estado atual de `navItens` — todos os itens da imagem com página própria já
-foram implementados (2026-08-07):
+07) ÍCONE: Relógio com seta
+    FUNÇÃO: modulo_historico
+    INTERFACE: Histórico/auditoria das ações executadas. Filtros por Período,
+               Módulo e Usuário, com botão "Filtrar". Tabela: Data/Hora,
+               Usuário, Módulo, Ação, Status; paginação ao final.
 
-| Ordem | Label     | Ícone            | Rota                  |
-|-------|-----------|------------------|------------------------|
-| 1     | Início    | fa-house         | /admin/dashboard       |
-| 2     | Usuários  | fa-users         | /admin/usuarios        |
-| 3     | Contatos  | fa-address-card  | /admin/contatos        |
-| 4     | Setor     | fa-building      | /admin/departamentos   |
-| 5     | Chat      | fa-comments      | /admin/atendimentos    |
-| 6     | Mensagens | fa-comment-dots  | /admin/mensagens       |
-| 7     | E-mail    | fa-envelope      | /admin/email           |
-| 8     | Conexões  | fa-wifi          | /admin/conexoes        |
-| 9     | Campanhas | fa-paper-plane   | /admin/campanhas       |
-| 10    | Arquivos  | fa-folder        | /admin/arquivos        |
+08) ÍCONE: Wi-Fi
+    FUNÇÃO: modulo_conexao
+    INTERFACE: Conexão com a API do WhatsApp (selo "API WhatsApp: Online").
+               Cartões por número administrativo com status Conectado/
+               Desconectado, botões "Desconectar" e "Conectar via QR Code",
+               e painel com QR Code para vincular novo número administrativo.
 
-Escopo de cada módulo novo (CRUD completo, backend + frontend):
+09) ÍCONE: Calendário
+    FUNÇÃO: modulo_agenda
+    INTERFACE: Agenda mensal (Dom a Sáb) com marcadores de agendamentos e
+               painel lateral "Próximos agendamentos". Botão "Novo
+               agendamento".
 
-- **Contatos** — agenda de clientes WhatsApp (`contatos` table); base de
-  destinatários para Campanhas.
-- **E-mail** — central de envio avulso com histórico (`emails_enviados`
-  table); usa SMTP se configurado (`SMTP_HOST` etc. no `.env`), senão
-  registra como "simulado" (mesmo padrão de resiliência do
-  `evolution_service`).
-- **Campanhas** — disparo em massa via WhatsApp (`campanhas` +
-  `campanha_contatos` tables), reaproveitando uma Conexão existente e o
-  `evolution_service`.
-- **Arquivos** — biblioteca de mídia do chat (`arquivos` table); upload
-  grava em disco (`backend/uploads/arquivos/`, fora do Git) e metadados no
-  banco.
+10) ÍCONE: Avião de papel
+    FUNÇÃO: modulo_envios
+    INTERFACE: Disparos de mensagens/campanhas. Formulário "Nova campanha":
+               Nome da campanha, Lista de contatos, Modelo de mensagem,
+               Data/hora agendada; botão "Disparar campanha". Tabela de
+               campanhas: Enviadas, Entregues, Falhas, Status (Ativa/
+               Concluída).
 
-`Histórico`, `Sinal` e `Calendário` aparecem na imagem mas seu significado
-exato no produto ainda não foi definido (podem ser sub-ações de Conexões, e
-não itens de topo — revisar com a imagem antes de criar página para eles).
-Esses três continuam de fora do menu.
+11) ÍCONE: Pasta
+    FUNÇÃO: modulo_arquivos
+    INTERFACE: Gestor de arquivos. Pastas com contadores: Documentos, Mídias e
+               Modelos de mensagem. Listagem de arquivos (ex.: contrato.pdf,
+               logo.png, modelo-boasvindas.txt). Botão "Enviar arquivo".
 
-## Como adicionar um item novo
+--------------------------------------------------------------------------------
+3. ESTRUTURA DE IMPLEMENTAÇÃO DA SKILL
+--------------------------------------------------------------------------------
 
-1. Criar a página (component standalone) em `frontend/src/app/pages/admin/<nome>/`.
-2. Registrar a rota em `frontend/src/app/app.routes.ts` (lazy-load,
-   seguindo o padrão dos itens existentes).
-3. Adicionar `{ rota, icone, label }` em `navItens`
-   (`layout.component.ts`), na posição correspondente à ordem da imagem
-   de referência.
-4. Conferir visualmente contra `docs/Barra Menu.png` (ordem, ícone, cor do
-   item ativo).
+# Registro dos módulos da skill (ícone -> função)
+SKILL_MODULOS = {
+    "icone_casa":       modulo_dashboard,    # Relatórios das ações executadas
+    "icone_usuarios":   modulo_usuarios,     # Cadastro de usuários
+    "icone_contatos":   modulo_contatos,     # Cadastro de clientes (API WhatsApp)
+    "icone_empresa":    modulo_empresas,     # Empresas contratantes + números adm.
+    "icone_chat":       modulo_atendimento,  # Atendimento direcionado por configuração
+    "icone_envelope":   modulo_mensagens,    # Caixa de mensagens
+    "icone_relogio":    modulo_historico,    # Auditoria de ações
+    "icone_wifi":       modulo_conexao,      # Conexão WhatsApp / QR Code
+    "icone_calendario": modulo_agenda,       # Agenda de compromissos
+    "icone_aviao":      modulo_envios,       # Disparos e campanhas
+    "icone_pasta":      modulo_arquivos,     # Gestor de arquivos
+}
 
-## Histórico
+def ao_clicar_icone(icone):
+    """Carrega a interface do módulo correspondente ao ícone clicado."""
+    modulo = SKILL_MODULOS[icone]
+    return modulo.abrir_interface()
 
-- O menu era agrupado em seções ("Visão Geral", "Atendimento",
-  "Configuração", "Gestão") com tema escuro/vermelho. Foi substituído pela
-  lista plana de ícones em tema claro/azul para seguir `Barra Menu.png`.
-- Módulo **Conexões** foi adicionado primeiro (frontend + backend
-  completos: `conexoes.component.*`, `conexao.service.ts`,
-  `routers/conexoes.py`, `services/conexao_service.py`,
-  `migrations/004_create_conexoes.sql`).
-- **Contatos, E-mail, Campanhas e Arquivos** foram implementados em
-  seguida (migration `005_create_contatos_email_campanhas_arquivos.sql`),
-  fechando a lista de itens do menu que tinham página própria pendente —
-  ver tabela acima.
+--------------------------------------------------------------------------------
+4. REGRAS DE NEGÓCIO INCORPORADAS
+--------------------------------------------------------------------------------
+  - modulo_empresas: relação 1-N entre empresa e números administrativos de
+    WhatsApp (a contratante pode possuir um ou vários números), com
+    centralização por espaço alugado.
+  - modulo_atendimento: o roteamento dos contatos dos clientes obedece à
+    configuração da empresa contratada, exibindo a empresa responsável no
+    painel de detalhes do contato.
+  - modulo_conexao: vinculação de novos números administrativos exclusivamente
+    via QR Code; controle de status Conectado/Desconectado por número.
+  - modulo_usuarios: perfis de acesso (Administrador, Atendente, Gestor),
+    aplicando separação de privilégios por papel.
+
+--------------------------------------------------------------------------------
+5. ANEXO - SUGESTÃO DE IMPLEMENTAÇÃO NA STACK ANGULAR + PYTHON
+--------------------------------------------------------------------------------
+Frontend (Angular): componente de sidebar com 11 botões e router-outlet.
+Rotas sugeridas:
+  /dashboard    -> DashboardComponent    (modulo_dashboard)
+  /usuarios     -> UsuariosComponent     (modulo_usuarios)
+  /contatos     -> ContatosComponent     (modulo_contatos)
+  /empresas     -> EmpresasComponent     (modulo_empresas)
+  /atendimento  -> AtendimentoComponent  (modulo_atendimento)
+  /mensagens    -> MensagensComponent    (modulo_mensagens)
+  /historico    -> HistoricoComponent    (modulo_historico)
+  /conexao      -> ConexaoComponent      (modulo_conexao)
+  /agenda       -> AgendaComponent       (modulo_agenda)
+  /envios       -> EnviosComponent       (modulo_envios)
+  /arquivos     -> ArquivosComponent     (modulo_arquivos)
+
+Backend (Python/FastAPI): routers REST por módulo.
+  /api/dashboard/relatorios      -> métricas e relatório de ações
+  /api/usuarios                  -> CRUD de usuários e perfis
+  /api/contatos                  -> CRUD de contatos (integração WhatsApp)
+  /api/empresas                  -> CRUD de empresas + números administrativos
+  /api/atendimento               -> fila, conversa e roteamento por empresa
+  /api/mensagens                 -> caixa de mensagens (responder/arquivar)
+  /api/historico                 -> consulta auditada com filtros
+  /api/conexao                   -> status dos números e QR Code de vínculo
+  /api/agenda                    -> agendamentos e próximos compromissos
+  /api/envios                    -> campanhas e métricas de disparo
+  /api/arquivos                  -> upload e listagem de arquivos
+
+--------------------------------------------------------------------------------
+6. ESTRUTURA DE ARQUIVOS SUGERIDA
+--------------------------------------------------------------------------------
+skills/
+└── skill_11_modulos/
+    ├── SKILL.md
+    ├── frontend_angular/
+    │   ├── sidebar.component.ts
+    │   ├── app.routes.ts
+    │   └── modulos/ (11 componentes, um por módulo)
+    └── backend_python/
+        └── routers/ (11 routers, um por módulo)
+
+--------------------------------------------------------------------------------
+7. NOTAS FINAIS
+--------------------------------------------------------------------------------
+  - As onze telas entregues constituem os protótipos visuais de cada função,
+    mantendo identidade visual uniforme e destaque azul para o módulo ativo.
+  - A navegação é determinística: cada ícone invoca exatamente uma função e
+    carrega exatamente uma interface.
+================================================================================

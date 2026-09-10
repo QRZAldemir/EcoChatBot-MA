@@ -3,6 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { LoginResponse, UsuarioLogado } from '../models/auth.model';
+import { NivelAcesso } from '../models/nivel-usuario.model';
+import { temNivelMinimo } from '../auth/niveis';
 
 const CHAVE_TOKEN = 'ecochat_token';
 const CHAVE_USUARIO = 'ecochat_usuario';
@@ -54,6 +56,10 @@ export class AuthService {
   isAuthenticated(): boolean {
     const token = this.getToken();
     return !!token && !this.tokenExpirado(token);
+  }
+
+  temNivelMinimo(minimo: NivelAcesso): boolean {
+    return temNivelMinimo(this.getUsuarioAtual()?.nivel, minimo);
   }
 
   /** Decodifica o payload do JWT (sem validar assinatura — isso é papel do backend) só para checar o "exp". */

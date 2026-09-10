@@ -1,6 +1,20 @@
-from pydantic import BaseModel, EmailStr
-from typing import List, Optional
+import re
+
+from pydantic import BaseModel, EmailStr, field_validator
+from typing import List, Literal, Optional
 from datetime import datetime
+
+CorOpcao = Literal["verde", "azul", "vermelho", "amarelo", "roxo", "cinza"]
+
+
+def _normalizar_descricao(cls, v: Optional[str]) -> Optional[str]:
+    """Uppercase + trim; aceita apenas letras/números/espaço/underscore (com acentos)."""
+    if v is None:
+        return v
+    v = v.strip().upper()
+    if v and not re.match(r'^[\w\s]+$', v, re.UNICODE):
+        raise ValueError('Descrição deve conter apenas letras, números, espaços e underscore')
+    return v
 
 # ━━━ Menu Opcao ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class MenuOpcaoBase(BaseModel):
@@ -8,15 +22,20 @@ class MenuOpcaoBase(BaseModel):
     descricao: Optional[str] = None
     row_id: str
     ordem: int = 0
+    cor: CorOpcao = "verde"
 
 class MenuOpcaoCreate(MenuOpcaoBase):
     pass
+
+class MenuOpcaoUpsert(MenuOpcaoBase):
+    id: Optional[int] = None
 
 class MenuOpcaoUpdate(BaseModel):
     titulo: Optional[str] = None
     descricao: Optional[str] = None
     row_id: Optional[str] = None
     ordem: Optional[int] = None
+    cor: Optional[CorOpcao] = None
 
 class MenuOpcaoResponse(MenuOpcaoBase):
     id: int
@@ -29,10 +48,14 @@ class MenuOpcaoResponse(MenuOpcaoBase):
 class MenuBase(BaseModel):
     titulo: str
     descricao: Optional[str] = None
+    cabecalho: Optional[str] = None
     rodape: Optional[str] = None
     texto_botao: str = "Ver opções"
     canal_id: Optional[int] = None
+    usuario_vinculado_id: Optional[int] = None
     ativo: bool = True
+
+    _normalizar_titulo = field_validator('titulo')(_normalizar_descricao)
 
 class MenuCreate(MenuBase):
     opcoes: List[MenuOpcaoCreate] = []
@@ -40,14 +63,20 @@ class MenuCreate(MenuBase):
 class MenuUpdate(BaseModel):
     titulo: Optional[str] = None
     descricao: Optional[str] = None
+    cabecalho: Optional[str] = None
     rodape: Optional[str] = None
     texto_botao: Optional[str] = None
     canal_id: Optional[int] = None
+    usuario_vinculado_id: Optional[int] = None
     ativo: Optional[bool] = None
+    opcoes: Optional[List[MenuOpcaoUpsert]] = None
+
+    _normalizar_titulo = field_validator('titulo')(_normalizar_descricao)
 
 class MenuResponse(MenuBase):
     id: int
     criado_em: datetime
+    usuario_vinculado_nome: Optional[str] = None
     opcoes: List[MenuOpcaoResponse] = []
 
     class Config:
@@ -92,7 +121,7 @@ class DepartamentoResponse(DepartamentoBase):
 class CanalBase(BaseModel):
     nome: str
     descricao: Optional[str] = None
-    arquivo_menu: str
+    arquivo_menu: str = ""
     departamento_id: Optional[int] = None
     ativo: bool = True
 
@@ -256,6 +285,8 @@ class ModeloMensagemBase(BaseModel):
     departamento_id: Optional[int] = None
     ativo: bool = True
 
+    _normalizar_descricao = field_validator('descricao')(_normalizar_descricao)
+
 class ModeloMensagemCreate(ModeloMensagemBase):
     pass
 
@@ -265,6 +296,8 @@ class ModeloMensagemUpdate(BaseModel):
     arquivo: Optional[str] = None
     departamento_id: Optional[int] = None
     ativo: Optional[bool] = None
+
+    _normalizar_descricao = field_validator('descricao')(_normalizar_descricao)
 
 class ModeloMensagemResponse(ModeloMensagemBase):
     id: int

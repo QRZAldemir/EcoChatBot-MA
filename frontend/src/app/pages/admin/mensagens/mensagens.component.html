@@ -30,9 +30,6 @@
             <option value="Interativa">Interativa</option>
           </select>
         </div>
-        <button type="button" class="filter-search-btn">
-          <i class="fas fa-search"></i> Buscar
-        </button>
       </div>
       <div class="filter-note">
         <i class="fas fa-info-circle"></i> O filtro considera a descrição e o tipo do modelo de mensagem.
@@ -78,13 +75,19 @@
     <div class="pb">
       <div class="form-grid">
         <div class="fg full">
-          <label>Descrição *</label>
+          <label>Descrição * <span class="char-counter">{{ (formPadrao.descricao?.length ?? 0) }}/100</span></label>
           <input type="text" [(ngModel)]="formPadrao.descricao" placeholder="Nome pra identificar a mensagem" maxlength="100">
         </div>
 
         <div class="fg full">
-          <label>Mensagem *</label>
-          <textarea rows="6" [(ngModel)]="formPadrao.corpo" placeholder="Digite seu modelo de mensagem..."></textarea>
+          <label>Mensagem * <span class="char-counter">{{ (formPadrao.corpo?.length ?? 0) }}/1024</span></label>
+          <div class="textarea-wrap">
+            <textarea rows="6" [(ngModel)]="formPadrao.corpo" placeholder="Digite seu modelo de mensagem..." maxlength="1024"></textarea>
+            <button type="button" class="emoji-btn" (click)="toggleEmoji('padrao')" title="Inserir emoji">😊</button>
+            <div class="emoji-picker" *ngIf="emojiAbertoPara === 'padrao'">
+              <span *ngFor="let e of emojis" (click)="inserirEmoji(e, 'padrao')">{{ e }}</span>
+            </div>
+          </div>
         </div>
 
         <div class="fg">
@@ -140,17 +143,28 @@
     <div class="pb">
       <div class="form-grid">
         <div class="fg full">
-          <label>Descrição *</label>
+          <label>Descrição * <span class="char-counter">{{ (formInterativa.titulo?.length ?? 0) }}/100</span></label>
           <input type="text" [(ngModel)]="formInterativa.titulo" placeholder="Nome pra identificar a mensagem" maxlength="100">
         </div>
 
         <div class="fg full">
-          <label>Corpo *</label>
-          <textarea rows="4" [(ngModel)]="formInterativa.descricao" placeholder="Texto principal da mensagem..." maxlength="1024"></textarea>
+          <label>Corpo * <span class="char-counter">{{ (formInterativa.descricao?.length ?? 0) }}/1024</span></label>
+          <div class="textarea-wrap">
+            <textarea rows="4" [(ngModel)]="formInterativa.descricao" placeholder="Texto principal da mensagem..." maxlength="1024"></textarea>
+            <button type="button" class="emoji-btn" (click)="toggleEmoji('interativa')" title="Inserir emoji">😊</button>
+            <div class="emoji-picker" *ngIf="emojiAbertoPara === 'interativa'">
+              <span *ngFor="let e of emojis" (click)="inserirEmoji(e, 'interativa')">{{ e }}</span>
+            </div>
+          </div>
         </div>
 
-        <div class="fg full">
-          <label>Rodapé</label>
+        <div class="fg">
+          <label>Cabeçalho <span class="char-counter">{{ (formInterativa.cabecalho?.length ?? 0) }}/60</span></label>
+          <input type="text" [(ngModel)]="formInterativa.cabecalho" placeholder="Ex: Agendamento de Consultas" maxlength="60">
+        </div>
+
+        <div class="fg">
+          <label>Rodapé <span class="char-counter">{{ (formInterativa.rodape?.length ?? 0) }}/60</span></label>
           <input type="text" [(ngModel)]="formInterativa.rodape" maxlength="60">
         </div>
 
@@ -160,14 +174,31 @@
         </div>
 
         <div class="fg">
+          <label>Departamento</label>
+          <select [(ngModel)]="departamentoFiltroId" (ngModelChange)="onDepartamentoFiltroChange()">
+            <option [ngValue]="null">Selecione um departamento...</option>
+            <option *ngFor="let d of departamentos; trackBy: trackById" [ngValue]="d.id">{{ d.nome }}</option>
+          </select>
+          <small class="helper">Filtra as opções de Canal de Atendimento abaixo.</small>
+        </div>
+
+        <div class="fg">
           <label>Vínculo</label>
           <select [(ngModel)]="formInterativa.canalId">
             <option [ngValue]="undefined">🏠 Menu Principal (Hub)</option>
-            <option *ngFor="let c of canais; trackBy: trackById" [ngValue]="c.id">{{ c.departamentoNome || c.nome }} — {{ c.nome }}</option>
+            <option *ngFor="let c of canaisFiltrados; trackBy: trackById" [ngValue]="c.id">{{ c.departamentoNome || c.nome }} — {{ c.nome }}</option>
           </select>
           <small class="helper">
-            Menu Principal = 1ª tela que o cliente vê. Vinculada a um canal = tela do departamento após ele ser selecionado.
+            Define em qual fluxo esta mensagem será usada. Menu Principal = 1ª tela que o cliente vê. Vinculada a um canal = tela do departamento após ele ser selecionado.
           </small>
+        </div>
+
+        <div class="fg">
+          <label>Vincular a um usuário</label>
+          <select [(ngModel)]="formInterativa.usuarioVinculadoId">
+            <option [ngValue]="undefined">— Nenhum —</option>
+            <option *ngFor="let u of usuarios; trackBy: trackById" [ngValue]="u.id">{{ u.nome }}</option>
+          </select>
         </div>
       </div>
 
@@ -179,6 +210,7 @@
 
         <div class="opcoes-lista" *ngIf="formInterativa.opcoes?.length">
           <div class="opcao-item" *ngFor="let o of formInterativa.opcoes; let i = index; trackBy: trackByOpcao">
+            <span class="opcao-cor-dot" [class]="'cor-' + (o.cor || 'verde')" [title]="o.cor"></span>
             <span class="opcao-titulo">{{ o.titulo }}</span>
             <code class="opcao-id">{{ o.rowId }}</code>
             <button class="btn-icon danger" (click)="removerOpcao(i)" title="Remover"><i class="fas fa-trash"></i></button>
@@ -201,6 +233,19 @@
           <div class="fg">
             <label>Identificador *</label>
             <input type="text" [(ngModel)]="novaOpcao.rowId" maxlength="256">
+          </div>
+          <div class="fg">
+            <label>Cor do botão</label>
+            <div class="opcao-cor-picker">
+              <span
+                *ngFor="let c of cores"
+                class="opcao-cor-dot selecionavel"
+                [class]="'cor-' + c"
+                [class.selecionada]="novaOpcao.cor === c"
+                [title]="c"
+                (click)="novaOpcao.cor = c"
+              ></span>
+            </div>
           </div>
           <button type="button" class="btn primary" (click)="adicionarOpcao()"><i class="fas fa-plus"></i> Adicionar</button>
         </div>

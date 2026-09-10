@@ -27,7 +27,7 @@
     <div class="panel-header">
       <div class="panel-icon blue"><i class="fas fa-users"></i></div>
       <h3>Usuários por Departamento</h3>
-      <button class="btn primary" (click)="abrirNovo()">
+      <button *ngIf="podeEditar" class="btn primary" (click)="abrirNovo()">
         <i class="fas fa-plus"></i> Novo Usuário
       </button>
     </div>
@@ -98,7 +98,7 @@
               <th>Canal</th>
               <th>Nível</th>
               <th>Status</th>
-              <th>Ações</th>
+              <th *ngIf="podeEditar || podeExcluir">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -115,9 +115,9 @@
               <td><span [class.ativo]="u.status==='ativo'" [class.inativo]="u.status==='inativo'">
                 {{ u.status === 'ativo' ? '🟢 Ativo' : '🔴 Inativo' }}
               </span></td>
-              <td>
-                <button class="btn-icon" (click)="abrirEditar(u)" title="Editar"><i class="fas fa-edit"></i></button>
-                <button class="btn-icon danger" (click)="deletar(u.id)" title="Excluir"><i class="fas fa-trash"></i></button>
+              <td *ngIf="podeEditar || podeExcluir">
+                <button *ngIf="podeEditar" class="btn-icon" (click)="abrirEditar(u)" title="Editar"><i class="fas fa-edit"></i></button>
+                <button *ngIf="podeExcluir" class="btn-icon danger" (click)="deletar(u.id)" title="Excluir"><i class="fas fa-trash"></i></button>
               </td>
             </tr>
           </tbody>

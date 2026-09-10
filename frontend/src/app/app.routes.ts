@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { nivelGuard } from './core/guards/nivel.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'admin/dashboard', pathMatch: 'full' },
@@ -23,83 +24,99 @@ export const routes: Routes = [
       },
       {
         path: 'atendimentos',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'atendente' },
         loadComponent: () => import('./pages/admin/atendimentos/atendimentos.component').then(m => m.AtendimentosComponent),
         title: 'Atendimentos — EcoChat Marcx'
       },
       {
-        path: 'atendimentos',
-        loadComponent: () => import('./pages/admin/atendimentos/atendimentos.component').then(m => m.AtendimentosComponent),
-        title: 'Atendimentos — EcoChat Mackenzie'
-      },
-      {
         path: 'usuarios',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'supervisor' },
         loadComponent: () => import('./pages/admin/usuarios/usuarios.component').then(m => m.UsuariosComponent),
         title: 'Usuários — EcoChat Marcx'
       },
       {
         path: 'departamentos',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'gerente' },
         loadComponent: () => import('./pages/admin/departamentos/departamentos.component').then(m => m.DepartamentosComponent),
         title: 'Departamentos — EcoChat Marcx'
       },
       {
         path: 'canais',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'gerente' },
         loadComponent: () => import('./pages/admin/canais/canais.component').then(m => m.CanaisComponent),
         title: 'Canais de Atendimento — EcoChat Marcx'
       },
       {
         path: 'conexoes',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'administrador' },
         loadComponent: () => import('./pages/admin/conexoes/conexoes.component').then(m => m.ConexoesComponent),
         title: 'Conexões — EcoChat Marcx'
       },
       {
         path: 'contatos',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'gerente' },
         loadComponent: () => import('./pages/admin/contatos/contatos.component').then(m => m.ContatosComponent),
         title: 'Contatos — EcoChat Marcx'
       },
       {
         path: 'email',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'gerente' },
         loadComponent: () => import('./pages/admin/email/email.component').then(m => m.EmailComponent),
         title: 'E-mail — EcoChat Marcx'
       },
       {
         path: 'campanhas',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'gerente' },
         loadComponent: () => import('./pages/admin/campanhas/campanhas.component').then(m => m.CampanhasComponent),
         title: 'Campanhas — EcoChat Marcx'
       },
       {
         path: 'arquivos',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'atendente' },
         loadComponent: () => import('./pages/admin/arquivos/arquivos.component').then(m => m.ArquivosComponent),
         title: 'Arquivos — EcoChat Marcx'
       },
       {
         path: 'mensagens',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'gerente' },
         loadComponent: () => import('./pages/admin/mensagens/mensagens.component').then(m => m.MensagensComponent),
         title: 'Mensagens — EcoChat Marcx'
       },
       {
-        path: 'mensagens',
-        loadComponent: () => import('./pages/admin/mensagens/mensagens.component').then(m => m.MensagensComponent),
-        title: 'Mensagens — EcoChat Mackenzie'
-      },
-      {
         path: 'niveis',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'administrador' },
         loadComponent: () => import('./pages/admin/niveis/niveis.component').then(m => m.NiveisComponent),
         title: 'Níveis de Usuário — EcoChat Marcx'
       },
       {
         path: 'escalas',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'gerente' },
         loadComponent: () => import('./pages/admin/escalas/escalas.component').then(m => m.EscalasComponent),
         title: 'Painel de Escalas — EcoChat Marcx'
       },
       {
         path: 'relatorio',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'supervisor' },
         loadComponent: () => import('./pages/admin/relatorio/relatorio.component').then(m => m.RelatorioComponent),
         title: 'Relatório — EcoChat Marcx'
       },
     ]
   },
 
-  // ── Chat (interface do cliente/paciente) ───────────────────────
+  // ── Chat (interface do cliente) ────────────────────────────────
   {
     path: 'chat',
     children: [
@@ -109,8 +126,8 @@ export const routes: Routes = [
         title: 'Atendimento — Marcx'
       },
       {
-        // /chat/:canal → carrega o HTML do canal em iframe
-        // Exemplos: /chat/portaria  /chat/agendamento-ambulatorial
+        // /chat/:canal → atendimento do canal
+        // Exemplos: /chat/atendimento  /chat/comercial
         path: ':canal',
         loadComponent: () => import('./pages/chat/atendimento/atendimento.component').then(m => m.AtendimentoComponent),
       },

@@ -7,6 +7,7 @@ import { Canal } from '../../../core/models/canal.model';
 import { UsuarioService } from '../../../core/services/usuario.service';
 import { DepartamentoService } from '../../../core/services/departamento.service';
 import { CanalService } from '../../../core/services/canal.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { CanalByIdPipe } from '../../../core/pipes/canal-by-id.pipe';
 import { trackById } from '../../../core/utils/track-by';
 
@@ -48,8 +49,17 @@ export class UsuariosComponent implements OnInit {
   constructor(
     private usuarioService: UsuarioService,
     private departamentoService: DepartamentoService,
-    private canalService: CanalService
+    private canalService: CanalService,
+    private auth: AuthService,
   ) {}
+
+  get podeEditar(): boolean {
+    return this.auth.temNivelMinimo('gerente');
+  }
+
+  get podeExcluir(): boolean {
+    return this.auth.temNivelMinimo('administrador');
+  }
 
   ngOnInit(): void {
     this.carregarDados();

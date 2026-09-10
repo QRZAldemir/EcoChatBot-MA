@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.database import get_db
+from app.security import exigir_nivel, exigir_nivel_minimo
 from app.services.modelo_mensagem_service import ModeloMensagemService
 from app.schemas import ModeloMensagemCreate, ModeloMensagemUpdate, ModeloMensagemResponse
 
@@ -25,12 +26,12 @@ def buscar_modelo(modelo_id: int, db: Session = Depends(get_db)):
     return modelo
 
 
-@router.post("/", response_model=ModeloMensagemResponse, status_code=201)
+@router.post("/", response_model=ModeloMensagemResponse, status_code=201, dependencies=[Depends(exigir_nivel_minimo("gerente"))])
 def criar_modelo(modelo: ModeloMensagemCreate, db: Session = Depends(get_db)):
     return ModeloMensagemService.criar(db, modelo)
 
 
-@router.put("/{modelo_id}", response_model=ModeloMensagemResponse)
+@router.put("/{modelo_id}", response_model=ModeloMensagemResponse, dependencies=[Depends(exigir_nivel_minimo("gerente"))])
 def atualizar_modelo(modelo_id: int, modelo: ModeloMensagemUpdate, db: Session = Depends(get_db)):
     atualizado = ModeloMensagemService.atualizar(db, modelo_id, modelo)
     if not atualizado:
@@ -38,7 +39,7 @@ def atualizar_modelo(modelo_id: int, modelo: ModeloMensagemUpdate, db: Session =
     return atualizado
 
 
-@router.delete("/{modelo_id}", status_code=204)
+@router.delete("/{modelo_id}", status_code=204, dependencies=[Depends(exigir_nivel("administrador"))])
 def deletar_modelo(modelo_id: int, db: Session = Depends(get_db)):
     if not ModeloMensagemService.deletar(db, modelo_id):
         raise HTTPException(status_code=404, detail="Modelo de mensagem não encontrado")

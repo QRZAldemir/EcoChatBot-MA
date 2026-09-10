@@ -94,6 +94,26 @@ PRAGMA table_info(atendimentos);
 - ✅ Endpoints `/api/modelos-mensagem` criados
 - ⏳ **FALTA:** Executar migração no banco de dados
 
+### 007_add_cabecalho_usuario_cor_menu.sql
+**Status:** ⚠️ PENDENTE (não aplicada em produção)
+
+**O que faz:**
+- Adiciona `cabecalho` e `usuario_vinculado_id` (FK → `usuarios`) em `menus`
+- Adiciona `cor` (default `'verde'`) em `menu_opcoes`
+
+**Por quê:**
+- O protótipo de referência do módulo de Mensagens (`frontend/src/assets/menus/
+  modulo_mensagens.html`) já previa esses campos no formulário de Mensagem
+  Interativa (Cabeçalho, Vincular a um usuário, cor do botão); o backend/
+  Angular real ainda não os tinha.
+
+**Sincronização com código:**
+- ✅ Modelo ORM `Menu`/`MenuOpcao` atualizado (`app/models/__init__.py`)
+- ✅ Schemas Pydantic atualizados (`app/schemas/__init__.py`)
+- ✅ `MenuService` grava os novos campos (`app/services/menu_service.py`)
+- ✅ Frontend (`menu.model.ts`, `menu.service.ts`, `mensagens.component.*`) atualizado
+- ⏳ **FALTA:** Executar migração no banco de dados
+
 ---
 
 ## ⚠️ Próximas Etapas

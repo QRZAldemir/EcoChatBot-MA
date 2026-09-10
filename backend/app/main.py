@@ -20,7 +20,7 @@ Suas responsabilidades incluem:
 """
 
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI
@@ -57,7 +57,7 @@ from app.routers import (
     webhook,
     audio
 )
-from app.security import obter_usuario_atual
+from app.security import exigir_nivel_minimo, obter_usuario_atual
 
 # ==============================================================================
 # 3. CONFIGURAÇÃO DA INSTÂNCIA FASTAPI
@@ -66,7 +66,7 @@ from app.security import obter_usuario_atual
 # automaticamente expostos na documentação interativa (Swagger UI / OpenAPI).
 app = FastAPI(
     title="EcoChat Marcx API",
-    description="API para sistema de atendimento inteligente do Hospital Marcx",
+    description="API omnichannel de atendimento (WhatsApp, filas, campanhas e menus interativos)",
     version="1.0.0",
     docs_url="/docs",      # URL para o Swagger UI (Documentação interativa)
     redoc_url="/redoc"     # URL para o ReDoc (Documentação alternativa)
@@ -106,38 +106,48 @@ app.add_middleware(
 # "Usuários" -> "UsuRiosService" — a translieração de acentos quebra o
 # identificador). Por isso as tags são mantidas em ASCII aqui.
 #
-# NOTA DE SEGURANÇA (protegido=True): exige um JWT válido (ver
-# app/security.py::obter_usuario_atual) — reservado às rotas que a
-# verificação em código confirmou serem usadas *apenas* pelo painel Angular
-# /admin/* (nenhuma chamada do widget de chat público nem do bot_service).
-# canais/menus/modelos-mensagem ficam de fora por enquanto: misturam leitura
-# pública (widget de chat, sem login) com escrita administrativa — proteger
-# o router inteiro quebraria o chat; ver docs/Skill sobre Autenticação.md.
+# NOTA DE SEGURANÇA:
+#   protegido=True  → JWT em todas as rotas (obter_usuario_atual)
+#   nivel_minimo    → JWT + RBAC (exigir_nivel_minimo); implica protegido
+# Routers mistos (GET público do /chat + escrita admin) ficam False/None
+# aqui; o nível da escrita é declarado no próprio endpoint.
+# webhook não usa JWT — autentica com WEBHOOK_SECRET (obrigatório).
+#
+# Hierarquia: atendente < supervisor < gerente < administrador
 ROUTERS_CONFIG: List[tuple] = [
-    (auth, "/api/auth", "Autenticacao", False),
-    (usuarios, "/api/usuarios", "Usuarios", True),
-    (departamentos, "/api/departamentos", "Departamentos", True),
-    (canais, "/api/canais", "Canais", False),
-    (conexoes, "/api/conexoes", "Conexoes", True),
-    (contatos, "/api/contatos", "Contatos", True),
-    (email, "/api/emails", "Email", True),
-    (campanhas, "/api/campanhas", "Campanhas", True),
-    (arquivos, "/api/arquivos", "Arquivos", True),
-    (ia, "/api/ia", "Inteligencia Artificial", False),
-    (mensagem, "/api/mensagem", "Mensagens", False),
-    (menus, "/api/menus", "Menus", False),
-    (modelos_mensagem, "/api/modelos-mensagem", "Modelos de Mensagem", False),
-    (atendimento, "/api/atendimento", "Atendimento", True),
-    (webhook, "/api/webhook", "Webhook", False),
-    (audio, "/api/audio", "Audio", False)
+    (auth, "/api/auth", "Autenticacao", False, None),
+    (usuarios, "/api/usuarios", "Usuarios", True, None),
+    (departamentos, "/api/departamentos", "Departamentos", True, None),
+    (canais, "/api/canais", "Canais", False, None),
+    (conexoes, "/api/conexoes", "Conexoes", True, "administrador"),
+    (contatos, "/api/contatos", "Contatos", True, "gerente"),
+    (email, "/api/emails", "Email", True, "gerente"),
+    (campanhas, "/api/campanhas", "Campanhas", True, "gerente"),
+    (arquivos, "/api/arquivos", "Arquivos", True, "atendente"),
+    (ia, "/api/ia", "Inteligencia Artificial", True, "gerente"),
+    (mensagem, "/api/mensagem", "Mensagens", True, "atendente"),
+    (menus, "/api/menus", "Menus", False, None),
+    (modelos_mensagem, "/api/modelos-mensagem", "Modelos de Mensagem", False, None),
+    (atendimento, "/api/atendimento", "Atendimento", True, "atendente"),
+    (webhook, "/api/webhook", "Webhook", False, None),
+    (audio, "/api/audio", "Audio", False, None),
 ]
 
-for router_module, prefix, tag, protegido in ROUTERS_CONFIG:
+
+def _deps_router(protegido: bool, nivel_minimo: Optional[str]):
+    if nivel_minimo:
+        return [Depends(exigir_nivel_minimo(nivel_minimo))]
+    if protegido:
+        return [Depends(obter_usuario_atual)]
+    return []
+
+
+for router_module, prefix, tag, protegido, nivel_minimo in ROUTERS_CONFIG:
     app.include_router(
         router_module.router,
         prefix=prefix,
         tags=[tag],
-        dependencies=[Depends(obter_usuario_atual)] if protegido else [],
+        dependencies=_deps_router(protegido, nivel_minimo),
     )
 
 # ==============================================================================

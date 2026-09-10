@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from app.security import exigir_nivel_minimo
 from app.services import audio_service
 
 router = APIRouter()
@@ -17,7 +18,7 @@ class GerarAudioResponse(BaseModel):
     url: str
 
 
-@router.post("/gerar", response_model=GerarAudioResponse)
+@router.post("/gerar", response_model=GerarAudioResponse, dependencies=[Depends(exigir_nivel_minimo("atendente"))])
 async def gerar_audio(body: GerarAudioRequest, request: Request):
     """
     Converte um texto (ex: conteúdo de um Memorando) em áudio MP3 via

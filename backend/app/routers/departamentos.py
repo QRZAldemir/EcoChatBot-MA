@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
+from app.security import exigir_nivel, exigir_nivel_minimo
 from app.services.departamento_service import DepartamentoService
 from app.schemas import DepartamentoCreate, DepartamentoUpdate, DepartamentoResponse
 
@@ -76,7 +77,7 @@ def buscar_departamento(departamento_id: int, db: Session = Depends(get_db)):
 # ROTAS DE ESCRITA / AÇÃO (POST, PUT, DELETE)
 # ==============================================================================
 
-@router.post("/", response_model=DepartamentoResponse, status_code=201)
+@router.post("/", response_model=DepartamentoResponse, status_code=201, dependencies=[Depends(exigir_nivel_minimo("gerente"))])
 def criar_departamento(departamento: DepartamentoCreate, db: Session = Depends(get_db)):
     """
     Cria um novo departamento no sistema.
@@ -96,7 +97,7 @@ def criar_departamento(departamento: DepartamentoCreate, db: Session = Depends(g
     return DepartamentoService.criar_departamento(db, departamento)
 
 
-@router.put("/{departamento_id}", response_model=DepartamentoResponse)
+@router.put("/{departamento_id}", response_model=DepartamentoResponse, dependencies=[Depends(exigir_nivel_minimo("gerente"))])
 def atualizar_departamento(departamento_id: int, departamento: DepartamentoUpdate, db: Session = Depends(get_db)):
     """
     Atualiza um departamento existente no sistema.
@@ -123,7 +124,7 @@ def atualizar_departamento(departamento_id: int, departamento: DepartamentoUpdat
     return depto_atualizado
 
 
-@router.delete("/{departamento_id}", status_code=204)
+@router.delete("/{departamento_id}", status_code=204, dependencies=[Depends(exigir_nivel("administrador"))])
 def deletar_departamento(departamento_id: int, db: Session = Depends(get_db)):
     """
     Deleta um departamento do sistema.

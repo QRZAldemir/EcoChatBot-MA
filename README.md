@@ -1,351 +1,326 @@
-# EcoChatBot Marcx
-### Protótipo — Hospital Presbiteriano Marcx · Dourados/MS
+# EcoChatBot-MA
+## Sistema de Atendimento Digital Configurável
+### Adaptável para qualquer segmento: saúde, comércio, serviços, indústria, instituições e mais
 
 ---
 
-## O que é o EcoChatBot
+## ÍNDICE
 
-O **EcoChatBot** é um sistema de atendimento digital configurável, desenvolvido inicialmente como protótipo para o **Hospital Presbiteriano Marcx**.
-
-A ideia central é simples: o paciente/cliente interage via **WhatsApp clicando em botões** — nunca digitando — e é automaticamente direcionado para o atendente certo conforme o canal escolhido. O atendente vê a conversa no painel **EcoChat** com todo o contexto já coletado.
-
-O sistema foi projetado para ser **configurável e reutilizável** em outros modelos de negócio no futuro.
+1. APRESENTAÇÃO
+2. CONCEITO E FLUXO DE FUNCIONAMENTO
+3. COMO FUNCIONA A CONFIGURAÇÃO
+4. ESTADO ATUAL DO PROJETO
+5. ESTRUTURA DE PASTAS E ARQUIVOS
+6. CANAIS E ROTEIROS DE ATENDIMENTO
+7. GUIA DE INSTALAÇÃO
+8. TECNOLOGIAS UTILIZADAS
+9. VARIÁVEIS DE AMBIENTE
+10. PAINEL ANALÍTICO E RELATÓRIOS
+11. EVOLUÇÃO E PERSPECTIVAS
 
 ---
 
-## Conceito Principal
+## 1. APRESENTAÇÃO
 
-```
-PACIENTE (WhatsApp)
+O **EcoChatBot-MA** é um sistema de atendimento digital inteligente e 100% configurável, projetado para servir qualquer tipo de negócio. Não é necessário programar fluxos: basta cadastrar setores, definir tipos de atendimento e criar roteiros personalizados — e o sistema estará pronto para funcionar.
+
+### Como funciona de forma simples
+O cliente entra em contato pelo WhatsApp e recebe um menu com opções. Ele toca na opção desejada sem precisar digitar nada. O sistema identifica a escolha, encaminha automaticamente para o setor e pessoa responsável, e carrega o formulário de perguntas adequado. O atendente recebe todos os dados coletados de forma organizada e conduz o atendimento com agilidade.
+
+### Diferenciais
+- Sem programação de fluxos — configure apenas cadastrando informações
+- Reutilizável para qualquer ramo de atividade
+- Inteligência artificial integrada como assistente
+- Acompanhamento em tempo real e relatórios completos
+
+---
+
+## 2. CONCEITO E FLUXO DE FUNCIONAMENTO
+
+O fluxo universal do EcoChatBot-MA funciona nesta sequência:
+
+1. Contato inicial — O cliente envia mensagem pelo WhatsApp
+2. Apresentação do menu — O sistema responde com menu de opções personalizado do negócio
+3. Escolha do tipo de atendimento — Cliente seleciona a opção desejada tocando no botão
+4. Identificação do canal — Sistema reconhece a qual tipo de atendimento corresponde aquela escolha
+5. Carregamento do roteiro — São apresentadas as perguntas e informações necessárias para aquele tipo de atendimento
+6. Encaminhamento inteligente — O sistema localiza um atendente disponível vinculado àquele canal e setor
+7. Abertura no painel — A conversa é aberta no painel web do atendente, já com todos os dados preenchidos
+8. Atendimento e conclusão — Atendente responde, interage e finaliza o atendimento
+
+Representação sequencial:
+
+CLIENTE (WhatsApp)
     │
-    │  recebe botões de menu
-    │  ex: 📞 Atendimento | 📅 Agendamento | 🚪 Portaria
+    ├─ Envia mensagem inicial
     │
-    │  CLICA em uma opção
     ▼
-WhatsApp Business API
+SISTEMA → Apresenta MENU com opções
     │
-    │  dispara webhook
+    │  Cliente SELECIONA uma opção tocando no botão
+    │
     ▼
-EcoChatBot Backend (Python FastAPI)
+WHATSAPP API → Envia a escolha ao sistema
     │
-    │  identifica o Canal pelo botão clicado
-    │  ex: "Portaria" → canal vinculado ao arquivo 7portaria-marcx.html
-    │
-    │  busca atendente disponível daquele canal
-    │  ex: João → Departamento: Recepção → Canal: Portaria
     ▼
-EcoChat Painel (Angular)
+BACKEND → Reconhece o CANAL selecionado e carrega o ROTEIRO correspondente
     │
-    │  abre atendimento para João
-    │  exibe o fluxo do canal (perguntas/respostas do HTML)
     ▼
-ATENDENTE responde
-```
+BACKEND → Localiza ATENDENTE disponível no setor responsável
+    │
+    ▼
+PAINEL WEB → Abre o atendimento com todos os dados coletados e organizados
+    │
+    ▼
+ATENDENTE → Conduz a conversa, responde ao cliente e finaliza o atendimento
 
 ---
 
-## Exemplos de Usuários Cadastrados
+## 3. COMO FUNCIONA A CONFIGURAÇÃO
 
-| Usuário   | Nível     | Departamento | Canal                    | Arquivo de Menu                       |
-|-----------|-----------|--------------|--------------------------|---------------------------------------|
-| Aldemir   | Atendente | Call-Center  | Exames-Diagnostico       | `3examesdiagnostico-marcx.html`   |
-| Ana       | Atendente | Call-Center  | Atendimento-Cliente      | `1atendimento-marcx.html`         |
-| João      | Atendente | Recepção     | Portaria                 | `7portaria-marcx.html`            |
-| Francisca | Atendente | Ouvidoria    | Ouvidoria                | `8ouvidoria-marcx.html`           |
-| Daniele   | Atendente | Call-Center  | Agendamento-Ambulatorial | `2agendamento-marcx.html`         |
+Todo o poder de adaptação do EcoChatBot-MA está em três elementos simples que você cadastra:
 
-**Regra:** Um usuário pertence a um **Departamento** e atende um **Canal**. O canal define qual fluxo de perguntas/respostas o paciente verá.
+| Elemento | O que representa | Exemplo para Loja | Exemplo para Clínica |
+|---|---|---|---|
+| DEPARTAMENTO | Setor ou equipe responsável pelo atendimento | Vendas, Financeiro, Entregas | Recepção, Consultas, Exames |
+| CANAL | Tipo de atendimento com nome visível ao cliente | Orçamento, Reclamação, Suporte | Agendamento, Retorno, Ouvidoria |
+| ROTEIRO | Arquivo com perguntas e fluxo específicos | orcamento-loja.html | agendamento-clinica.html |
 
----
-
-## Estado Atual — Protótipo
-
-Este projeto está em fase de **protótipo visual e estrutural**. Os arquivos HTML representam como cada canal de atendimento será apresentado ao paciente. O código Angular e Python FastAPI está estruturado e pronto para ser executado quando o ambiente for instalado.
-
-### O que já existe
-
-| Camada     | Status      | Descrição                                              |
-|------------|-------------|--------------------------------------------------------|
-| Protótipos | ✅ Completo | HTMLs funcionais de todos os canais                   |
-| Angular    | ✅ Estruturado | Componentes, rotas, modelos e serviços criados       |
-| FastAPI    | ✅ Estruturado | API REST completa com SQLAlchemy, DeepSeek integrado |
-| Banco      | ⏳ Pendente | PostgreSQL — aguarda instalação do ambiente           |
-| WhatsApp   | ⏳ Pendente | Aguarda conta Meta Business verificada               |
-| DeepSeek   | ⏳ Pendente | Aguarda chave de API configurada                      |
+Você altera apenas estes três elementos e o sistema se adapta ao seu negócio. Sem precisar mudar nenhum código de programação.
 
 ---
 
-## Estrutura de Arquivos
+## 4. ESTADO ATUAL DO PROJETO
 
-```
-EcoChatMackenize/
+| Componente | Situação | Detalhe |
+|---|---|---|
+| Estrutura de roteiros | Pronto | Estrutura genérica pronta para personalização |
+| Painel Web em Angular | Estruturado | Telas de administração, atendimento e relatórios |
+| API Backend em FastAPI | Estruturado | Endpoints, regras de negócio e integrações |
+| Banco de Dados PostgreSQL | Pendente | Aguardando instalação e configuração |
+| Integração com WhatsApp | Pendente | Aguardando credenciais de API |
+| Inteligência Artificial | Pendente | Aguardando configuração de chave de acesso |
+
+---
+
+## 5. ESTRUTURA DE PASTAS E ARQUIVOS
+
+EcoChatBot-MA/
 │
-├── prototipos/                         ← HTMLs originais (referência visual)
-│   ├── hub_Menu.html                   Menu principal apresentado ao paciente
-│   ├── 1atendimento-marcx.html     Canal: Atendimento ao Cliente
-│   ├── 2agendamento-marcx.html     Canal: Agendamento Ambulatorial
-│   ├── 3examesdiagnostico-marcx.html Canal: Exames e Diagnósticos
-│   ├── 7portaria-marcx.html        Canal: Portaria e Recepção
-│   ├── 8ouvidoria-marcx.html       Canal: Ouvidoria
-│   ├── EcoChatMarcxVs.html         Painel do atendente (protótipo completo)
-│   ├── dashboard_eco.html              Dashboard de análise
-│   ├── cadastro-usuarios.html          Tela de cadastro (protótipo)
-│   └── Painel_Escalas_Marcx.html   Gestão de escalas médicas
+├── roteiros/
+│   ├── hub_Menu.html
+│   ├── atendimento.html
+│   ├── agendamento.html
+│   ├── informacoes.html
+│   ├── financeiro.html
+│   ├── suporte.html
+│   └── personalize conforme a necessidade do negócio
 │
-├── frontend/                           ← Angular 17 (interface web)
+├── frontend/
 │   └── src/
-│       ├── main.ts                     Ponto de entrada da aplicação
-│       ├── index.html                  HTML raiz
+│       ├── main.ts
+│       ├── index.html
 │       └── app/
-│           ├── app.component.ts        Componente raiz
-│           ├── app.routes.ts           Rotas da aplicação
+│           ├── app.component.ts
+│           ├── app.routes.ts
 │           ├── core/
-│           │   ├── models/             Interfaces TypeScript
+│           │   ├── models/
 │           │   │   ├── usuario.model.ts
 │           │   │   ├── departamento.model.ts
-│           │   │   ├── canal.model.ts          ← canal tem arquivoMenu (= questionário)
+│           │   │   ├── canal.model.ts
 │           │   │   └── nivel-usuario.model.ts
-│           │   └── services/           Comunicação com a API backend
+│           │   └── services/
 │           │       ├── usuario.service.ts
 │           │       ├── departamento.service.ts
 │           │       ├── canal.service.ts
-│           │       └── deepseek.service.ts
+│           │       └── ia.service.ts
 │           ├── pages/
-│           │   ├── admin/              Área administrativa
-│           │   │   ├── dashboard/      Tela inicial com atalhos
-│           │   │   ├── usuarios/       CRUD de usuários (agrupado por departamento)
-│           │   │   ├── departamentos/  CRUD de departamentos
-│           │   │   ├── canais/         CRUD de canais + vínculo com arquivo HTML
-│           │   │   ├── niveis/         Níveis de acesso e permissões
-│           │   │   ├── escalas/        Painel de escalas (carrega HTML em iframe)
-│           │   │   └── relatorio/      Relatórios de atendimento
-│           │   └── chat/               Área do cliente/paciente
-│           │       ├── hub-menu/       Menu de opções (paciente CLICA, não digita)
-│           │       └── atendimento/    Carrega o HTML do canal em iframe
+│           │   ├── admin/
+│           │   │   ├── dashboard/
+│           │   │   ├── usuarios/
+│           │   │   ├── departamentos/
+│           │   │   ├── canais/
+│           │   │   ├── niveis/
+│           │   │   ├── horarios/
+│           │   │   └── relatorios/
+│           │   └── atendimento/
+│           │       ├── menu/
+│           │       └── conversa/
 │           └── shared/
-│               └── components/layout/ Sidebar + topbar do painel admin
+│               └── components/layout/
 │
-├── backend/                             ← Python 3.12 + FastAPI
-│   ├── requirements.txt                 Dependências Python
-│   ├── .env                             Variáveis de ambiente
-│   ├── init_db.py / seed_data.py        Inicialização e dados de seed do banco
-│   ├── run_migrations.py                Executor das migrações SQL
-│   ├── export_openapi.py                Exporta o schema OpenAPI (usado pelo codegen do Angular)
-│   ├── migrations/                      Migrações SQL versionadas
+├── backend/
+│   ├── requirements.txt
+│   ├── .env.example
+│   ├── init_db.py
+│   ├── seed_data.py
+│   ├── run_migrations.py
+│   ├── export_openapi.py
+│   ├── migrations/
 │   └── app/
-│       ├── main.py                      Ponto de entrada da API FastAPI (docs em /docs e /redoc)
-│       ├── database.py                  Configuração SQLAlchemy
-│       ├── models/                      Modelos ORM (entities.py)
-│       ├── schemas/                     Schemas Pydantic (validação e DTOs)
-│       ├── services/                    Regras de negócio
-│       │   ├── usuario_service.py, departamento_service.py, canal_service.py
-│       │   ├── atendimento_service.py, menu_service.py, modelo_mensagem_service.py
-│       │   ├── bot_service.py           Lógica do fluxo conversacional do bot
-│       │   ├── deepseek_service.py      Integração com IA DeepSeek
-│       │   ├── evolution_service.py     Integração com WhatsApp (Evolution API)
-│       │   └── audio_service.py         Texto → fala (gTTS)
-│       └── routers/                     Endpoints REST (um por domínio)
-│           ├── auth.py, usuarios.py, departamentos.py, canais.py
-│           ├── ia.py, mensagem.py, menus.py, modelos_mensagem.py
-│           └── atendimento.py, webhook.py, audio.py
-
-└── docs/
-    └── arquitetura.md                  Documentação técnica detalhada
-```
-
----
-
-## Canais de Atendimento
-
-Cada canal é uma entidade cadastrada no sistema que aponta para um arquivo HTML de menu:
-
-| Canal                    | Arquivo HTML                          | Fluxo Principal                                      |
-|--------------------------|---------------------------------------|------------------------------------------------------|
-| Atendimento-Cliente      | `1atendimento-marcx.html`         | Guia de pacientes, 2ª via de documentos, contato    |
-| Agendamento-Ambulatorial | `2agendamento-marcx.html`         | Marcar, confirmar, remarcar, cancelar consultas     |
-| Exames-Diagnostico       | `3examesdiagnostico-marcx.html`   | Agendar exames, resultados, orçamentos, preparo     |
-| Portaria                 | `7portaria-marcx.html`            | Visitas, estacionamento, achados/perdidos, PS       |
-| Ouvidoria                | `8ouvidoria-marcx.html`           | Reclamação, elogio, sugestão, denúncia, prontuário |
-
-O **nome do canal** determina qual botão aparece no WhatsApp para o paciente.
-O **arquivo HTML** define o roteiro completo de perguntas e respostas daquele canal.
+│       ├── main.py
+│       ├── database.py
+│       ├── models/
+│       ├── schemas/
+│       ├── services/
+│       │   ├── usuario_service.py
+│       │   ├── departamento_service.py
+│       │   ├── canal_service.py
+│       │   ├── atendimento_service.py
+│       │   ├── roteiro_service.py
+│       │   ├── bot_service.py
+│       │   ├── ia_service.py
+│       │   ├── whatsapp_service.py
+│       │   └── audio_service.py
+│       └── routers/
+│           ├── auth.py
+│           ├── usuarios.py
+│           ├── departamentos.py
+│           ├── canais.py
+│           ├── atendimento.py
+│           ├── webhook.py
+│           ├── ia.py
+│           ├── mensagens.py
+│           ├── roteiros.py
+│           └── audio.py
+│
+├── docs/
+│   ├── arquitetura.md
+│   ├── guia-configuracao.md
+│   └── modelos-de-negocio.md
+│
+└── painel-analitico/
+    └── dashboard.html
 
 ---
 
-## Fluxo de Desenvolvimento — Próximas Etapas
+## 6. CANAIS E ROTEIROS DE ATENDIMENTO
 
-```
-ETAPA 1 — Ambiente (quando decidir rodar)
-  │  sudo apt install python3 python3-pip python3-venv nodejs npm postgresql
-  │  pip3 install virtualenv
+Você define seus próprios canais conforme a necessidade do seu negócio. Abaixo exemplos de estrutura:
 
-ETAPA 2 — Banco de dados
-  │  createdb ecochat_marcx
-  │  cd backend && python3 -m venv venv
-  │  source venv/bin/activate  # Linux/Mac
-  │  pip install -r requirements.txt
-  │  cp .env.example .env  # Configurar variáveis
-  │  python3 init_db.py  # Inicializa banco com dados seed
+| Canal de Atendimento | Roteiro Vinculado | Objetivo do Fluxo |
+|---|---|---|
+| Atendimento Geral | atendimento.html | Informações gerais, dúvidas e contato |
+| Agendamento ou Reserva | agendamento.html | Marcar, confirmar, remarcar ou cancelar |
+| Pedidos e Orçamentos | pedidos.html | Solicitar valores, condições e prazos |
+| Financeiro | financeiro.html | Emissão de documentos, pagamento e negociação |
+| Suporte Técnico | suporte.html | Resolução de problemas e dúvidas técnicas |
+| Ouvidoria e Feedback | ouvidoria.html | Reclamações, elogios e sugestões |
 
-ETAPA 3 — Backend FastAPI
-  │  cd backend
-  │  uvicorn app.main:app --reload --port 8000
-  │  Acesso API: http://localhost:8000
-  │  Docs Swagger: http://localhost:8000/docs
-
-ETAPA 4 — Frontend Angular
-  │  cd frontend && npm install
-  │  npm run generate:api   # gera o cliente TS a partir do OpenAPI do backend
-  │  ng serve
-  │  Acesso: http://localhost:4200
-
-ETAPA 5 — WhatsApp Business API
-  │  Criar conta em developers.facebook.com
-  │  Configurar webhook: https://seu-servidor/api/whatsapp/webhook
-  │  Definir WHATSAPP_PHONE_ID, WHATSAPP_TOKEN, WHATSAPP_VERIFY_TOKEN no .env
-
-ETAPA 6 — DeepSeek IA
-  │  Obter chave em platform.deepseek.com
-  │  Configurar DEEPSEEK_API_KEY no arquivo .env
-
-ETAPA 7 — Futuro (multi-negócio)
-     Tornar o sistema multi-tenant (cada cliente tem seus canais/departamentos)
-     Integração com Chatwoot (webhook bidirecional)
-     Builder visual de questionários por canal
-```
+Para adaptar ao seu negócio: crie o roteiro HTML com suas perguntas e cadastre o canal com o nome que desejar. Nenhuma alteração no código é necessária.
 
 ---
 
-## Tecnologias Utilizadas
+## 7. GUIA DE INSTALAÇÃO
 
-| Camada     | Tecnologia            | Versão   | Motivo                                      |
-|------------|-----------------------|----------|---------------------------------------------|
-| Frontend   | Angular               | 17       | Componentes standalone, lazy loading        |
-| Linguagem  | TypeScript            | 5.4      | Tipagem forte nos modelos                   |
-| Estilo     | CSS puro + DM Sans    | —        | Mesmo padrão visual dos protótipos HTML     |
-| Backend    | **FastAPI**           | 0.109+   | **Alta performance, async, Python moderno** |
-| Linguagem  | **Python**            | 3.10+    | **Fácil manutenção, ecossistema rico**      |
-| ORM        | **SQLAlchemy**        | 2.0+     | **ORM poderoso e flexível**                 |
-| Validação  | **Pydantic**          | 2.5+     | **Validação automática de dados**           |
-| Servidor   | **Uvicorn**           | 0.27+    | **ASGI server rápido**                      |
-| Banco      | PostgreSQL            | 15+      | Relacional, confiável, LGPD-friendly        |
-| IA         | DeepSeek Chat API     | —        | Custo menor que GPT, boa qualidade em PT-BR |
-| Mensageria | WhatsApp Business API | v19.0    | Canal já usado pelos pacientes              |
+Passo 1 — Preparar o ambiente
+- Instalar Python versão 3.10 ou superior, Node.js e PostgreSQL
+- Criar banco de dados com o nome ecochatbot_ma
+
+Passo 2 — Instalar e configurar o Backend
+- Acessar a pasta backend pelo terminal
+- Criar ambiente virtual: python3 -m venv venv
+- Ativar o ambiente virtual: source venv/bin/activate
+- Instalar dependências: pip install -r requirements.txt
+- Copiar arquivo de exemplo: cp .env.example .env
+- Editar o arquivo .env com suas credenciais e configurações
+- Criar estrutura do banco: python3 init_db.py
+- Carregar dados padrão: python3 seed_data.py
+- Iniciar a API: uvicorn app.main:app --reload --port 8000
+- A API estará acessível em http://localhost:8000 e a documentação em http://localhost:8000/docs
+
+Passo 3 — Instalar e configurar o Frontend
+- Acessar a pasta frontend pelo terminal
+- Instalar pacotes: npm install
+- Gerar cliente de API: npm run generate:api
+- Iniciar o painel: ng serve
+- O painel estará acessível em http://localhost:4200
+
+Passo 4 — Configurar integração com WhatsApp
+- Obter credenciais na plataforma oficial da Meta ou na Evolution API
+- Preencher os dados no arquivo .env com os códigos e tokens recebidos
+- Cadastrar o endereço do webhook fornecido pelo sistema
+
+Passo 5 — Ativar Inteligência Artificial
+- Obter chave de acesso na plataforma de inteligência artificial escolhida
+- Registrar a chave no arquivo de variáveis de ambiente
+
+Passo 6 — Adaptar o sistema ao seu negócio
+1. Cadastrar os Departamentos correspondentes ao seu negócio
+2. Cadastrar os Canais de atendimento vinculando aos respectivos roteiros
+3. Criar ou ajustar os arquivos HTML dos roteiros com suas perguntas
+4. Vincular cada atendente ao canal e departamento correspondente
+5. Definir os horários de atendimento por departamento
 
 ---
 
-## Variáveis de Ambiente Necessárias
+## 8. TECNOLOGIAS UTILIZADAS
 
-Crie um arquivo `.env` na pasta `backend/` com as seguintes variáveis:
+| Camada do Sistema | Tecnologia Empregada | Versão | Motivo da Escolha |
+|---|---|---|---|
+| Painel Web | Angular | 17 | Estruturado, moderno e de alta performance |
+| Linguagem Frontend | TypeScript | 5.4 | Maior segurança e produtividade no desenvolvimento |
+| Estilização | CSS personalizável | Livre | Permite aplicar a identidade visual do cliente |
+| API Backend | FastAPI | 0.109+ | Alta velocidade, operações assíncronas e documentação automática |
+| Linguagem Backend | Python | 3.10+ | Simplicidade de manutenção e ampla integração com inteligência artificial |
+| Gerenciamento de Dados | SQLAlchemy | 2.0 | Modelagem robusta e independente do banco de dados |
+| Validação de Informações | Pydantic | 2.5 | Garante consistência e qualidade dos dados recebidos |
+| Banco de Dados | PostgreSQL | 15+ | Banco relacional mais confiável, seguro e escalável disponível |
+| Inteligência Artificial | API configurável pelo usuário | Variável | Funciona com diferentes plataformas conforme preferência |
+| Mensagens Instantâneas | WhatsApp API ou Evolution API | Variável | Integração com o canal de comunicação mais utilizado no Brasil |
 
-```bash
-# Database
-DATABASE_URL=postgresql://ecochat:ecochat123@localhost:5432/ecochat_marcx
+---
 
-# DeepSeek AI
-DEEPSEEK_API_KEY=sk-sua-chave-aqui
-DEEPSEEK_MODEL=deepseek-chat
+## 9. VARIÁVEIS DE AMBIENTE
 
-# WhatsApp Business API (configurar quando integrar)
-WHATSAPP_PHONE_ID=seu_phone_id
-WHATSAPP_TOKEN=seu_token_whatsapp
-WHATSAPP_VERIFY_TOKEN=seu_verify_token
+Conteúdo do arquivo backend/.env que deverá ser preenchido com suas informações:
 
-# JWT (para autenticação futura)
-SECRET_KEY=sua-chave-secreta-mude-em-producao
+DATABASE_URL=endereco_do_banco_de_dados_com_usuario_e_senha
+IA_API_KEY=chave_de_acesso_da_inteligencia_artificial
+IA_MODELO=nome_do_modelo_de_ia_desejado
+WHATSAPP_PHONE_ID=numero_ou_identificador_recebido_na_api
+WHATSAPP_TOKEN=token_de_acesso_da_api_do_whatsapp
+WHATSAPP_VERIFY_TOKEN=codigo_secreto_para_verificacao_do_webhook
+SECRET_KEY=chave_aleatoria_e_secreta_para_seguranca_do_sistema
 ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-```
-
-Ou copie o exemplo:
-```bash
-cd backend
-cp .env.example .env
-# Edite o arquivo .env com suas configurações
-```
+ACCESS_TOKEN_EXPIRE_MINUTES=60
 
 ---
 
-## Sobre o Projeto
+## 10. PAINEL ANALÍTICO E RELATÓRIOS
 
-- **Cliente:** Hospital Presbiteriano Marcx — Dourados/MS
-- **Propósito atual:** Protótipo funcional para demonstração
-- **Visão futura:** Ecossistema de chat configurável para qualquer modelo de negócio
-- **Diferenciais:** Paciente clica nos botões (não digita), atendente recebe contexto completo, IA responde automaticamente quando necessário
+O painel analítico lê os dados armazenados e apresenta as seguintes informações:
+
+Situações de Atendimento:
+- Aguardando: cliente iniciou o contato mas ainda não possui atendente designado
+- Em Andamento: atendente foi designado e está conduzindo a conversa
+- Finalizado: atendimento foi concluído e encerrado oficialmente
+
+Alertas e Observações:
+- Horário de atendimento configurável individualmente por departamento
+- Alerta de Fora do Expediente: atendimento recebido fora do horário definido
+- Alerta de Sem Roteamento: atendimento aberto sem ter sido identificado claramente o canal
+- Alerta de Pendência Prolongada: atendimento aberto há mais de 24 horas sem conclusão
+- Alerta de Sem Responsável: atendimento existe mas não possui vínculo com departamento nem atendente
+
+Motivos mais comuns em que o atendimento não é roteado automaticamente:
+1. Mensagem recebida fora do horário de funcionamento definido
+2. Cliente não conseguiu ou não selecionou claramente uma opção de canal
+
+Relatórios Disponíveis:
+- Resumo de volume de atendimentos por departamento e por canal
+- Taxa de conclusão e tempo médio de duração dos atendimentos
+- Pontos de atenção e sugestões de melhoria nos processos de atendimento
+- Datas e períodos apresentados no formato brasileiro dia, mês e ano
 
 ---
 
-## Dashboard Analítico — `dashboard_eco.html`
+## 11. EVOLUÇÃO E PERSPECTIVAS
 
-O dashboard importa planilhas exportadas do **EcoChat/ZigChat** e gera análises visuais interativas, além de um **Relatório Analítico** em HTML pronto para impressão ou envio.
+Versão Atual: Sistema completamente configurável por meio de cadastros. Basta informar setores, canais e roteiros para adaptar a qualquer tipo de negócio sem programação.
 
-### Planilhas suportadas
-
-| Arquivo | Conteúdo |
-|---|---|
-| `REL_ATENDIMENTO.xlsx` | Histórico completo de atendimentos (Protocolo, Criação, Finalização, Atendente/Usuário, etc.) |
-| `RELATORIO_CAPTACAO.xlsx` | Avaliações NPS dos clientes (Nota, Departamento, Data) |
-| `Auditoria.xlsx` | Log de ações dos usuários no sistema |
-
-### Regras de Negócio — Campo `Finalização`
-
-O campo `Finalização` da planilha `REL_ATENDIMENTO` possui dois estados:
-
-| Valor no campo | Significado |
-|---|---|
-| `"Não finalizado"` | Atendimento **aberto** (em andamento) |
-| Data (ex: `21/04/2026 14:32`) | Atendimento **finalizado** com sucesso |
-
-### Lógica dos Cards de Status
-
-| Card | Regra de cálculo |
-|---|---|
-| **Total** | Todos os registros no período/filtro selecionado |
-| **Aguardando Atendimento** | `Finalização = "Não finalizado"` **e** `Atendente/Usuário` **vazio** — nenhum atendente designado ainda |
-| **Em Atendimento** | `Finalização = "Não finalizado"` **e** `Atendente/Usuário` **preenchido** — atendente designado, mas cliente aguarda (atendente pode estar ocupado com outro) |
-| **Finalizados** | `Finalização` contém uma data válida |
-
-> **Regra**: `Total = Aguardando Atendimento + Em Atendimento + Finalizados`
-
-### Expediente de Atendimento
-
-- **Horário:** 07:00 às 18:00
-- **Dias:** Segunda a Domingo (todos os dias)
-
-### Alertas de Operação Identificados
-
-O dashboard detecta automaticamente 4 situações de alerta:
-
-| Alerta | Critério de detecção |
-|---|---|
-| 🌙 **Fora do Expediente** | `hora(Criação) < 7` ou `hora(Criação) >= 18` — bot pode não rotear fora do horário |
-| 🤖 **Sem Roteamento do Bot** | Aberto + sem atendente + sem departamento — cliente provavelmente só disse "oi" e o bot não identificou a intenção |
-| ⏳ **Abertos há +24h** | `Finalização = "Não finalizado"` e criado há mais de 24 horas |
-| 📋 **Sem Departamento** | Campo `Atendente/Usuário` vazio — ticket sem destino definido |
-
-### Por que o bot não entrega alguns atendimentos?
-
-**Causa 1 — Fora do expediente**
-Tickets criados antes das 07h ou após as 18h. O fluxo do bot não está configurado para esse horário e o ticket fica aberto sem roteamento.
-
-**Causa 2 — Interação mínima (cliente só diz "oi")**
-O bot não consegue identificar a intenção do cliente e não roteia para nenhum departamento. Esses tickets ficam com `Atendente/Usuário` vazio e sem departamento, acumulando na fila sem resolução.
-
-### Relatório Analítico Gerado
-
-Ao clicar em **"Gerar Relatório Analítico"**, o sistema:
-
-1. Abre um **modal de filtros** com prévia comparativa (Dia Atual × Dia Anterior)
-2. Detecta automaticamente o período com dados e pré-preenche as datas
-3. Gera sugestões de análise com base na variação dos indicadores
-4. Exporta um arquivo `.html` com:
-   - Tabela de atendimentos por departamento com taxa de finalização colorida (🟢 ≥70% / 🟡 ≥40% / 🔴 <40%)
-   - Blocos de alertas operacionais
-   - Análise de avaliações NPS (se importado)
-   - Registros de auditoria (se importado)
-   - Dados de telefonia/bilhetagem (se importado)
-
-### Filtros de Data — Formato Brasileiro
-
-Todos os campos de data do dashboard utilizam o formato **DD/MM/AAAA** com máscara automática ao digitar.
+Próximas Etapas de Evolução Prevista:
+- Implementar suporte a Multi-Empresa ou Multi-Tenant para que uma instalação atenda vários negócios ao mesmo tempo
+- Desenvolver Construtor Visual de Roteiros permitindo criar fluxos de atendimento sem precisar editar arquivos HTML
+- Disponibilizar Integrações Prontas com sistemas de pagamento, agendas, ERPs e plataformas de comércio eletrônico
+- Aprimorar a Inteligência Artificial para aprender com o próprio histórico de atendimentos e responder de forma autônoma e personalizada

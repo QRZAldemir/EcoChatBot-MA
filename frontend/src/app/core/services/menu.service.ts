@@ -25,27 +25,14 @@ export class MenuService {
     return this.http.post<Menu>(this.api, this._serializar(dto)).pipe(map(m => this._normalizar(m)));
   }
 
+  // Envia o array de opções junto (com "id" nas que já existiam); o backend
+  // resolve criação/atualização/remoção das opções na mesma transação do menu.
   atualizar(id: number, dto: Partial<Menu>): Observable<Menu> {
-    const { opcoes, ...campos } = this._serializar(dto);
-    return this.http.put<Menu>(`${this.api}/${id}`, campos).pipe(map(m => this._normalizar(m)));
+    return this.http.put<Menu>(`${this.api}/${id}`, this._serializar(dto)).pipe(map(m => this._normalizar(m)));
   }
 
   deletar(id: number): Observable<void> {
     return this.http.delete<void>(`${this.api}/${id}`);
-  }
-
-  // ── Opções (mensagem já criada — MenuUpdate não aceita array de opções) ──
-
-  adicionarOpcao(menuId: number, opcao: Partial<MenuOpcao>): Observable<MenuOpcao> {
-    return this.http.post<MenuOpcao>(`${this.api}/${menuId}/opcoes`, this._serializarOpcao(opcao));
-  }
-
-  atualizarOpcao(opcaoId: number, opcao: Partial<MenuOpcao>): Observable<MenuOpcao> {
-    return this.http.put<MenuOpcao>(`${this.api}/opcoes/${opcaoId}`, this._serializarOpcao(opcao));
-  }
-
-  deletarOpcao(opcaoId: number): Observable<void> {
-    return this.http.delete<void>(`${this.api}/opcoes/${opcaoId}`);
   }
 
   private _normalizar(raw: any): Menu {
@@ -53,6 +40,8 @@ export class MenuService {
       ...raw,
       textoBotao: raw.texto_botao ?? raw.textoBotao,
       canalId: raw.canal_id ?? raw.canalId,
+      usuarioVinculadoId: raw.usuario_vinculado_id ?? raw.usuarioVinculadoId,
+      usuarioVinculadoNome: raw.usuario_vinculado_nome ?? raw.usuarioVinculadoNome,
       criadoEm: raw.criado_em ?? raw.criadoEm,
       opcoes: (raw.opcoes ?? []).map((o: any) => ({
         ...o,
@@ -63,11 +52,12 @@ export class MenuService {
   }
 
   private _serializar(dto: Partial<Menu>): Record<string, unknown> {
-    const { textoBotao, canalId, criadoEm, opcoes, ...rest } = dto as any;
+    const { textoBotao, canalId, usuarioVinculadoId, usuarioVinculadoNome, criadoEm, opcoes, ...rest } = dto as any;
     return {
       ...rest,
       ...(textoBotao !== undefined && { texto_botao: textoBotao }),
       ...(canalId !== undefined && { canal_id: canalId }),
+      ...(usuarioVinculadoId !== undefined && { usuario_vinculado_id: usuarioVinculadoId }),
       ...(opcoes !== undefined && { opcoes: (opcoes as MenuOpcao[]).map(o => this._serializarOpcao(o)) }),
     };
   }

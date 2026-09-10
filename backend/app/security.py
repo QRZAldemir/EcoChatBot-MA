@@ -24,10 +24,14 @@ from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
 from app.models import TokenRevogado, Usuario
+
+# Hierarquia de acesso (menor → maior). `exigir_nivel_minimo("gerente")`
+# aceita gerente e administrador; `exigir_nivel("administrador")` é exato.
+NIVEIS_HIERARQUIA = ("atendente", "supervisor", "gerente", "administrador")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "")
 if not SECRET_KEY:
@@ -86,8 +90,49 @@ def obter_usuario_atual(
     if usuario_id is None:
         raise _ERRO_NAO_AUTENTICADO
 
-    usuario = db.query(Usuario).filter(Usuario.id == int(usuario_id)).first()
+    usuario = (
+        db.query(Usuario)
+        .options(joinedload(Usuario.nivel))
+        .filter(Usuario.id == int(usuario_id))
+        .first()
+    )
     if not usuario or not usuario.ativo:
         raise _ERRO_NAO_AUTENTICADO
 
     return usuario
+
+
+def _nome_nivel(usuario: Usuario) -> str:
+    nome = usuario.nivel.nome if usuario.nivel else ""
+    return (nome or "").strip().lower()
+
+
+def exigir_nivel(*niveis: str):
+    """Dependency: o usuário autenticado precisa ter um dos níveis (nome exato).
+
+    Uso: `dependencies=[Depends(exigir_nivel("administrador"))]`
+    ou `usuario: Usuario = Depends(exigir_nivel("gerente", "administrador"))`.
+    """
+    if not niveis:
+        raise ValueError("exigir_nivel() precisa de ao menos um nível")
+    permitidos = {n.strip().lower() for n in niveis}
+
+    def _verificador(usuario: Usuario = Depends(obter_usuario_atual)) -> Usuario:
+        if _nome_nivel(usuario) not in permitidos:
+            raise HTTPException(status_code=403, detail="Privilégio insuficiente.")
+        return usuario
+
+    return _verificador
+
+
+def exigir_nivel_minimo(nivel: str):
+    """Dependency: o nível informado ou qualquer um acima na hierarquia.
+
+    atendente < supervisor < gerente < administrador
+    """
+    chave = nivel.strip().lower()
+    try:
+        idx = NIVEIS_HIERARQUIA.index(chave)
+    except ValueError as exc:
+        raise ValueError(f"Nível desconhecido: {nivel}") from exc
+    return exigir_nivel(*NIVEIS_HIERARQUIA[idx:])

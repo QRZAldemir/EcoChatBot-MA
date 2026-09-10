@@ -10,10 +10,11 @@ Configuração na Evolution API (para cada instância):
     URL:    https://seu-dominio.com/api/webhook/{instance}
     Events: MESSAGES_UPSERT, MESSAGES_UPDATE, CONNECTION_UPDATE
 
-Retorna 200 imediatamente em todos os casos.
+Retorna 200 imediatamente após autenticar (WEBHOOK_SECRET obrigatório).
 O processamento da mensagem ocorre em background para não travar o webhook.
 """
 
+import hmac
 import logging
 import os
 import time
@@ -29,8 +30,8 @@ WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
 
 if not WEBHOOK_SECRET:
     logger.warning(
-        "webhook | WEBHOOK_SECRET não configurado — o endpoint aceitará "
-        "eventos de qualquer origem sem validação de assinatura."
+        "webhook | WEBHOOK_SECRET não configurado — POST /api/webhook/* "
+        "será recusado até a variável ser definida no .env."
     )
 
 # ── Deduplicação de entregas repetidas ────────────────────────
@@ -192,18 +193,20 @@ async def evolution_webhook(
     Todo o processamento pesado (DB + chamadas à Evolution) acontece
     em background, garantindo retorno imediato.
 
-    Segurança: se WEBHOOK_SECRET estiver configurado no .env, valida o
-    header 'apikey' ou 'authorization' enviado pela Evolution API.
+    Segurança: WEBHOOK_SECRET é obrigatório. Valida o header 'apikey'
+    ou 'authorization' enviado pela Evolution API.
     """
-    # Validação do secret (quando configurado)
-    if WEBHOOK_SECRET:
-        token = (
-            request.headers.get("apikey")
-            or request.headers.get("authorization", "").removeprefix("Bearer ")
-        )
-        if token != WEBHOOK_SECRET:
-            logger.warning("webhook | instancia=%s | token inválido", instance)
-            raise HTTPException(status_code=401, detail="Unauthorized")
+    if not WEBHOOK_SECRET:
+        logger.error("webhook | instancia=%s | WEBHOOK_SECRET ausente", instance)
+        raise HTTPException(status_code=503, detail="Webhook não configurado")
+
+    token = (
+        request.headers.get("apikey")
+        or request.headers.get("authorization", "").removeprefix("Bearer ")
+    )
+    if not hmac.compare_digest(token or "", WEBHOOK_SECRET):
+        logger.warning("webhook | instancia=%s | token inválido", instance)
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     try:
         payload = await request.json()

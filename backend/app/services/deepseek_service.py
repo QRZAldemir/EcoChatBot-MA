@@ -16,7 +16,8 @@ class DeepSeekService:
         system_message = {
             "role": "system",
             "content": (
-                f"Você é um assistente virtual do Hospital Marcx atendendo pelo canal '{canal}'. "
+                f"Você é um assistente virtual de {os.getenv('EMPRESA_NOME', 'EcoChat Marcx')} "
+                f"atendendo pelo canal '{canal}'. "
                 "Seja profissional, empático e objetivo nas respostas. "
                 "Responda sempre em português do Brasil."
             )
@@ -47,8 +48,8 @@ class DeepSeekService:
     async def responder_opcao(self, opcao: str, canal: str, contexto: str = "") -> Dict:
         prompt = (
             f"Canal: {canal}\n"
-            f"Opção selecionada pelo paciente: {opcao}\n"
+            f"Opção selecionada pelo cliente: {opcao}\n"
             f"Contexto adicional: {contexto}\n\n"
-            "Gere uma resposta apropriada e profissional para esta opção no contexto do Hospital Marcx."
+            f"Gere uma resposta apropriada e profissional para esta opção no contexto de {os.getenv('EMPRESA_NOME', 'EcoChat Marcx')}."
         )
         return await self.conversar([{"role": "user", "content": prompt}], canal)

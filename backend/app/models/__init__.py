@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -89,7 +91,7 @@ class Canal(Base):
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String(100), unique=True, nullable=False)
     descricao = Column(String(300))
-    arquivo_menu = Column(String(200), nullable=False)  # Ex: 7portaria-ma.html
+    arquivo_menu = Column(String(200), nullable=False, default="")  # legado; o fluxo vem do cadastro de Menu
     departamento_id = Column(Integer, ForeignKey("departamentos.id"))
     ativo = Column(Boolean, default=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
@@ -108,6 +110,7 @@ class MenuOpcao(Base):
     descricao = Column(String(300))
     row_id = Column(String(50), nullable=False)
     ordem = Column(Integer, default=0)
+    cor = Column(String(20), default="verde")  # verde | azul | vermelho | amarelo | roxo | cinza
 
     menu = relationship("Menu", back_populates="opcoes")
 
@@ -118,14 +121,21 @@ class Menu(Base):
     id = Column(Integer, primary_key=True, index=True)
     titulo = Column(String(100), nullable=False)
     descricao = Column(String(300))
+    cabecalho = Column(String(60))
     rodape = Column(String(100))
     texto_botao = Column(String(50), default="Ver opções")
     canal_id = Column(Integer, ForeignKey("canais.id"))
+    usuario_vinculado_id = Column(Integer, ForeignKey("usuarios.id"))
     ativo = Column(Boolean, default=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
 
-    opcoes = relationship("MenuOpcao", back_populates="menu", order_by="MenuOpcao.ordem")
+    opcoes = relationship("MenuOpcao", back_populates="menu", order_by="MenuOpcao.ordem", cascade="all, delete-orphan")
     canal = relationship("Canal", back_populates="menus")
+    usuario_vinculado = relationship("Usuario")
+
+    @property
+    def usuario_vinculado_nome(self) -> Optional[str]:
+        return self.usuario_vinculado.nome if self.usuario_vinculado else None
 
 
 class ModeloMensagem(Base):

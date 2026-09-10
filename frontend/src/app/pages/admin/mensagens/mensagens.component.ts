@@ -1,18 +1,19 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-import { Observable, forkJoin } from 'rxjs';
+import { forkJoin } from 'rxjs';
 
 import { ModeloMensagem } from '../../../core/models/modelo-mensagem.model';
-import { Menu, MenuOpcao } from '../../../core/models/menu.model';
+import { Menu, MenuOpcao, CorOpcao, CORES_OPCAO } from '../../../core/models/menu.model';
 import { Departamento } from '../../../core/models/departamento.model';
 import { Canal } from '../../../core/models/canal.model';
+import { Usuario } from '../../../core/models/usuario.model';
 import { ModeloMensagemService } from '../../../core/services/modelo-mensagem.service';
 import { MenuService } from '../../../core/services/menu.service';
 import { DepartamentoService } from '../../../core/services/departamento.service';
 import { CanalService } from '../../../core/services/canal.service';
-import { environment } from '../../../../environments/environment';
+import { UsuarioService } from '../../../core/services/usuario.service';
+import { AudioService } from '../../../core/services/audio.service';
 import { trackById } from '../../../core/utils/track-by';
 
 type TipoMensagem = 'Padrão' | 'Interativa';
@@ -38,6 +39,8 @@ export class MensagensComponent implements OnInit {
   linhas: MensagemRow[] = [];
   departamentos: Departamento[] = [];
   canais: Canal[] = [];
+  usuarios: Usuario[] = [];
+  readonly cores = CORES_OPCAO;
 
   filtroDescricao = '';
   filtroTipo: 'Todos' | TipoMensagem = 'Todos';
@@ -50,22 +53,27 @@ export class MensagensComponent implements OnInit {
   gerandoAudio = false;
 
   formInterativa: Partial<Menu> = {};
-  opcoesRemovidas: number[] = [];
-  novaOpcao: Partial<MenuOpcao> = { titulo: '', rowId: '' };
+  novaOpcao: Partial<MenuOpcao> = { titulo: '', rowId: '', cor: 'verde' };
   destinoCanalId: number | null = null;
+  departamentoFiltroId: number | null = null;
 
   alerta: { tipo: 'sucesso' | 'erro'; msg: string } | null = null;
+
+  readonly emojis = ['😊', '👍', '🙏', '✅', '📅', '📞', '💬', '⏰', '📍', '🎉'];
+  emojiAbertoPara: 'padrao' | 'interativa' | null = null;
 
   constructor(
     private modeloService: ModeloMensagemService,
     private menuService: MenuService,
     private departamentoService: DepartamentoService,
     private canalService: CanalService,
-    private http: HttpClient,
+    private usuarioService: UsuarioService,
+    private audioService: AudioService,
   ) {}
 
   ngOnInit(): void {
     this.departamentoService.listar().subscribe(d => this.departamentos = d);
+    this.usuarioService.listar().subscribe(u => this.usuarios = u);
     this.canalService.listar().subscribe(c => { this.canais = c; this.carregar(); });
   }
 
@@ -81,6 +89,21 @@ export class MensagensComponent implements OnInit {
       }));
       this.linhas = [...linhasPadrao, ...linhasInterativa];
     });
+  }
+
+  // ── Emoji picker (Padrão e Interativa compartilham a mesma paleta) ──
+
+  toggleEmoji(campo: 'padrao' | 'interativa'): void {
+    this.emojiAbertoPara = this.emojiAbertoPara === campo ? null : campo;
+  }
+
+  inserirEmoji(emoji: string, campo: 'padrao' | 'interativa'): void {
+    if (campo === 'padrao') {
+      this.formPadrao.corpo = (this.formPadrao.corpo ?? '') + emoji;
+    } else {
+      this.formInterativa.descricao = (this.formInterativa.descricao ?? '') + emoji;
+    }
+    this.emojiAbertoPara = null;
   }
 
   nomeDestino(canalId?: number): string {
@@ -110,7 +133,8 @@ export class MensagensComponent implements OnInit {
     } else {
       this.formInterativa = { ativo: true, textoBotao: 'Ver opções', opcoes: [] };
       this.destinoCanalId = null;
-      this.opcoesRemovidas = [];
+      this.departamentoFiltroId = null;
+      this.novaOpcao = { titulo: '', rowId: '', cor: 'verde' };
       this.view = 'interativa';
     }
   }
@@ -123,8 +147,9 @@ export class MensagensComponent implements OnInit {
     } else {
       const menu = linha.raw as Menu;
       this.formInterativa = { ...menu, opcoes: menu.opcoes.map(o => ({ ...o })) };
-      this.opcoesRemovidas = [];
       this.destinoCanalId = null;
+      const canalAtual = this.canais.find(c => c.id === menu.canalId);
+      this.departamentoFiltroId = canalAtual?.departamentoId ?? null;
       this.view = 'interativa';
     }
   }
@@ -147,17 +172,16 @@ export class MensagensComponent implements OnInit {
     if (!texto) { this.mostrarAlerta('erro', 'Digite o texto da mensagem antes de gerar o áudio.'); return; }
 
     this.gerandoAudio = true;
-    this.http.post<{ sucesso: boolean; url: string }>(`${environment.apiUrl}/audio/gerar`, { texto })
-      .subscribe({
-        next: (res) => {
-          this.formPadrao.arquivo = res.url;
-          this.gerandoAudio = false;
-        },
-        error: () => {
-          this.gerandoAudio = false;
-          this.mostrarAlerta('erro', 'Erro ao gerar áudio.');
-        },
-      });
+    this.audioService.gerar(texto).subscribe({
+      next: (res) => {
+        this.formPadrao.arquivo = res.url;
+        this.gerandoAudio = false;
+      },
+      error: () => {
+        this.gerandoAudio = false;
+        this.mostrarAlerta('erro', 'Erro ao gerar áudio.');
+      },
+    });
   }
 
   removerArquivo(): void {
@@ -175,7 +199,7 @@ export class MensagensComponent implements OnInit {
 
     op.subscribe({
       next: () => { this.mostrarAlerta('sucesso', 'Mensagem salva!'); this.view = 'lista'; this.carregar(); },
-      error: () => this.mostrarAlerta('erro', 'Erro ao salvar mensagem.'),
+      error: (err) => this.mostrarAlerta('erro', err?.error?.detail || 'Erro ao salvar mensagem.'),
     });
   }
 
@@ -183,6 +207,20 @@ export class MensagensComponent implements OnInit {
 
   get ehHub(): boolean {
     return !this.formInterativa.canalId;
+  }
+
+  // Filtro de conveniência: restringe o select "Vínculo" aos canais do
+  // departamento escolhido. Não é obrigatório — sem departamento selecionado,
+  // mostra todos os canais (e a opção de Hub continua sempre disponível).
+  get canaisFiltrados(): Canal[] {
+    if (!this.departamentoFiltroId) return this.canais;
+    return this.canais.filter(c => c.departamentoId === this.departamentoFiltroId);
+  }
+
+  onDepartamentoFiltroChange(): void {
+    if (this.formInterativa.canalId && !this.canaisFiltrados.some(c => c.id === this.formInterativa.canalId)) {
+      this.formInterativa.canalId = undefined;
+    }
   }
 
   onDestinoCanalChange(): void {
@@ -202,9 +240,15 @@ export class MensagensComponent implements OnInit {
     }
     this.formInterativa.opcoes = [
       ...opcoes,
-      { titulo: this.novaOpcao.titulo, rowId: this.novaOpcao.rowId, descricao: this.novaOpcao.descricao, ordem: opcoes.length } as MenuOpcao,
+      {
+        titulo: this.novaOpcao.titulo,
+        rowId: this.novaOpcao.rowId,
+        descricao: this.novaOpcao.descricao,
+        cor: this.novaOpcao.cor ?? 'verde',
+        ordem: opcoes.length,
+      } as MenuOpcao,
     ];
-    this.novaOpcao = { titulo: '', rowId: '' };
+    this.novaOpcao = { titulo: '', rowId: '', cor: 'verde' };
     this.destinoCanalId = null;
   }
 
@@ -215,8 +259,7 @@ export class MensagensComponent implements OnInit {
 
   removerOpcao(indice: number): void {
     const opcoes = [...(this.formInterativa.opcoes ?? [])];
-    const [removida] = opcoes.splice(indice, 1);
-    if (removida?.id) this.opcoesRemovidas.push(removida.id);
+    opcoes.splice(indice, 1);
     this.formInterativa.opcoes = opcoes;
   }
 
@@ -230,25 +273,17 @@ export class MensagensComponent implements OnInit {
       return;
     }
 
-    if (this.modo === 'novo') {
-      this.menuService.criar(this.formInterativa).subscribe({
-        next: () => { this.mostrarAlerta('sucesso', 'Mensagem interativa salva!'); this.view = 'lista'; this.carregar(); },
-        error: () => this.mostrarAlerta('erro', 'Erro ao salvar mensagem interativa.'),
-      });
-      return;
-    }
+    const dto: Partial<Menu> = {
+      ...this.formInterativa,
+      opcoes: (this.formInterativa.opcoes ?? []).map((opcao, indice) => ({ ...opcao, ordem: indice })),
+    };
+    const op = this.modo === 'novo'
+      ? this.menuService.criar(dto)
+      : this.menuService.atualizar(this.formInterativa.id!, dto);
 
-    const menuId = this.formInterativa.id!;
-    const chamadas: Observable<unknown>[] = [this.menuService.atualizar(menuId, this.formInterativa)];
-    for (const id of this.opcoesRemovidas) chamadas.push(this.menuService.deletarOpcao(id));
-    (this.formInterativa.opcoes ?? []).forEach((opcao, indice) => {
-      const payload = { ...opcao, ordem: indice };
-      chamadas.push(opcao.id ? this.menuService.atualizarOpcao(opcao.id, payload) : this.menuService.adicionarOpcao(menuId, payload));
-    });
-
-    forkJoin(chamadas).subscribe({
+    op.subscribe({
       next: () => { this.mostrarAlerta('sucesso', 'Mensagem interativa salva!'); this.view = 'lista'; this.carregar(); },
-      error: () => this.mostrarAlerta('erro', 'Erro ao salvar mensagem interativa.'),
+      error: (err) => this.mostrarAlerta('erro', err?.error?.detail || 'Erro ao salvar mensagem interativa.'),
     });
   }
 

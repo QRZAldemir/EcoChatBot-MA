@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.database import get_db
+from app.security import exigir_nivel, exigir_nivel_minimo
 from app.services.menu_service import MenuService
 from app.schemas import (
     MenuCreate, MenuUpdate, MenuResponse,
@@ -29,12 +30,12 @@ def buscar_menu(menu_id: int, db: Session = Depends(get_db)):
     return menu
 
 
-@router.post("/", response_model=MenuResponse, status_code=201)
+@router.post("/", response_model=MenuResponse, status_code=201, dependencies=[Depends(exigir_nivel_minimo("gerente"))])
 def criar_menu(menu: MenuCreate, db: Session = Depends(get_db)):
     return MenuService.criar_menu(db, menu)
 
 
-@router.put("/{menu_id}", response_model=MenuResponse)
+@router.put("/{menu_id}", response_model=MenuResponse, dependencies=[Depends(exigir_nivel_minimo("gerente"))])
 def atualizar_menu(menu_id: int, menu: MenuUpdate, db: Session = Depends(get_db)):
     atualizado = MenuService.atualizar_menu(db, menu_id, menu)
     if not atualizado:
@@ -42,7 +43,7 @@ def atualizar_menu(menu_id: int, menu: MenuUpdate, db: Session = Depends(get_db)
     return atualizado
 
 
-@router.delete("/{menu_id}", status_code=204)
+@router.delete("/{menu_id}", status_code=204, dependencies=[Depends(exigir_nivel("administrador"))])
 def deletar_menu(menu_id: int, db: Session = Depends(get_db)):
     if not MenuService.deletar_menu(db, menu_id):
         raise HTTPException(status_code=404, detail="Menu não encontrado")
@@ -50,7 +51,7 @@ def deletar_menu(menu_id: int, db: Session = Depends(get_db)):
 
 # ── Opções do menu ───────────────────────────────────────────
 
-@router.post("/{menu_id}/opcoes", response_model=MenuOpcaoResponse, status_code=201)
+@router.post("/{menu_id}/opcoes", response_model=MenuOpcaoResponse, status_code=201, dependencies=[Depends(exigir_nivel_minimo("gerente"))])
 def adicionar_opcao(menu_id: int, opcao: MenuOpcaoCreate, db: Session = Depends(get_db)):
     criada = MenuService.adicionar_opcao(db, menu_id, opcao)
     if not criada:
@@ -58,7 +59,7 @@ def adicionar_opcao(menu_id: int, opcao: MenuOpcaoCreate, db: Session = Depends(
     return criada
 
 
-@router.put("/opcoes/{opcao_id}", response_model=MenuOpcaoResponse)
+@router.put("/opcoes/{opcao_id}", response_model=MenuOpcaoResponse, dependencies=[Depends(exigir_nivel_minimo("gerente"))])
 def atualizar_opcao(opcao_id: int, opcao: MenuOpcaoUpdate, db: Session = Depends(get_db)):
     atualizada = MenuService.atualizar_opcao(db, opcao_id, opcao)
     if not atualizada:
@@ -66,7 +67,7 @@ def atualizar_opcao(opcao_id: int, opcao: MenuOpcaoUpdate, db: Session = Depends
     return atualizada
 
 
-@router.delete("/opcoes/{opcao_id}", status_code=204)
+@router.delete("/opcoes/{opcao_id}", status_code=204, dependencies=[Depends(exigir_nivel("administrador"))])
 def deletar_opcao(opcao_id: int, db: Session = Depends(get_db)):
     if not MenuService.deletar_opcao(db, opcao_id):
         raise HTTPException(status_code=404, detail="Opção não encontrada")

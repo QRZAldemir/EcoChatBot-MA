@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
+from app.security import exigir_nivel, exigir_nivel_minimo
 from app.services.canal_service import CanalService
 from app.schemas import CanalCreate, CanalUpdate, CanalResponse
 
@@ -61,9 +62,10 @@ def buscar_canal(canal_id: int, db: Session = Depends(get_db)):
 
 # ==============================================================================
 # ROTAS DE ESCRITA / AÇÃO (POST, PUT, DELETE)
+# GET permanece público (widget /chat). Escrita: gerente+; exclusão: administrador.
 # ==============================================================================
 
-@router.post("/", response_model=CanalResponse, status_code=201)
+@router.post("/", response_model=CanalResponse, status_code=201, dependencies=[Depends(exigir_nivel_minimo("gerente"))])
 def criar_canal(canal: CanalCreate, db: Session = Depends(get_db)):
     """
     Cria um novo canal no sistema.
@@ -85,7 +87,7 @@ def criar_canal(canal: CanalCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/{canal_id}", response_model=CanalResponse)
+@router.put("/{canal_id}", response_model=CanalResponse, dependencies=[Depends(exigir_nivel_minimo("gerente"))])
 def atualizar_canal(canal_id: int, canal: CanalUpdate, db: Session = Depends(get_db)):
     """
     Atualiza um canal existente no sistema.
@@ -111,7 +113,7 @@ def atualizar_canal(canal_id: int, canal: CanalUpdate, db: Session = Depends(get
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{canal_id}", status_code=204)
+@router.delete("/{canal_id}", status_code=204, dependencies=[Depends(exigir_nivel("administrador"))])
 def deletar_canal(canal_id: int, db: Session = Depends(get_db)):
     """
     Deleta um canal do sistema.

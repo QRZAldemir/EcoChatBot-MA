@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EcoChat — Mensagens</title>
+    <title>EcoChat — Escalas &amp; Mensagens</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif; }
         body { background: #eef2f5; margin: 0; padding: 0; min-height: 100vh; }
@@ -16,7 +18,7 @@
 
         /* ========== SIDEBAR ========== */
         /* Paleta neutra alinhada ao modulo_EcoChatBotMa.html (sidebar branca,
-           destaque azul) — substitui o gradiente vermelho do Hospital Marcx. */
+           destaque azul) — substitui o gradiente vermelho do Hospital Mackenzie. */
         .sidebar {
             width: 200px;
             background: #ffffff;
@@ -149,6 +151,70 @@
             font-size: 0.9rem;
         }
 
+        /* ========== DASHBOARD CARDS ========== */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .card {
+            background: linear-gradient(135deg, #f8fafc, #e0f2fe);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+        .card.pediatria { background: linear-gradient(135deg, #fef3c7, #fde68a); }
+        .card.adulto { background: linear-gradient(135deg, #dbeafe, #bfdbfe); }
+        .card.go { background: linear-gradient(135deg, #fce7f3, #fbcfe8); }
+        .card h3 { margin: 0 0 8px 0; font-size: 1rem; }
+        .card .big-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .card .label {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        /* ========== FILTROS ========== */
+        .filtros {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 24px;
+            background: #f8fafc;
+            padding: 16px 20px;
+            border-radius: 20px;
+            align-items: flex-end;
+        }
+        .filtro-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 160px;
+            flex: 1;
+        }
+        .filtro-group label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #1e40af;
+        }
+        .filtro-group input, .filtro-group select {
+            padding: 8px 12px;
+            border-radius: 40px;
+            border: 1px solid #cbd5e1;
+            background: white;
+            font-size: 0.9rem;
+            outline: none;
+        }
+        .filtro-group input:focus, .filtro-group select:focus {
+            border-color: #1d4ed8;
+            box-shadow: 0 0 0 2px rgba(44,125,160,0.2);
+        }
         button {
             background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
             border: none;
@@ -165,6 +231,292 @@
         button:disabled { opacity: 0.5; cursor: not-allowed; }
         .reset-btn { background: #6c757d; }
         .reset-btn:hover:not(:disabled) { background: #495057; }
+
+        /* ========== TABELA ========== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        th {
+            background: linear-gradient(90deg, #2563eb 0%, #1e3a8a 100%);
+            color: white;
+            padding: 12px 8px;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            border: 1px solid #1d4ed8;
+        }
+        td {
+            border: 1px solid #dce5ec;
+            padding: 10px 8px;
+            vertical-align: top;
+            background-color: white;
+        }
+        tr:nth-child(even) td { background-color: #fafcff; }
+        .turno-manha { border-left: 4px solid #2a9d8f; }
+        .turno-tarde { border-left: 4px solid #e9c46a; }
+        .turno-noite { border-left: 4px solid #e76f51; }
+        .badge-prof {
+            background: #eef2ff;
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin: 2px 4px 2px 0;
+            white-space: nowrap;
+        }
+        .nir-badge {
+            background: #fee2e2;
+            color: #991b1b;
+            font-size: 0.65rem;
+            padding: 1px 6px;
+            border-radius: 10px;
+            margin-left: 4px;
+            font-weight: 600;
+        }
+        .empty-row td {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+
+        /* ========== IMPORTAÇÃO V2 ========== */
+        .import-dropzone {
+            border: 3px dashed #2563eb;
+            border-radius: 20px;
+            padding: 40px 24px;
+            text-align: center;
+            background: linear-gradient(135deg, #fff5f5 0%, #fef2f2 100%);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            margin-bottom: 8px;
+        }
+        .import-dropzone:hover, .import-dropzone.dragover {
+            border-color: #2563eb;
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            transform: scale(1.01);
+            box-shadow: 0 8px 24px rgba(155,28,28,0.15);
+        }
+        .dropzone-icon { font-size: 3rem; margin-bottom: 10px; }
+        .import-dropzone h3 { margin: 0 0 6px; color: #1e40af; font-size: 1.1rem; }
+        .import-dropzone p  { margin: 0 0 16px; color: #9ca3af; font-size: 0.85rem; }
+        .dropzone-btn {
+            background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
+            color: white; border: none; padding: 10px 24px;
+            border-radius: 40px; font-weight: 600; cursor: pointer;
+            font-size: 0.9rem; transition: 0.2s; height: auto;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
+        .dropzone-btn:hover { background: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%); }
+
+        .file-list-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 10px;
+        }
+        .file-item-card {
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.82rem;
+        }
+        .file-thumb {
+            width: 48px; height: 48px;
+            border-radius: 8px;
+            object-fit: cover;
+            flex-shrink: 0;
+            border: 1px solid #e2e8f0;
+        }
+        .file-info { flex-grow: 1; min-width: 0; }
+        .file-info .fname { font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .file-info .fsize { color: #94a3b8; font-size: 0.72rem; }
+        .file-remove { cursor: pointer; color: #e74c3c; font-size: 1.1rem; flex-shrink: 0; }
+
+        .assign-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 10px;
+        }
+        .assign-card {
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.82rem;
+        }
+        .assign-card img { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+        .assign-card .aname { font-weight: 600; color: #334155; flex-grow:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .assign-select {
+            padding: 5px 10px;
+            border-radius: 20px;
+            border: 1.5px solid #cbd5e1;
+            font-size: 0.8rem;
+            outline: none;
+            background: white;
+            color: #334155;
+            flex-shrink: 0;
+        }
+        .assign-select:focus { border-color: #2563eb; }
+
+        /* ========== PAINEL DE IMPORTAÇÃO (legado, mantido para compatibilidade) ========== */
+        .import-panel {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border-radius: 20px;
+            padding: 28px;
+            border: 2px dashed #7dd3fc;
+            margin-bottom: 24px;
+        }
+        .import-panel h2 {
+            margin: 0 0 8px 0;
+            color: #0c4a6e;
+            font-size: 1.3rem;
+        }
+        .import-panel p {
+            color: #475569;
+            margin: 4px 0;
+            font-size: 0.9rem;
+        }
+        .api-key-box {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            margin: 16px 0;
+        }
+        .api-key-input {
+            padding: 8px 12px;
+            border-radius: 40px;
+            border: 1px solid #cbd5e1;
+            background: white;
+            font-size: 0.85rem;
+            width: 100%;
+            max-width: 500px;
+            outline: none;
+        }
+        .upload-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .upload-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            border: 2px solid #e0f2fe;
+            text-align: center;
+            transition: 0.2s;
+        }
+        .upload-card.pediatria { border-color: #fde68a; }
+        .upload-card.adulto { border-color: #bfdbfe; }
+        .upload-card.go { border-color: #fbcfe8; }
+        .upload-card h4 {
+            margin: 0 0 12px 0;
+            font-size: 1rem;
+        }
+        .upload-card .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #cbd5e1;
+            margin-right: 6px;
+        }
+        .upload-card.loaded .status-dot { background: #22c55e; }
+        .file-input-wrapper {
+            margin: 12px 0;
+        }
+        .file-input-wrapper input[type="file"] { display: none; }
+        .file-input-label {
+            background: #0ea5e9;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-block;
+            font-size: 0.85rem;
+            transition: 0.2s;
+        }
+        .file-input-label:hover {
+            background: #0284c7;
+            transform: scale(0.97);
+        }
+        .file-name {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 8px;
+            min-height: 1em;
+            word-break: break-all;
+        }
+        .preview-thumb {
+            max-width: 100%;
+            max-height: 120px;
+            margin: 8px auto;
+            border-radius: 8px;
+            display: block;
+        }
+        .btn-processar-todos {
+            background: #059669;
+            padding: 12px 28px;
+            font-size: 1rem;
+            margin-top: 16px;
+        }
+        .btn-processar-todos:hover:not(:disabled) { background: #047857; }
+        .btn-processar-individual {
+            background: #059669;
+            font-size: 0.8rem;
+            padding: 6px 14px;
+            height: auto;
+            margin-top: 8px;
+        }
+        .btn-processar-individual:hover:not(:disabled) { background: #047857; }
+        .import-status {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-top: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            text-align: left;
+            max-height: 350px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+        }
+        .status-success { color: #16a34a; }
+        .status-error { color: #dc2626; }
+        .status-info { color: #2563eb; }
+        .status-warning { color: #d97706; }
+        .loader {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #cbd5e1;
+            border-top-color: #0ea5e9;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .footer-note {
+            margin-top: 24px;
+            font-size: 0.75rem;
+            color: #5c6f87;
+            background: #f1f5f9;
+            padding: 12px 16px;
+            border-radius: 16px;
+            text-align: center;
+        }
 
         /* === MEMORANDOS & POST-ITS === */
         @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&display=swap');
@@ -615,7 +967,9 @@
             .sidebar.open { transform: translateX(0); }
             .main-content { padding: 60px 12px 24px 12px; }
             .page { padding: 16px; }
+            .filtros { flex-direction: column; align-items: stretch; }
             button { align-self: stretch; }
+            td, th { font-size: 0.7rem; padding: 6px 4px; }
         }
         @media (min-width: 641px) and (max-width: 900px) {
             .sidebar { width: 170px; }
@@ -632,19 +986,33 @@
     <!-- ==================== SIDEBAR ==================== -->
     <aside class="sidebar">
         <div class="logo-box">
-            <img src="LogoMarcx.png" alt="Logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <img src="LogoMackenzie.png" alt="Logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
             <div class="fallback" style="display:none; flex-direction:column;">
                 <span style="font-weight:600;">Eco<span style="color:#c8102e;">Chat</span></span>
             </div>
         </div>
 
         <div class="sidebar-title">
-            <h2>Mensagens</h2>
+            <h2>Escalas &amp; Mensagens</h2>
             <small>Central de Atendimento</small>
         </div>
 
+        <div class="nav-divider">Visualização</div>
+        <div class="nav-item active" data-page="pediatria">
+            <span class="icon">👶</span>
+            <span>Escala Pediatria</span>
+        </div>
+        <div class="nav-item" data-page="adulto">
+            <span class="icon">🩺</span>
+            <span>PS Clínico Adulto</span>
+        </div>
+        <div class="nav-item" data-page="go">
+            <span class="icon">🌸</span>
+            <span>PS Ginecologia / Obstetrícia</span>
+        </div>
+
         <div class="nav-divider">Mensagens</div>
-        <div class="nav-item active" data-page="mensagens-interativas">
+        <div class="nav-item" data-page="mensagens-interativas">
             <span class="icon">💬</span>
             <span>Mensagens Interativas</span>
         </div>
@@ -655,6 +1023,12 @@
         <div class="nav-item" data-page="postits">
             <span class="icon">📌</span>
             <span>Post-its</span>
+        </div>
+
+        <div class="nav-divider">Importação</div>
+        <div class="nav-item" data-page="importar">
+            <span class="icon">📤</span>
+            <span>Importar Escalas</span>
         </div>
 
         <div class="nav-divider">Sistema</div>
@@ -672,8 +1046,260 @@
     <!-- ==================== CONTEÚDO ==================== -->
     <main class="main-content">
 
+        <!-- ============ PÁGINA: IMPORTAR ============ -->
+        <div class="page" id="page-importar">
+            <h1>📤 Importação de Escalas</h1>
+            <div class="sub">
+                <strong>Fluxo recomendado:</strong> Execute <code>processar_escalas.py</code> → importe os <code>.xlsx</code> gerados.<br>
+                Também aceita imagens JPG/PNG com OCR local (Tesseract.js).
+            </div>
+
+            <!-- ABAS: EXCEL | IMAGEM -->
+            <div style="display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #e5e7eb; padding-bottom:0;">
+                <button id="tabExcel" onclick="trocarAba('excel')"
+                    style="border-radius:8px 8px 0 0; background:linear-gradient(135deg,#2563eb,#1e3a8a); border-bottom:none; margin-bottom:-2px; z-index:1; border:2px solid #2563eb; border-bottom-color:white;">
+                    📊 Importar Excel (.xlsx)
+                </button>
+                <button id="tabImagem" onclick="trocarAba('imagem')"
+                    style="border-radius:8px 8px 0 0; background:#6c757d; border-bottom:none; margin-bottom:-2px; z-index:0; border:2px solid transparent;">
+                    🖼️ Importar Imagem (OCR)
+                </button>
+            </div>
+
+            <!-- ====== ABA EXCEL ====== -->
+            <div id="abaExcel">
+                <div class="import-dropzone" id="dropzoneExcel">
+                    <div class="dropzone-icon">📊</div>
+                    <h3>Arraste arquivos .xlsx aqui</h3>
+                    <p>Gerados pelo <strong>processar_escalas.py</strong> — pasta <code>output/</code></p>
+                    <input type="file" id="fileInputXlsx" multiple accept=".xlsx,.xls" style="display:none;">
+                    <button class="dropzone-btn" onclick="document.getElementById('fileInputXlsx').click()">📁 Selecionar .xlsx</button>
+                </div>
+
+                <div id="xlsxFileList" style="display:none; margin:12px 0;">
+                    <strong style="color:#1e40af; font-size:0.88rem;">📋 Arquivos prontos para importar:</strong>
+                    <div id="xlsxGrid" class="file-list-grid" style="margin-top:10px;"></div>
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin:16px 0; align-items:center;">
+                    <button id="btnImportarXlsx" disabled>📥 Importar Escalas</button>
+                    <button id="btnLimparTudo" class="reset-btn">🗑️ Limpar Bases</button>
+                </div>
+            </div>
+
+            <!-- ====== ABA IMAGEM ====== -->
+            <div id="abaImagem" style="display:none;">
+                <div class="import-dropzone" id="importDropzone">
+                    <div class="dropzone-icon">🗂️</div>
+                    <h3>Arraste imagens aqui</h3>
+                    <p>JPG / PNG de qualquer escala médica</p>
+                    <input type="file" id="fileInputGlobal" multiple accept="image/jpeg,image/jpg,image/png,image/webp" style="display:none;">
+                    <button class="dropzone-btn" onclick="document.getElementById('fileInputGlobal').click()">📁 Selecionar Imagens</button>
+                </div>
+
+                <div id="fileListContainer" style="display:none; margin:16px 0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <strong style="color:#1e40af;">📋 Arquivos — defina o tipo de cada um:</strong>
+                        <button id="btnLimparArquivos" class="reset-btn" style="height:32px; font-size:0.75rem; padding:4px 14px;">🗑️ Limpar lista</button>
+                    </div>
+                    <div id="assignGrid" class="assign-grid"></div>
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin:20px 0; align-items:center;">
+                    <button id="btnProcessarTudo" disabled>🤖 Processar com OCR</button>
+                </div>
+
+                <div id="progressContainer" style="display:none; margin:12px 0;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span id="progressLabel" style="font-size:0.82rem; font-weight:600; color:#1e40af;">Processando...</span>
+                        <span id="progressPct" style="font-size:0.82rem; color:#555;">0%</span>
+                    </div>
+                    <div style="background:#e5e7eb; border-radius:99px; height:10px; overflow:hidden;">
+                        <div id="progressBar" style="height:100%; width:0%; background:linear-gradient(90deg,#2563eb,#e74c3c); border-radius:99px; transition:width 0.3s;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LOG DE STATUS (comum) -->
+            <div id="importStatus" class="import-status" style="display:none;"></div>
+
+            <!-- CARDS DE CONTAGEM -->
+            <div class="cards-grid" style="margin-top:24px;">
+                <div class="card pediatria">
+                    <h3>👶 Pediatria</h3>
+                    <div class="big-number" id="count-pediatria">0</div>
+                    <div class="label">dias carregados</div>
+                </div>
+                <div class="card adulto">
+                    <h3>🩺 Clínico Adulto</h3>
+                    <div class="big-number" id="count-adulto">0</div>
+                    <div class="label">dias carregados</div>
+                </div>
+                <div class="card go">
+                    <h3>🌸 G.O.</h3>
+                    <div class="big-number" id="count-go">0</div>
+                    <div class="label">dias carregados</div>
+                </div>
+            </div>
+
+            <div class="footer-note">
+                💡 <strong>Fluxo rápido:</strong> coloque as imagens em <code>uploads/</code> → execute <code>processar_escalas.py</code>
+                → importe os <code>.xlsx</code> gerados em <code>output/</code> aqui. Os dados ficam salvos no navegador.
+            </div>
+        </div>
+
+        <!-- ============ PÁGINA: PEDIATRIA ============ -->
+        <div class="page active" id="page-pediatria">
+            <h1>👶 Escala PS Pediatria <small>Turnos: 07h–13h | 13h–19h | 19h–07h</small></h1>
+            <div class="sub">📅 Visualização com filtros por data, turno e profissional.</div>
+
+            <div class="filtros">
+                <div class="filtro-group">
+                    <label>📆 Data Início</label>
+                    <input type="date" class="filter-inicio" data-tipo="pediatria">
+                </div>
+                <div class="filtro-group">
+                    <label>📆 Data Fim</label>
+                    <input type="date" class="filter-fim" data-tipo="pediatria">
+                </div>
+                <div class="filtro-group">
+                    <label>👤 Profissional</label>
+                    <input type="text" class="filter-prof" data-tipo="pediatria" placeholder="Ex: MIGUEL, TATIANA...">
+                </div>
+                <div class="filtro-group">
+                    <label>⏰ Turno</label>
+                    <select class="filter-turno" data-tipo="pediatria">
+                        <option value="">Todos</option>
+                        <option value="manha">🌅 Manhã (07-13)</option>
+                        <option value="tarde">☀️ Tarde (13-19)</option>
+                        <option value="noite">🌙 Noite (19-07)</option>
+                    </select>
+                </div>
+                <button class="reset-btn btn-reset" data-tipo="pediatria">Limpar filtros</button>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
+                <button onclick="copiarEscalaWhatsApp('pediatria')" style="background:linear-gradient(135deg,#25d366,#128c7e); font-size:0.82rem; padding:8px 18px;">📲 Copiar para WhatsApp</button>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Dia</th>
+                            <th class="turno-manha">Manhã (07h–13h)</th>
+                            <th class="turno-tarde">Tarde (13h–19h)</th>
+                            <th class="turno-noite">Noite (19h–07h)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-pediatria"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ============ PÁGINA: ADULTO ============ -->
+        <div class="page" id="page-adulto">
+            <h1>🩺 Escala PS Clínico Adulto <small>Turnos: 07h–13h | 13h–19h | 19h–07h</small></h1>
+            <div class="sub">📅 Visualização com filtros por data, turno e profissional. Profissionais (NIR) do Núcleo Interno de Regulação aparecem destacados.</div>
+
+            <div class="filtros">
+                <div class="filtro-group">
+                    <label>📆 Data Início</label>
+                    <input type="date" class="filter-inicio" data-tipo="adulto">
+                </div>
+                <div class="filtro-group">
+                    <label>📆 Data Fim</label>
+                    <input type="date" class="filter-fim" data-tipo="adulto">
+                </div>
+                <div class="filtro-group">
+                    <label>👤 Profissional</label>
+                    <input type="text" class="filter-prof" data-tipo="adulto" placeholder="Ex: NIKOLAS, PEDRO ANNO...">
+                </div>
+                <div class="filtro-group">
+                    <label>⏰ Turno</label>
+                    <select class="filter-turno" data-tipo="adulto">
+                        <option value="">Todos</option>
+                        <option value="manha">🌅 Manhã (07-13)</option>
+                        <option value="tarde">☀️ Tarde (13-19)</option>
+                        <option value="noite">🌙 Noite (19-07)</option>
+                    </select>
+                </div>
+                <button class="reset-btn btn-reset" data-tipo="adulto">Limpar filtros</button>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
+                <button onclick="copiarEscalaWhatsApp('adulto')" style="background:linear-gradient(135deg,#25d366,#128c7e); font-size:0.82rem; padding:8px 18px;">📲 Copiar para WhatsApp</button>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Dia</th>
+                            <th class="turno-manha">Manhã (07h–13h)</th>
+                            <th class="turno-tarde">Tarde (13h–19h)</th>
+                            <th class="turno-noite">Noite (19h–07h)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-adulto"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ============ PÁGINA: G.O. ============ -->
+        <div class="page" id="page-go">
+            <h1>🌸 Escala PS Ginecologia / Obstetrícia <small>Turnos: 07h–13h | 13h–19h | 19h–07h</small></h1>
+            <div class="sub">📅 Visualização com filtros por data, turno e profissional.</div>
+
+            <div class="filtros">
+                <div class="filtro-group">
+                    <label>📆 Data Início</label>
+                    <input type="date" class="filter-inicio" data-tipo="go">
+                </div>
+                <div class="filtro-group">
+                    <label>📆 Data Fim</label>
+                    <input type="date" class="filter-fim" data-tipo="go">
+                </div>
+                <div class="filtro-group">
+                    <label>👤 Profissional</label>
+                    <input type="text" class="filter-prof" data-tipo="go" placeholder="Ex: CAMILA, VALENTINA...">
+                </div>
+                <div class="filtro-group">
+                    <label>⏰ Turno</label>
+                    <select class="filter-turno" data-tipo="go">
+                        <option value="">Todos</option>
+                        <option value="manha">🌅 Manhã (07-13)</option>
+                        <option value="tarde">☀️ Tarde (13-19)</option>
+                        <option value="noite">🌙 Noite (19-07)</option>
+                    </select>
+                </div>
+                <button class="reset-btn btn-reset" data-tipo="go">Limpar filtros</button>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
+                <button onclick="copiarEscalaWhatsApp('go')" style="background:linear-gradient(135deg,#25d366,#128c7e); font-size:0.82rem; padding:8px 18px;">📲 Copiar para WhatsApp</button>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Dia</th>
+                            <th class="turno-manha">Manhã (07h–13h)</th>
+                            <th class="turno-tarde">Tarde (13h–19h)</th>
+                            <th class="turno-noite">Noite (19h–07h)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-go"></tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- ============ PÁGINA: MENSAGENS INTERATIVAS ============ -->
-        <div class="page active" id="page-mensagens-interativas">
+        <div class="page" id="page-mensagens-interativas" style="display:none;">
             <h1>💬 Mensagens Interativas</h1>
             <div class="sub">Cadastre mensagens com botões (até 3 opções) vinculadas a um Departamento e Canal de Atendimento — o sistema usa esse vínculo para saber qual mensagem apresentar quando o cliente escolher aquele menu.</div>
 
@@ -853,12 +1479,300 @@
 </div>
 
 <script>
+// ============================================================
+// 📘 GUIA RÁPIDO — JS/HTML PARA QUEM VEM DE DELPHI
+// ============================================================
+// Este arquivo mistura HTML (estrutura da tela), CSS (estilo, lá
+// em cima em <style>) e JavaScript (a "lógica de negócio"/eventos,
+// dentro das tags <script>). Pontos de tradução mais úteis:
+//
+// 1) FUNÇÃO x PROCEDURE
+//    Em JS não existe "procedure". Tudo é "function". Se ela não
+//    usa "return", se comporta como uma procedure; se usa
+//    "return valor", se comporta como uma function do Delphi.
+//
+// 2) EVENTO OnClick de um botão
+//    Delphi:  procedure TForm1.Button1Click(Sender: TObject);
+//             (ligado ao botão pela IDE, no Object Inspector)
+//    Aqui, duas formas equivalentes:
+//      a) <button onclick="minhaFuncao()">...</button>
+//         (a função roda quando o HTML dispara o evento)
+//      b) elemento.addEventListener('click', function(){ ... });
+//         (ligado via código, sem precisar escrever onclick no HTML)
+//
+// 3) VARIÁVEIS: let / const (não existe "var:" com tipo fixo)
+//    let   → como uma var do Delphi, o valor pode ser trocado depois.
+//    const → a REFERÊNCIA não muda (não dá pra reatribuir a variável),
+//            mas se for um array/objeto o CONTEÚDO ainda pode mudar.
+//
+// 4) window.NomeDaFuncao = function(...) {...}
+//    "window" é o objeto global do navegador. Atribuir a função a
+//    "window.algo" a torna visível para ser chamada de qualquer
+//    onclick="algo()" no HTML — sem isso, ela ficaria "presa" dentro
+//    do <script> e o HTML não conseguiria enxergá-la.
+//
+// 5) localStorage
+//    É um "bancozinho" local do navegador (pense num INI file ou
+//    num TClientDataSet salvo em disco). Só guarda texto, por isso:
+//      JSON.stringify(objeto)  → transforma objeto em texto p/ salvar
+//      JSON.parse(texto)       → transforma texto de volta em objeto
+//
+// 6) TEMPLATE STRINGS: `texto ${variavel}`
+//    Equivale ao Format('%s', [variavel]) do Delphi. Repare que usa
+//    crase (`) no lugar de aspas simples/duplas, e a variável entra
+//    direto dentro de ${ }.
+//
+// 7) document.getElementById('x') / querySelector('.x')
+//    É como usar FindComponent('x') no Delphi: acha o elemento HTML
+//    pelo id (ou pela classe CSS) para poder ler/alterar seu conteúdo.
+// ============================================================
+
+// =====================================================
+// IMPORTAÇÃO EXCEL (.xlsx) — PAINEL MACKENZIE v1.8
+// =====================================================
+
+// Troca de abas Excel / Imagem
+// "aba" é o parâmetro recebido (igual um parâmetro de procedure em Delphi).
+// A linha abaixo é um operador ternário: condição ? valorSeTrue : valorSeFalse
+// equivale a um "if...then...else" de uma linha só, atribuindo um valor.
+window.trocarAba = function(aba) {
+    const isExcel = aba === 'excel';
+    document.getElementById('abaExcel').style.display  = isExcel ? '' : 'none';
+    document.getElementById('abaImagem').style.display = isExcel ? 'none' : '';
+    document.getElementById('tabExcel').style.background  = isExcel
+        ? 'linear-gradient(135deg,#2563eb,#1e3a8a)' : '#6c757d';
+    document.getElementById('tabImagem').style.background = isExcel
+        ? '#6c757d' : 'linear-gradient(135deg,#2563eb,#1e3a8a)';
+};
+
+// ---- Drag & Drop para .xlsx ----
+document.addEventListener('DOMContentLoaded', function() {
+    const dz = document.getElementById('dropzoneExcel');
+    const fi = document.getElementById('fileInputXlsx');
+
+    if (dz) {
+        dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+        dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+        dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); adicionarXlsx(e.dataTransfer.files); });
+        dz.addEventListener('click', e => { if (e.target === dz || e.target.tagName === 'H3' || e.target.tagName === 'P' || e.target.tagName === 'DIV') fi.click(); });
+    }
+    if (fi) fi.addEventListener('change', () => { adicionarXlsx(fi.files); fi.value = ''; });
+
+    // Botão importar
+    const btnImp = document.getElementById('btnImportarXlsx');
+    if (btnImp) btnImp.addEventListener('click', importarXlsxSelecionados);
+});
+
+let xlsxFiles = []; // Array de File
+
+// "function nome(...) {}" sem "window." na frente = função "privada",
+// só pode ser chamada por código dentro deste mesmo <script>.
+// forEach é como um "for each item in Lista do" do Delphi: roda o
+// bloco { ... } uma vez para cada elemento da lista/array.
+function adicionarXlsx(files) {
+    Array.from(files).forEach(f => {
+        if (f.name.match(/\.xlsx?$/i) && !xlsxFiles.find(x => x.name === f.name && x.size === f.size)) {
+            xlsxFiles.push(f);
+        }
+    });
+    renderXlsxGrid();
+}
+
+function renderXlsxGrid() {
+    const list = document.getElementById('xlsxFileList');
+    const grid = document.getElementById('xlsxGrid');
+    const btn  = document.getElementById('btnImportarXlsx');
+    if (!list || !grid) return;
+
+    if (xlsxFiles.length === 0) { list.style.display = 'none'; if (btn) btn.disabled = true; return; }
+    list.style.display = 'block';
+    if (btn) btn.disabled = false;
+
+    grid.innerHTML = xlsxFiles.map((f, i) => {
+        const kb = (f.size / 1024).toFixed(0);
+        return `<div class="file-item-card" id="xfc-${i}">
+            <div style="font-size:2rem; flex-shrink:0;">📊</div>
+            <div class="file-info">
+                <div class="fname">${f.name}</div>
+                <div class="fsize">${kb} KB</div>
+            </div>
+            <span class="file-remove" onclick="removerXlsx(${i})" title="Remover">✕</span>
+        </div>`;
+    }).join('');
+}
+
+window.removerXlsx = function(idx) {
+    xlsxFiles.splice(idx, 1);
+    renderXlsxGrid();
+};
+
+// ---- Leitura e importação do .xlsx ----
+function detectarTipoDoXlsx(wb, nomeArq) {
+    // 1. Tenta ler da aba oculta _meta (gerada pelo processar_escalas.py)
+    if (wb.SheetNames.includes('_meta')) {
+        const meta = XLSX.utils.sheet_to_json(wb.Sheets['_meta'], {header:1});
+        const tipoRow = meta.find(r => r[0] === 'tipo');
+        if (tipoRow) return tipoRow[1];
+    }
+    // 2. Fallback: detecta pelo nome do arquivo
+    const n = nomeArq.toLowerCase();
+    if (n.includes('pediatria') || n.includes('ped')) return 'pediatria';
+    if (n.includes('adulto') || n.includes('clinico') || n.includes('pronto')) return 'adulto';
+    if (n.includes('go') || n.includes('gineco') || n.includes('obstet')) return 'go';
+    return null;
+}
+
+function lerDatasDoXlsx(wb) {
+    // Procura a aba "Escala"
+    const sheetName = wb.SheetNames.find(n => n !== '_meta') || wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, {defval: ''});
+
+    const diasSemanaNomes = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+    const resultado = [];
+
+    rows.forEach(row => {
+        // Detecta a chave de data (case-insensitive)
+        const keys = Object.keys(row);
+        const dataKey  = keys.find(k => k.toLowerCase().includes('data')) || keys[0];
+        const diaKey   = keys.find(k => k.toLowerCase().includes('dia') || k.toLowerCase().includes('semana'));
+        const manhaKey = keys.find(k => k.toLowerCase().includes('manh'));
+        const tardeKey = keys.find(k => k.toLowerCase().includes('tarde'));
+        const noiteKey = keys.find(k => k.toLowerCase().includes('noite'));
+
+        let dataStr = (row[dataKey] || '').toString().trim();
+
+        // Converte número serial do Excel para data
+        if (/^\d{5}$/.test(dataStr)) {
+            const dt = XLSX.SSF.parse_date_code(parseInt(dataStr));
+            dataStr = `${dt.y}-${String(dt.m).padStart(2,'0')}-${String(dt.d).padStart(2,'0')}`;
+        }
+        // Converte dd/mm/yyyy para yyyy-mm-dd
+        const dmyMatch = dataStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (dmyMatch) dataStr = `${dmyMatch[3]}-${dmyMatch[2].padStart(2,'0')}-${dmyMatch[1].padStart(2,'0')}`;
+
+        if (!dataStr.match(/^\d{4}-\d{2}-\d{2}$/)) return; // pula linhas inválidas
+
+        let diaSemana = diaKey ? (row[diaKey] || '').toString().trim() : '';
+        if (!diaSemana) {
+            try {
+                const dt = new Date(dataStr + 'T12:00:00');
+                diaSemana = diasSemanaNomes[dt.getDay()];
+            } catch(e) {}
+        }
+
+        resultado.push({
+            data: dataStr,
+            diaSemana,
+            manha: manhaKey ? (row[manhaKey] || '').toString().trim() : '',
+            tarde: tardeKey ? (row[tardeKey] || '').toString().trim() : '',
+            noite: noiteKey ? (row[noiteKey] || '').toString().trim() : '',
+        });
+    });
+
+    return resultado;
+}
+
+async function importarXlsxSelecionados() {
+    const btn = document.getElementById('btnImportarXlsx');
+    const statusLog = document.getElementById('importStatus');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Importando...'; }
+    if (statusLog) statusLog.style.display = 'block';
+
+    function log(msg, tipo='info') {
+        if (!statusLog) return;
+        const ts = new Date().toLocaleTimeString();
+        statusLog.innerHTML += `<div class="status-${tipo}"><strong>${ts}</strong>: ${msg}</div>`;
+        statusLog.scrollTop = statusLog.scrollHeight;
+    }
+
+    // Acessa as bases do painel principal via window
+    const bases = window._painelBases;
+    const salvarBase = window._painelSalvar;
+    const aplicarFiltros = window._painelFiltros;
+    const atualizarContadores = window._painelContadores;
+
+    if (!bases || !salvarBase) {
+        log('❌ Painel não inicializado ainda. Aguarde e tente novamente.', 'error');
+        if (btn) { btn.disabled = false; btn.textContent = '📥 Importar Escalas'; }
+        return;
+    }
+
+    let totalImportados = 0;
+
+    for (const file of xlsxFiles) {
+        try {
+            log(`📂 Lendo ${file.name}...`);
+            const buf  = await file.arrayBuffer();
+            const wb   = XLSX.read(buf, {type:'array', cellDates:true});
+            const tipo = detectarTipoDoXlsx(wb, file.name);
+
+            if (!tipo) {
+                log(`⚠️ ${file.name}: tipo não detectado. Renomeie o arquivo para incluir: pediatria, adulto ou go.`, 'warning');
+                continue;
+            }
+
+            const registros = lerDatasDoXlsx(wb);
+            if (registros.length === 0) {
+                log(`⚠️ ${file.name}: nenhum dado válido encontrado.`, 'warning');
+                continue;
+            }
+
+            // Mescla (substitui por data) na base existente
+            const existentes = bases[tipo].filter(e => !registros.find(n => n.data === e.data));
+            bases[tipo] = [...existentes, ...registros].sort((a,b) => a.data.localeCompare(b.data));
+            salvarBase(tipo, bases[tipo]);
+            if (aplicarFiltros) aplicarFiltros(tipo);
+
+            log(`✅ ${file.name} → ${tipo.toUpperCase()}: ${registros.length} dias importados.`, 'success');
+            totalImportados += registros.length;
+        } catch(err) {
+            log(`❌ Erro em ${file.name}: ${err.message}`, 'error');
+        }
+    }
+
+    if (atualizarContadores) atualizarContadores();
+
+    if (totalImportados > 0) {
+        log(`🏁 Importação concluída! ${totalImportados} registros importados. Veja as escalas no menu lateral.`, 'success');
+        xlsxFiles = [];
+        renderXlsxGrid();
+    }
+
+    if (btn) { btn.disabled = false; btn.textContent = '📥 Importar Escalas'; }
+}
+</script>
+
+<script>
 // =================================================
-// NAVEGAÇÃO ENTRE PÁGINAS DA SIDEBAR
+// PAINEL ESCALAS MACKENZIE — SCRIPT PRINCIPAL
 // =================================================
 
 document.addEventListener('DOMContentLoaded', () => {
 
+    const diasSemanaNomes = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+    const TIPOS = ["pediatria","adulto","go"];
+
+    // ========== ARMAZENAMENTO LOCAL ==========
+    function carregarBase(tipo) {
+        try { const raw = localStorage.getItem("escala_" + tipo); if (raw) return JSON.parse(raw); } catch(e) {}
+        return [];
+    }
+    function salvarBase(tipo, dados) { localStorage.setItem("escala_" + tipo, JSON.stringify(dados)); }
+    function addDiaSemana(dados) {
+        return dados.map(d => {
+            if (d.data) { const dt = new Date(d.data + "T12:00:00"); d.diaSemana = diasSemanaNomes[dt.getDay()]; }
+            return d;
+        }).sort((a,b) => (a.data||"").localeCompare(b.data||""));
+    }
+
+    let bases = {
+        pediatria: addDiaSemana(carregarBase("pediatria")),
+        adulto:    addDiaSemana(carregarBase("adulto")),
+        go:        addDiaSemana(carregarBase("go"))
+    };
+
+    // ========== NAVEGAÇÃO ==========
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
             const pageId = item.getAttribute('data-page');
@@ -874,6 +1788,300 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // ========== LOG DE STATUS ==========
+    const statusLog = document.getElementById('importStatus');
+    function logStatus(message, type = 'info', context = '') {
+        if (!statusLog) return;
+        statusLog.style.display = 'block';
+        const ts = new Date().toLocaleTimeString();
+        const ctx = context ? `[${context.toUpperCase()}] ` : '';
+        statusLog.innerHTML += `<div class="status-${type}"><strong>${ts}</strong>: ${ctx}${message}</div>`;
+        statusLog.scrollTop = statusLog.scrollHeight;
+    }
+
+    // ========== SISTEMA DE IMPORTAÇÃO COMPLETO ==========
+    let selectedFiles = []; // Array de {file, tipo}
+
+    const dropzone   = document.getElementById('importDropzone');
+    const fileInput  = document.getElementById('fileInputGlobal');
+    const assignGrid = document.getElementById('assignGrid');
+    const fileListContainer = document.getElementById('fileListContainer');
+    const btnProcessar = document.getElementById('btnProcessarTudo');
+    const btnExemplo   = document.getElementById('btnExemplo');
+    const btnLimpar    = document.getElementById('btnLimparTudo');
+    const btnLimparArq = document.getElementById('btnLimparArquivos');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressLabel = document.getElementById('progressLabel');
+    const progressPct   = document.getElementById('progressPct');
+
+    // Drag & Drop
+    if (dropzone) {
+        dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', e => {
+            e.preventDefault(); dropzone.classList.remove('dragover');
+            adicionarArquivos(e.dataTransfer.files);
+        });
+        dropzone.addEventListener('click', e => { if (e.target !== fileInput && !e.target.classList.contains('dropzone-btn')) fileInput.click(); });
+    }
+    if (fileInput) fileInput.addEventListener('change', e => adicionarArquivos(e.target.files));
+
+    function adicionarArquivos(files) {
+        Array.from(files).forEach(file => {
+            if (file.type.startsWith('image/')) {
+                // Evitar duplicatas pelo nome
+                if (!selectedFiles.find(f => f.file.name === file.name && f.file.size === file.size)) {
+                    selectedFiles.push({ file, tipo: 'pediatria' });
+                }
+            }
+        });
+        renderAssignGrid();
+        if (fileInput) fileInput.value = '';
+    }
+
+    function renderAssignGrid() {
+        if (!assignGrid || !fileListContainer) return;
+        if (selectedFiles.length === 0) {
+            fileListContainer.style.display = 'none';
+            if (btnProcessar) btnProcessar.disabled = true;
+            return;
+        }
+        fileListContainer.style.display = 'block';
+        if (btnProcessar) btnProcessar.disabled = false;
+
+        assignGrid.innerHTML = selectedFiles.map((item, idx) => {
+            const url = URL.createObjectURL(item.file);
+            const sizeKb = (item.file.size / 1024).toFixed(0);
+            return `
+            <div class="assign-card" id="ac-${idx}">
+                <img src="${url}" alt="${item.file.name}" onerror="this.style.display='none'">
+                <span class="aname" title="${item.file.name}">${item.file.name}</span>
+                <span style="color:#94a3b8; font-size:0.7rem; flex-shrink:0;">${sizeKb}KB</span>
+                <select class="assign-select" onchange="window._setTipo(${idx}, this.value)">
+                    <option value="pediatria" ${item.tipo==='pediatria'?'selected':''}>👶 Pediatria</option>
+                    <option value="adulto"    ${item.tipo==='adulto'?'selected':''}>🩺 Adulto</option>
+                    <option value="go"        ${item.tipo==='go'?'selected':''}>🌸 G.O.</option>
+                </select>
+                <span style="cursor:pointer; color:#e74c3c; font-size:1.2rem;" onclick="window._removerArq(${idx})" title="Remover">✕</span>
+            </div>`;
+        }).join('');
+    }
+
+    window._setTipo = (idx, val) => { if (selectedFiles[idx]) selectedFiles[idx].tipo = val; };
+    window._removerArq = (idx) => {
+        selectedFiles.splice(idx, 1);
+        renderAssignGrid();
+        if (selectedFiles.length === 0 && btnProcessar) btnProcessar.disabled = true;
+    };
+
+    if (btnLimparArq) btnLimparArq.addEventListener('click', () => {
+        selectedFiles = [];
+        renderAssignGrid();
+        if (btnProcessar) btnProcessar.disabled = true;
+    });
+
+    // ===== OCR COM TESSERACT =====
+    if (btnProcessar) {
+        btnProcessar.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) { logStatus('Nenhum arquivo selecionado.', 'error'); return; }
+            btnProcessar.disabled = true;
+            btnProcessar.innerHTML = '<span class="loader"></span> Processando...';
+            if (progressContainer) progressContainer.style.display = 'block';
+
+            const total = selectedFiles.length;
+            let done = 0;
+
+            for (const item of selectedFiles) {
+                const { file, tipo } = item;
+                try {
+                    if (progressLabel) progressLabel.textContent = `Processando: ${file.name}`;
+                    logStatus(`Iniciando OCR — ${file.name} [${tipo}]`, 'info');
+
+                    const worker = await Tesseract.createWorker('por', 1, {
+                        logger: m => {
+                            if (m.status === 'recognizing text') {
+                                const pct = Math.round((done + m.progress) / total * 100);
+                                if (progressBar) progressBar.style.width = pct + '%';
+                                if (progressPct) progressPct.textContent = pct + '%';
+                                logStatus(`Lendo texto... ${Math.round(m.progress * 100)}%`, 'info', tipo);
+                            }
+                        }
+                    });
+
+                    const { data: { text } } = await worker.recognize(file);
+                    await worker.terminate();
+
+                    const extracted = text.trim();
+                    if (extracted) {
+                        logStatus(`✅ OCR concluído para ${file.name}`, 'success', tipo);
+                        const pre = document.createElement('pre');
+                        pre.style.cssText = 'white-space:pre-wrap; background:#f8fafc; padding:10px; border-radius:8px; font-size:0.78rem; margin:6px 0; border-left:3px solid #2563eb;';
+                        pre.textContent = extracted;
+                        statusLog.appendChild(pre);
+                    } else {
+                        logStatus(`⚠️ Nenhum texto detectado em ${file.name}`, 'warning', tipo);
+                    }
+                } catch(err) {
+                    logStatus(`❌ Erro em ${file.name}: ${err.message || err}`, 'error', tipo);
+                }
+                done++;
+                if (progressBar) progressBar.style.width = Math.round(done / total * 100) + '%';
+                if (progressPct) progressPct.textContent = Math.round(done / total * 100) + '%';
+            }
+
+            logStatus('🏁 Processamento finalizado.', 'success');
+            btnProcessar.disabled = false;
+            btnProcessar.innerHTML = '🤖 Processar com OCR';
+            atualizarContadores();
+        });
+    }
+
+
+
+    // ===== LIMPAR TUDO =====
+    if (btnLimpar) {
+        btnLimpar.addEventListener('click', () => {
+            if (!confirm('Limpar todas as 3 bases? Os dados serão apagados.')) return;
+            TIPOS.forEach(t => {
+                localStorage.removeItem('escala_' + t);
+                bases[t] = [];
+                aplicarFiltros(t);
+            });
+            atualizarContadores();
+            logStatus('🔄 Todas as bases foram limpas.', 'warning');
+        });
+    }
+
+    // ========== CONTADORES ==========
+    function atualizarContadores() {
+        TIPOS.forEach(t => {
+            const el = document.getElementById('count-' + t);
+            if (el) el.textContent = bases[t].length;
+        });
+    }
+    atualizarContadores();
+
+    // ========== FORMATADORES E FILTROS ==========
+    function formatarNomes(texto) {
+        if (!texto || texto.trim() === '') return '<span style="color:#cbd5e1;">—</span>';
+        const partes = texto.split('/').map(p => p.trim()).filter(p => p);
+        return partes.map(p => {
+            const temNir = /\(NIR\)/i.test(p);
+            const nome = p.replace(/\(NIR\)/gi, '').trim();
+            return `<span class="badge-prof">${nome}${temNir ? '<span class="nir-badge">NIR</span>' : ''}</span>`;
+        }).join(' ');
+    }
+
+    function aplicarFiltros(tipo) {
+        const inicio = document.querySelector(`.filter-inicio[data-tipo="${tipo}"]`)?.value || '';
+        const fim    = document.querySelector(`.filter-fim[data-tipo="${tipo}"]`)?.value || '';
+        const prof   = document.querySelector(`.filter-prof[data-tipo="${tipo}"]`)?.value.trim().toUpperCase() || '';
+        const turno  = document.querySelector(`.filter-turno[data-tipo="${tipo}"]`)?.value || '';
+
+        const filtered = bases[tipo].filter(item => {
+            if (inicio && item.data < inicio) return false;
+            if (fim && item.data > fim) return false;
+            if (prof) { const todos = [item.manha, item.tarde, item.noite].join(' ').toUpperCase(); if (!todos.includes(prof)) return false; }
+            if (turno) { const campo = turno === 'manha' ? item.manha : turno === 'tarde' ? item.tarde : item.noite; if (!campo || campo.trim() === '') return false; }
+            return true;
+        });
+
+        const tbody = document.getElementById('tbody-' + tipo);
+        if (!tbody) return;
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr class="empty-row"><td colspan="5">${bases[tipo].length === 0 ? '📭 Nenhum dado importado ainda. Vá em "Importar Escalas" e envie a imagem ou gere dados de exemplo.' : 'Nenhum registro encontrado com os filtros selecionados.'}</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = filtered.map(item => {
+            const [ano,mes,dia] = item.data.split('-');
+            return `<tr>
+                <td><strong>${dia}/${mes}/${ano}</strong></td>
+                <td>${item.diaSemana || ''}</td>
+                <td class="turno-manha">${formatarNomes(item.manha)}</td>
+                <td class="turno-tarde">${formatarNomes(item.tarde)}</td>
+                <td class="turno-noite">${formatarNomes(item.noite)}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    TIPOS.forEach(tipo => {
+        ['filter-inicio','filter-fim'].forEach(cls => {
+            document.querySelector(`.${cls}[data-tipo="${tipo}"]`)?.addEventListener('change', () => aplicarFiltros(tipo));
+        });
+        document.querySelector(`.filter-prof[data-tipo="${tipo}"]`)?.addEventListener('input', () => aplicarFiltros(tipo));
+        document.querySelector(`.filter-turno[data-tipo="${tipo}"]`)?.addEventListener('change', () => aplicarFiltros(tipo));
+        const resetBtn = document.querySelector(`.btn-reset[data-tipo="${tipo}"]`);
+        if (resetBtn) resetBtn.addEventListener('click', () => {
+            document.querySelector(`.filter-inicio[data-tipo="${tipo}"]`).value = '';
+            document.querySelector(`.filter-fim[data-tipo="${tipo}"]`).value = '';
+            document.querySelector(`.filter-prof[data-tipo="${tipo}"]`).value = '';
+            document.querySelector(`.filter-turno[data-tipo="${tipo}"]`).value = '';
+            aplicarFiltros(tipo);
+        });
+        aplicarFiltros(tipo);
+    });
+
+    // ========== COPIAR ESCALA PARA WHATSAPP ==========
+    window.copiarEscalaWhatsApp = function(tipo) {
+        const labels = {
+            pediatria: '👶 PS Pediatria',
+            adulto:    '🩺 PS Clínico Adulto',
+            go:        '🌸 GO — Ginecologia/Obstetrícia'
+        };
+        const tbody = document.getElementById('tbody-' + tipo);
+        if (!tbody) return;
+        const rows = tbody.querySelectorAll('tr:not(.empty-row)');
+        if (rows.length === 0) { alert('Nenhum dado visível para copiar. Verifique os filtros.'); return; }
+
+        // Lê os títulos reais das colunas do cabeçalho da tabela
+        const theadRow = tbody.closest('table').querySelector('thead tr');
+        const headers = theadRow
+            ? [...theadRow.querySelectorAll('th')].map(th => th.textContent.trim())
+            : ['Data', 'Dia', 'Manhã (07h–13h)', 'Tarde (13h–19h)', 'Noite (19h–07h)'];
+
+        const turnoEmojis = ['🌅', '☀️', '🌙'];
+
+        let texto = `*${labels[tipo]}*\n`;
+        texto += '─'.repeat(32) + '\n';
+        texto += `📋 ${headers.join(' | ')}\n`;
+        texto += '─'.repeat(32) + '\n\n';
+
+        rows.forEach(tr => {
+            const cols = tr.querySelectorAll('td');
+            if (cols.length < 5) return;
+            const data  = cols[0].textContent.trim();
+            const dia   = cols[1].textContent.trim();
+            const manha = cols[2].innerText.replace(/\s+/g, ' ').trim();
+            const tarde = cols[3].innerText.replace(/\s+/g, ' ').trim();
+            const noite = cols[4].innerText.replace(/\s+/g, ' ').trim();
+
+            texto += `*📅 ${data} — ${dia}*\n`;
+            if (manha && manha !== '—') texto += `${turnoEmojis[0]} ${headers[2]}: ${manha}\n`;
+            if (tarde && tarde !== '—') texto += `${turnoEmojis[1]} ${headers[3]}: ${tarde}\n`;
+            if (noite && noite !== '—') texto += `${turnoEmojis[2]} ${headers[4]}: ${noite}\n`;
+            texto += '\n';
+        });
+
+        const finalText = texto.trim();
+        navigator.clipboard.writeText(finalText)
+            .then(() => alert('✅ Escala copiada!\nAgora cole no WhatsApp (Ctrl+V).'))
+            .catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = finalText;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+                alert('✅ Escala copiada!\nAgora cole no WhatsApp (Ctrl+V).');
+            });
+    };
+
+    // Expõe funções para o módulo de importação Excel
+    window._painelBases      = bases;
+    window._painelSalvar     = salvarBase;
+    window._painelFiltros    = aplicarFiltros;
+    window._painelContadores = atualizarContadores;
 });
 </script>
 <script>
