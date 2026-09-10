@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, map, of } from 'rxjs';
 import { Arquivo } from '../models/arquivo.model';
 import { environment } from '../../../environments/environment';
 
@@ -8,7 +8,7 @@ import { environment } from '../../../environments/environment';
 export class ArquivoService {
   private api = `${environment.apiUrl}/arquivos`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   listar(): Observable<Arquivo[]> {
     return this.http.get<any[]>(this.api).pipe(map(as => as.map(a => this._normalizar(a))));
@@ -19,6 +19,14 @@ export class ArquivoService {
     form.append('arquivo', arquivo);
     if (descricao) form.append('descricao', descricao);
     return this.http.post<any>(this.api, form).pipe(map(a => this._normalizar(a)));
+  }
+
+  lerExcel(file: File): Observable<any[]> {
+    if (!file || !file.name.toLowerCase().includes('.xlsx')) {
+      return of([]);
+    }
+
+    return of([]);
   }
 
   deletar(id: number): Observable<void> {

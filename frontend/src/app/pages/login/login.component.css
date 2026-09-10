@@ -1,4 +1,18 @@
-/* Reaproveita as variáveis globais (--red, --font, --r, --sh...) de admin.css */
+/*╔══════════════════════════════════════════════════════════════════════════════╗
+ ║  PROJETO.......: EcoChatBotMarcx — Sistema de Atendimento Digital          ║
+ ║  ARQUIVO.......: login.component.css                                       ║
+ ║  LOCALIZAÇÃO...: Frontend/App/pages/login/login.component.css              ║
+ ║  AUTOR.........: Ademir Queiroz                                            ║
+ ║  DATA..........: 08/09/2026                                                ║
+ ║  VERSÃO........: 1.0.0                                                     ║
+ ║                                                                            ║
+ ║  DESCRIÇÃO                                                                 ║
+ ║  Estilos do componente de login com:                                       ║
+ ║    • Design moderno e responsivo                                           ║
+ ║    • Cores padronizadas do sistema                                         ║
+ ║    • Animações e transições suaves                                        ║
+ ║    • Suporte a dark mode (variáveis CSS)                                  ║
+ ╚══════════════════════════════════════════════════════════════════════════════*/
 
 :host {
   display: block;
@@ -28,23 +42,42 @@
   gap: 12px;
   margin-bottom: 40px;
 }
+
 .brand-logo {
-  width: 40px; height: 40px; border-radius: 10px;
-  background: rgba(255,255,255,0.15);
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 18px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 18px;
 }
-.brand-txt { display: flex; flex-direction: column; line-height: 1.1; }
-.brand-txt strong { font-size: 18px; }
-.brand-txt small { opacity: .8; font-size: 12px; }
+
+.brand-txt {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.brand-txt strong {
+  font-size: 18px;
+}
+
+.brand-txt small {
+  opacity: 0.8;
+  font-size: 12px;
+}
 
 .login-card {
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: var(--r);
   padding: 28px;
   max-width: 380px;
 }
+
 .login-card h1 {
   font-size: 16px;
   font-weight: 700;
@@ -56,8 +89,9 @@
   font-size: 12px;
   font-weight: 600;
   margin-bottom: 6px;
-  opacity: .9;
+  opacity: 0.9;
 }
+
 .login-card input {
   width: 100%;
   padding: 10px 12px;
@@ -68,20 +102,44 @@
   margin-bottom: 16px;
   background: #fff;
   color: var(--text);
+  transition: all 0.3s ease;
 }
+
 .login-card input:focus {
-  outline: 2px solid rgba(255,255,255,0.6);
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+.login-card input.error {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 .erro {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(0,0,0,0.18);
+  background: rgba(0, 0, 0, 0.18);
   border-radius: 8px;
   padding: 8px 10px;
   font-size: 12px;
   margin-bottom: 16px;
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-5px);
+  }
+
+  75% {
+    transform: translateX(5px);
+  }
 }
 
 .login-card button {
@@ -95,11 +153,22 @@
   font-weight: 700;
   font-size: 13px;
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: .14s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.14s ease;
 }
-.login-card button:hover:not(:disabled) { background: #f4f0ed; }
-.login-card button:disabled { opacity: .7; cursor: default; }
+
+.login-card button:hover:not(:disabled) {
+  background: #f4f0ed;
+  transform: translateY(-1px);
+}
+
+.login-card button:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
 
 /* ━━━ LADO DIREITO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 .login-right {
@@ -112,20 +181,80 @@
   padding: 48px;
   background: var(--bg);
 }
+
 .illustration {
-  width: 120px; height: 120px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   background: var(--red-pale);
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 24px;
+  animation: float 3s ease-in-out infinite;
 }
-.illustration i { font-size: 46px; color: var(--red); }
-.login-right h2 { font-size: 18px; color: var(--text); margin-bottom: 8px; }
-.login-right p { font-size: 13px; color: var(--muted); max-width: 320px; }
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.illustration i {
+  font-size: 46px;
+  color: var(--red);
+}
+
+.login-right h2 {
+  font-size: 18px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.login-right p {
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 320px;
+  line-height: 1.6;
+}
 
 /* ━━━ RESPONSIVO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 @media (max-width: 860px) {
-  .login-shell { flex-direction: column; }
-  .login-left { max-width: none; padding: 32px 24px; }
-  .login-right { display: none; }
+  .login-shell {
+    flex-direction: column;
+  }
+
+  .login-left {
+    max-width: none;
+    padding: 32px 24px;
+  }
+
+  .login-right {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-left {
+    padding: 24px 16px;
+  }
+
+  .login-card {
+    padding: 20px;
+  }
+
+  .brand {
+    margin-bottom: 24px;
+  }
+
+  .login-card h1 {
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
 }

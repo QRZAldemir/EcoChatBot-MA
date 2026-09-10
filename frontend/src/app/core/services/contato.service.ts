@@ -8,7 +8,7 @@ import { environment } from '../../../environments/environment';
 export class ContatoService {
   private api = `${environment.apiUrl}/contatos`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   listar(): Observable<Contato[]> {
     return this.http.get<any[]>(this.api).pipe(map(cs => cs.map(c => this._normalizar(c))));

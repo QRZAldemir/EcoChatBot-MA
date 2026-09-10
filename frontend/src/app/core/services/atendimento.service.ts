@@ -14,7 +14,7 @@ interface ZigResponse<T = any> {
 export class AtendimentoService {
   private api = `${environment.apiUrl}/atendimento`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   listar(filtro: FiltroAtendimento = {}): Observable<{ total: number; registros: Atendimento[] }> {
     let params = new HttpParams()

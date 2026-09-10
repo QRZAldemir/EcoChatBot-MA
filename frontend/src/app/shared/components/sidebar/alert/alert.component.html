@@ -1,0 +1,5 @@
+<div class="alert" [class.ok]="type === 'ok'" [class.err]="type === 'err'">
+  <i [class.fa-check-circle]="type === 'ok'" [class.fa-exclamation-circle]="type === 'err'" class="fas"></i>
+  <span>{{ message }}</span>
+  <button class="alert-close" (click)="close()">&times;</button>
+</div>

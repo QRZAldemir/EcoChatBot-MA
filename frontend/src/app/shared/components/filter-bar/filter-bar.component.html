@@ -1,0 +1,37 @@
+<div class="filter-panel">
+  <div class="filter-header">
+    <div class="filter-icon"><i class="fas fa-sliders-h"></i></div>
+    <h3>Filtros</h3>
+    <button class="btn-clear" (click)="clearFilters()" title="Limpar">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <div class="filter-body">
+    <div class="filter-group">
+      <label><i class="fas fa-search"></i> Busca</label>
+      <input type="text" [(ngModel)]="filters.search" placeholder="Digite para filtrar..." (input)="applyFilters()">
+    </div>
+
+    <div class="filter-group">
+      <label><i class="fas fa-building"></i> Departamento</label>
+      <select [(ngModel)]="filters.departamento" (change)="applyFilters()">
+        <option value="">Todos</option>
+        <option *ngFor="let dept of options.departamentos" [value]="dept.nome">{{ dept.nome }}</option>
+      </select>
+    </div>
+
+    <div class="filter-actions">
+      <button class="btn-search" (click)="applyFilters()">
+        <i class="fas fa-search"></i> Filtrar
+      </button>
+    </div>
+  </div>
+
+
+  <div class="filter-note">
+    <i class="fas fa-info-circle"></i>
+    O filtro considera a data de criação dos atendimentos.
+    Busca rápida procura em nome, protocolo e telefone.
+  </div>
+</div>

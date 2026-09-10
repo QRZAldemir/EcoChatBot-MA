@@ -17,7 +17,7 @@ export interface RespostaIA {
 export class DeepSeekService {
   private api = `${environment.apiUrl}/ia`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   // Envia histórico de conversa e retorna resposta do DeepSeek
   conversar(mensagens: MensagemIA[], canal: string): Observable<RespostaIA> {

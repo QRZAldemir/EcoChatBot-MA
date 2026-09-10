@@ -35,7 +35,7 @@ export class CampanhasComponent implements OnInit {
     private campanhaService: CampanhaService,
     private contatoService: ContatoService,
     private conexaoService: ConexaoService,
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.carregar();

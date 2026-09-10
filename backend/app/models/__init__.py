@@ -5,6 +5,23 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
 
+class Cliente(Base):
+    """Cliente/tenant que contratou o sistema (isolamento multi-tenant)."""
+    __tablename__ = "clientes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String(150), nullable=False)
+    cnpj = Column(String(20), unique=True, index=True)
+    email = Column(String(150), index=True)
+    telefone = Column(String(20))
+    ativo = Column(Boolean, default=True, nullable=False)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relacionamentos
+    usuarios = relationship("Usuario", back_populates="cliente")
+    atendimentos = relationship("Atendimento", back_populates="cliente")
+
 class Atendimento(Base):
     __tablename__ = "atendimentos"
 
@@ -12,7 +29,10 @@ class Atendimento(Base):
     protocolo = Column(String(50), unique=True, index=True)
     telefone = Column(String(20), nullable=False)
     nome_contato = Column(String(100))
-    cliente_id = Column(Integer, index=True)
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), index=True)
+
+    # Relacionamento com cliente/tenant
+    cliente = relationship("Cliente", back_populates="atendimentos")
 
     # ==================================================================
     # CORRIGIDO (2026-07-05): Resolução de conflito de nome de atributo
@@ -157,6 +177,7 @@ class Usuario(Base):
     __tablename__ = "usuarios"
 
     id = Column(Integer, primary_key=True, index=True)
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), index=True)  # tenant (nullable p/ compatibilidade)
     nome = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     senha_hash = Column(String(255), nullable=False)
@@ -167,10 +188,12 @@ class Usuario(Base):
     canal_id = Column(Integer, ForeignKey("canais.id"))
     
     ativo = Column(Boolean, default=True)
+    status = Column(String(20), default="ativo")  # ativo | inativo | bloqueado | convidado
     criado_em = Column(DateTime, default=datetime.utcnow)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relacionamentos
+    cliente = relationship("Cliente", back_populates="usuarios")
     nivel = relationship("NivelUsuario", back_populates="usuarios")
     departamento = relationship("Departamento", back_populates="usuarios")
     canal = relationship("Canal", back_populates="usuarios")

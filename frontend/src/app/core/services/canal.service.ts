@@ -1,67 +1,98 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { BehaviorSubject, Observable, of } from 'rxjs';
 import { Canal } from '../models/canal.model';
-import { environment } from '../../../environments/environment';
 
-const ICONE_MAP: Record<string, string> = {
-  '1atendimento-ma.html':       '📞',
-  '2agendamento-ma.html':        '📅',
-  '3examesdiagnostico-ma.html':  '🩺',
-  '7portaria-ma.html':           '🚪',
-  '8ouvidoria-ma.html':          '📢',
-};
-
-@Injectable({ providedIn: 'root' })
+@Injectable({
+  providedIn: 'root'
+})
 export class CanalService {
-  private api = `${environment.apiUrl}/canais`;
+  private readonly STORAGE_KEY = 'ecochat_canais';
+  private canaisSubject = new BehaviorSubject<Canal[]>([]);
+  public canais$ = this.canaisSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
+  constructor() {
+    this.carregarCanais();
+  }
+
+  private carregarCanais(): void {
+    const data = localStorage.getItem(this.STORAGE_KEY);
+    let canais = data ? JSON.parse(data) : [];
+
+    if (canais.length === 0) {
+      canais = [
+        { id: 1, nome: 'Atendimento-Cliente', icone: '📞', descricao: 'Central de atendimento ao cliente', arquivoMenu: '1atendimento-marcx.html', ativo: true, status: 'ativo' },
+        { id: 2, nome: 'Agendamento-Ambulatorial', icone: '📅', descricao: 'Agendamento de consultas ambulatoriais', arquivoMenu: '2agendamento-marcx.html', ativo: true, status: 'ativo' },
+        { id: 3, nome: 'Exames-Diagnostico', icone: '🩺', descricao: 'Informações sobre exames diagnósticos', arquivoMenu: '3examesdiagnostico-marcx.html', ativo: true, status: 'ativo' },
+        { id: 4, nome: 'Portaria', icone: '🚪', descricao: 'Atendimento de portaria e controle', arquivoMenu: '7portaria-marcx.html', ativo: true, status: 'ativo' },
+        { id: 5, nome: 'Ouvidoria', icone: '📢', descricao: 'Canal de ouvidoria e sugestões', arquivoMenu: '8ouvidoria-marcx.html', ativo: true, status: 'ativo' },
+      ];
+      this.salvarCanais(canais);
+    } else {
+      this.canaisSubject.next(this.normalizarLista(canais));
+    }
+  }
+
+  private salvarCanais(canais: Canal[]): void {
+    const normalizados = this.normalizarLista(canais);
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(normalizados));
+    this.canaisSubject.next(normalizados);
+  }
+
+  private normalizarLista(canais: Canal[]): Canal[] {
+    return canais.map(c => ({
+      ...c,
+      ativo: c.ativo ?? c.status === 'ativo',
+      status: c.status ?? (c.ativo ? 'ativo' : 'inativo')
+    }));
+  }
 
   listar(): Observable<Canal[]> {
-    return this.http.get<Canal[]>(this.api).pipe(map(cs => cs.map(c => this._normalizar(c))));
+    return this.canais$;
   }
 
-  buscarPorId(id: number): Observable<Canal> {
-    return this.http.get<Canal>(`${this.api}/${id}`).pipe(map(c => this._normalizar(c)));
+  getCanais(): Canal[] {
+    return this.canaisSubject.value;
   }
 
-  criar(dto: Partial<Canal>): Observable<Canal> {
-    return this.http.post<Canal>(this.api, this._serializar(dto)).pipe(map(c => this._normalizar(c)));
+  getCanaisAtivos(): Canal[] {
+    return this.canaisSubject.value.filter(c => (c.ativo ?? c.status === 'ativo'));
   }
 
-  atualizar(id: number, dto: Partial<Canal>): Observable<Canal> {
-    return this.http.put<Canal>(`${this.api}/${id}`, this._serializar(dto)).pipe(map(c => this._normalizar(c)));
+  criar(canal: Partial<Canal>): Observable<Canal> {
+    const novo = {
+      ...canal,
+      id: Date.now(),
+      ativo: canal.ativo ?? true,
+      status: canal.status ?? (canal.ativo ? 'ativo' : 'inativo'),
+      arquivoMenu: canal.arquivoMenu ?? canal.arquivo_menu ?? ''
+    } as Canal;
+    this.salvarCanais([...this.canaisSubject.value, novo]);
+    return of(novo);
+  }
+
+  atualizar(id: number, canal: Partial<Canal>): Observable<Canal> {
+    const atual = this.canaisSubject.value.map(c => c.id === id ? { ...c, ...canal, ativo: canal.ativo ?? c.ativo ?? true, status: canal.status ?? (canal.ativo ?? c.ativo ? 'ativo' : 'inativo') } : c);
+    this.salvarCanais(atual);
+    const item = atual.find(c => c.id === id);
+    return of(item as Canal);
   }
 
   deletar(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.api}/${id}`);
+    const atual = this.canaisSubject.value.filter(c => c.id !== id);
+    this.salvarCanais(atual);
+    return of(void 0);
   }
 
-  getUrlMenu(canal: Canal): string {
-    return `${environment.menusBaseUrl}/${canal.arquivoMenu}`;
+  adicionarCanal(canal: Omit<Canal, 'id'>): Canal {
+    const novo = { ...canal, id: Date.now() } as Canal;
+    this.salvarCanais([...this.canaisSubject.value, novo]);
+    return novo;
   }
 
-  // Converte snake_case do backend → camelCase + atribui ícone padrão
-  private _normalizar(raw: any): Canal {
-    const arquivo = raw.arquivo_menu ?? raw.arquivoMenu ?? '';
-    return {
-      ...raw,
-      arquivoMenu: arquivo,
-      icone: raw.icone ?? ICONE_MAP[arquivo] ?? '📋',
-      departamentoId: raw.departamento_id ?? raw.departamentoId,
-      departamentoNome: raw.departamento?.nome ?? raw.departamentoNome,
-      criadoEm: raw.criado_em ?? raw.criadoEm,
-    };
-  }
-
-  // Converte camelCase do frontend → snake_case para enviar ao backend
-  private _serializar(dto: Partial<Canal>): Record<string, unknown> {
-    const { arquivoMenu, departamentoId, criadoEm, icone, cor, ...rest } = dto as any;
-    return {
-      ...rest,
-      ...(arquivoMenu !== undefined   && { arquivo_menu: arquivoMenu }),
-      ...(departamentoId !== undefined && { departamento_id: departamentoId }),
-    };
+  deletarCanal(id: number): boolean {
+    const canais = this.canaisSubject.value.filter(c => c.id !== id);
+    if (canais.length === this.canaisSubject.value.length) return false;
+    this.salvarCanais(canais);
+    return true;
   }
 }

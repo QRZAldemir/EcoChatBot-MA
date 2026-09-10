@@ -41,7 +41,7 @@ export class RelatorioComponent implements OnInit {
     private atendimentoService: AtendimentoService,
     private departamentoService: DepartamentoService,
     private usuarioService: UsuarioService,
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.departamentoService.listar().subscribe(d => this.departamentos = d);

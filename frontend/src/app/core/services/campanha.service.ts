@@ -8,7 +8,7 @@ import { environment } from '../../../environments/environment';
 export class CampanhaService {
   private api = `${environment.apiUrl}/campanhas`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   listar(): Observable<Campanha[]> {
     return this.http.get<any[]>(this.api).pipe(map(cs => cs.map(c => this._normalizar(c))));

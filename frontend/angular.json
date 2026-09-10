@@ -22,7 +22,9 @@
             ],
             "styles": [
               "src/assets/styles/fonts.css",
-              "src/assets/styles/admin.css"
+              "src/assets/styles/main.css",
+              "src/assets/styles/forms.css",
+              "src/assets/styles/tables.css"
             ],
             "scripts": []
           },

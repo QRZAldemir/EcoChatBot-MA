@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # EcoChatBot-MA
+=======
+# EcoChatBotMarcx
+>>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
 ## Sistema de Atendimento Digital Configurável
 ### Adaptável para qualquer segmento: saúde, comércio, serviços, indústria, instituições e mais
 
@@ -323,4 +327,8 @@ Próximas Etapas de Evolução Prevista:
 - Implementar suporte a Multi-Empresa ou Multi-Tenant para que uma instalação atenda vários negócios ao mesmo tempo
 - Desenvolver Construtor Visual de Roteiros permitindo criar fluxos de atendimento sem precisar editar arquivos HTML
 - Disponibilizar Integrações Prontas com sistemas de pagamento, agendas, ERPs e plataformas de comércio eletrônico
+<<<<<<< HEAD
 - Aprimorar a Inteligência Artificial para aprender com o próprio histórico de atendimentos e responder de forma autônoma e personalizada
+=======
+- Aprimorar a Inteligência Artificial para aprender com o próprio histórico de atendimentos e responder de forma autônoma e personalizada
+>>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507

@@ -38,7 +38,10 @@ class ArquivoService:
 
     @staticmethod
     async def salvar_upload(
-        db: Session, upload: UploadFile, descricao: Optional[str], atendimento_id: Optional[int]
+        db: Session,
+        upload: UploadFile,
+        descricao: Optional[str],
+        atendimento_id: Optional[int]
     ) -> Arquivo:
         extensao = Path(upload.filename or "").suffix
         nome_arquivo = f"{uuid.uuid4().hex}{extensao}"

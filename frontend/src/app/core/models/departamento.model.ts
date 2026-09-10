@@ -2,6 +2,8 @@ export interface Departamento {
   id: number;
   nome: string;
   descricao?: string;
-  ativo: boolean;
-  dataCriacao?: string;
+  desc?: string;
+  ativo?: boolean;
+  status?: 'ativo' | 'inativo';
+  criado_em?: string;
 }

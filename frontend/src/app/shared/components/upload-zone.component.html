@@ -1,0 +1,17 @@
+<div class="upload-zone" [class.drag]="isDragOver()" [class.loaded]="isLoaded()" (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+    <input type="file" [accept]="accept" (change)="onFileSelected($event)">
+
+    <div *ngIf="!isLoaded()" class="upload-content">
+        <div class="upload-icon"><i class="fas {{ icon }}"></i></div>
+        <div class="upload-title">{{ title }}</div>
+        <div class="upload-sub">Arraste ou clique para selecionar</div>
+    </div>
+
+    <div *ngIf="isLoaded()" class="upload-loaded">
+        <div class="file-chip">
+            <i class="fas fa-check-circle"></i>
+            {{ fileName() }}
+        </div>
+    </div>
+</div>

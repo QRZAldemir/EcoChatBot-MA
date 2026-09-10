@@ -1,0 +1,175 @@
+/* ━━━ VARIÁVEIS (igual aos protótipos HTML) ━━━━━━━━━━━━━━━━━━━ */
+:root {
+  --red:#c8102e; --red-dark:#8a0a1f; --red-pale:#fff0f2; --red-glow:rgba(200,16,46,0.15);
+  --green:#22c55e; --green-dark:#15803d; --green-pale:#f0fdf4;
+  --wa:#25D366; --wa-dark:#128C7E;
+  --blue:#2563eb; --blue-dark:#1d4ed8; --blue-pale:#eff6ff;
+  --yellow:#f59e0b; --yellow-pale:#fffbeb; --yellow-dark:#b45309;
+  --purple:#7c3aed; --purple-pale:#f5f3ff; --purple-dark:#5b21b6;
+  --teal:#0891b2; --teal-pale:#ecfeff; --teal-dark:#0e7490;
+  --bg:#f4f0ed; --card:#ffffff; --border:#e5ddd8;
+  --text:#18181b; --muted:#78716c;
+  --font:'Roboto',system-ui,sans-serif;
+  --r:13px; --sh:0 2px 10px rgba(0,0,0,0.06); --shl:0 8px 30px rgba(0,0,0,0.12);
+}
+
+/* ━━━ PAGE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.page { font-family: var(--font); }
+
+/* ━━━ PANEL ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.panel {
+  background: var(--card); border-radius: var(--r);
+  border: 1px solid var(--border); box-shadow: var(--sh);
+  overflow: hidden; margin-bottom: 18px;
+}
+.panel-header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-header h3 { font-size: 13px; font-weight: 700; flex: 1; }
+.panel-icon {
+  width: 26px; height: 26px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; flex-shrink: 0;
+}
+.panel-icon.red    { background: var(--red-pale);    color: var(--red); }
+.panel-icon.blue   { background: var(--blue-pale);   color: var(--blue); }
+.panel-icon.green  { background: var(--green-pale);  color: var(--wa); }
+.panel-icon.purple { background: var(--purple-pale); color: var(--purple); }
+.panel-icon.teal   { background: var(--teal-pale);   color: var(--teal); }
+.pb { padding: 14px 16px; }
+
+/* ━━━ BOTÕES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.btn {
+  padding: 7px 16px; border-radius: 8px; border: none;
+  cursor: pointer; font-family: var(--font); font-size: 12px;
+  font-weight: 600; transition: .14s;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.btn.primary   { background: var(--red);  color: #fff; }
+.btn.primary:hover { background: var(--red-dark); }
+.btn.secondary { background: var(--card); color: var(--text); border: 1.5px solid var(--border); }
+.btn.secondary:hover { border-color: var(--red); color: var(--red); }
+.btn-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  border: 1.5px solid var(--border); background: var(--card);
+  cursor: pointer; display: inline-flex; align-items: center;
+  justify-content: center; font-size: 11px; color: var(--muted);
+  margin-right: 4px; transition: .13s;
+}
+.btn-icon:hover         { border-color: var(--blue); color: var(--blue); }
+.btn-icon.danger:hover  { border-color: var(--red);  color: var(--red); }
+
+/* ━━━ TOOLBAR ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.toolbar {
+  display: flex; gap: 8px; padding: 12px 16px;
+  border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center;
+}
+.search-box {
+  display: flex; align-items: center; background: var(--bg);
+  border: 1.5px solid var(--border); border-radius: 20px;
+  padding: 5px 13px; gap: 7px; flex: 1; min-width: 200px;
+}
+.search-box input { border: none; background: none; outline: none; font-family: var(--font); font-size: 12px; width: 100%; }
+.search-box i { color: var(--muted); font-size: 11px; }
+.toolbar select {
+  padding: 6px 10px; border: 1.5px solid var(--border); border-radius: 7px;
+  font-size: 12px; font-family: var(--font); background: var(--card); outline: none; cursor: pointer;
+}
+
+/* ━━━ MODAL ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.52); z-index: 500;
+  align-items: center; justify-content: center;
+}
+.overlay.open { display: flex; }
+.modal {
+  background: var(--card); border-radius: 16px; padding: 24px;
+  width: 100%; max-width: 520px; box-shadow: var(--shl);
+  animation: mIn .18s ease both;
+}
+@keyframes mIn { from { opacity:0; transform:scale(.95) translateY(7px) } to { opacity:1; transform:none } }
+.modal-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+}
+.modal-header h2 { font-size: 15px; font-weight: 700; flex: 1; }
+.close-btn {
+  width: 28px; height: 28px; border: none; background: var(--bg);
+  color: var(--muted); cursor: pointer; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.close-btn:hover { background: var(--red-pale); color: var(--red); }
+.modal-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+
+/* ━━━ ALERTS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.alert {
+  padding: 11px 13px; border-radius: 8px; border-left: 3px solid;
+  margin-bottom: 12px; display: flex; gap: 8px; align-items: flex-start;
+  font-size: 12px;
+}
+.alert.success { background: var(--green-pale); border-color: var(--green); color: var(--green-dark); }
+.alert.error   { background: var(--red-pale);   border-color: var(--red);   color: var(--red-dark); }
+
+/* ━━━ BADGES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.badge-ativo   { color: var(--green-dark); font-size: 11px; }
+.badge-inativo { color: var(--red-dark);   font-size: 11px; }
+.nivel-badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+.nivel-badge.atendente     { background: var(--blue-pale);   color: var(--blue-dark); }
+.nivel-badge.supervisor    { background: var(--yellow-pale); color: var(--yellow-dark); }
+.nivel-badge.gerente       { background: var(--purple-pale); color: var(--purple-dark); }
+.nivel-badge.administrador { background: var(--red-pale);    color: var(--red-dark); }
+.canal-badge { font-size: 11px; font-weight: 500; color: var(--blue-dark); }
+.arquivo-ref { color: var(--muted); font-size: 10px; margin-left: 4px; }
+
+/* ━━━ STATS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.stats-grid {
+  display: grid; gap: 12px; margin-bottom: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.stat-card {
+  background: var(--card); border-radius: var(--r); padding: 14px;
+  border: 1px solid var(--border); box-shadow: var(--sh); position: relative;
+}
+.stat-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; border-radius: var(--r) var(--r) 0 0;
+}
+.stat-card.red::before    { background: var(--red); }
+.stat-card.blue::before   { background: var(--blue); }
+.stat-card.green::before  { background: var(--wa); }
+.stat-card.purple::before { background: var(--purple); }
+.stat-num { font-size: 24px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
+.stat-lbl { font-size: 11px; color: var(--muted); }
+
+/* ━━━ CANAIS GRID ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.canais-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px; padding: 16px;
+}
+.canal-card {
+  border: 1.5px solid var(--border); border-radius: 10px; padding: 14px;
+  display: flex; gap: 12px; align-items: flex-start;
+  transition: box-shadow .15s;
+}
+.canal-card:hover { box-shadow: var(--sh); }
+.canal-icon { font-size: 26px; flex-shrink: 0; }
+.canal-info { flex: 1; }
+.canal-info strong { font-size: 13px; display: block; margin-bottom: 4px; }
+.canal-info p { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.canal-info code { font-size: 10px; color: var(--muted); background: var(--bg); padding: 2px 6px; border-radius: 4px; }
+.canal-actions { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+
+/* ━━━ NÍVEIS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.niveis-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; padding: 16px; }
+.nivel-card {
+  border: 1.5px solid var(--border); border-radius: 10px; padding: 14px;
+  cursor: pointer; transition: .14s;
+}
+.nivel-card:hover, .nivel-card.selecionado { border-color: var(--red); }
+.nivel-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.nivel-top p { font-size: 11px; color: var(--muted); }
+.nivel-top i { color: var(--muted); transition: transform .2s; }
+.nivel-top i.up { transform: rotate(180deg); }
+.permissoes { margin-top: 12px; }

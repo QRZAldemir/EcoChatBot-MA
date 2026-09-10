@@ -11,7 +11,11 @@ __pycache__/
 .env
 venv/
 .venv/
+venv_ia/
 *.egg-info/
+
+# Arquivo espúrio criado por comando mal formatado
+=1.5.0
 
 # Java / Maven
 target/

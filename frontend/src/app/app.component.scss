@@ -1,0 +1,265 @@
+//╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  PROJETO.......: EcoChatBotMarcx — Sistema de Atendimento Digital          ║
+// ║  ARQUIVO.......: app.component.scss                                        ║
+// ║  LOCALIZAÇÃO...: Frontend/App/app.component.scss                           ║
+// ║  AUTOR.........: Ademir Queiroz                                            ║
+// ║  DATA..........: 08/09/2026                                                ║
+// ║  VERSÃO........: 1.0.0                                                     ║
+// ║                                                                            ║
+// ║  DESCRIÇÃO                                                                 ║
+// ║  Folha de estilos do componente raiz. Utiliza SCSS (Sassy CSS), que é um   ║
+// ║  pré-processador CSS com recursos avançados:                               ║
+// ║    • Variáveis (via @import de arquivo externo)                            ║
+// ║    • Aninhamento de seletores (nesting)                                    ║
+// ║    • Reutilização de blocos (mixins)                                       ║
+// ║    • Operações matemáticas                                                 ║
+// ║                                                                            ║
+// ║  O SCSS é compilado para CSS puro antes de ser enviado ao navegador.       ║
+// ║  O Angular faz essa compilação automaticamente durante o build.            ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IMPORTAÇÃO DE VARIÁVEIS GLOBAIS
+// ─────────────────────────────────────────────────────────────────────────────
+// SINTAXE SCSS:
+//   @import 'caminho/do/arquivo';
+//
+// O arquivo variables.scss contém variáveis CSS customizadas (--nome) e
+// variáveis SCSS ($nome) reutilizáveis em todo o projeto.
+//
+// VARIÁVEIS CSS (custom properties):
+//   --red, --red-dark, --card, --border, --font, --text, --muted, --r, --sh
+//   São acessadas no CSS via var(--nome).
+//   Permitem trocar o tema inteiro alterando um único arquivo.
+// ─────────────────────────────────────────────────────────────────────────────
+@import '../assets/styles/variables';
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LAYOUT PRINCIPAL — .app-container
+// ─────────────────────────────────────────────────────────────────────────────
+// Utiliza FLEXBOX — sistema de layout unidimensional do CSS3.
+//
+// PROPRIEDADES FLEXBOX UTILIZADAS:
+//   display: flex          → ativa o contexto flex no container
+//   flex-direction: row    → eixo principal horizontal (padrão)
+//   flex: 1                → elemento ocupa o espaço disponível
+//   align-items: center    → alinhamento vertical no centro
+//   gap: 12px              → espaçamento uniforme entre itens filhos
+// ─────────────────────────────────────────────────────────────────────────────
+.app-container {
+  display: flex; // Ativa flexbox — filhos se alinham horizontalmente
+  min-height: 100vh; // Altura mínima = 100% da viewport (tela do navegador)
+  //   vh = viewport height (unidade relativa à altura da tela)
+  font-family: var(--font); // Fonte global definida em variables.scss
+  font-size: 13.5px; // Tamanho base da fonte (afeta elementos filhos por herança)
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ÁREA PRINCIPAL — .main
+// ─────────────────────────────────────────────────────────────────────────────
+// Posicionada à direita da sidebar (margin-left: 248px).
+// Ocupa todo o espaço horizontal restante (flex: 1).
+// Organiza seus filhos verticalmente (flex-direction: column).
+// ─────────────────────────────────────────────────────────────────────────────
+.main {
+  margin-left: 248px; // Empurra o conteúdo para a direita da sidebar
+  flex: 1; // Expande horizontalmente para preencher o espaço
+  display: flex;
+  flex-direction: column; // Empilha topbar e content verticalmente
+  min-height: 100vh;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOPBAR — Barra superior fixa
+// ─────────────────────────────────────────────────────────────────────────────
+// SINTAXE SCSS — ANINHAMENTO (nesting):
+//   Permite escrever seletores filhos DENTRO do seletor pai.
+//   O SCSS compila para CSS puro concatenando os seletores:
+//     .topbar .tb-title { ... }
+//     .topbar .tb-btn { ... }
+//     .topbar .tb-btn:hover { ... }
+// ─────────────────────────────────────────────────────────────────────────────
+.topbar {
+  height: 52px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center; // Centraliza verticalmente os filhos
+  padding: 0 20px; // Espaçamento interno: 0 no topo/base, 20px nas laterais
+  gap: 12px; // Espaçamento uniforme entre os filhos
+  position: sticky; // Comportamento "grudento" — fixa ao rolar
+  top: 0; // Posição de fixação (topo da viewport)
+  z-index: 100; // Camada de empilhamento (fica acima de outros elementos)
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  //   box-shadow → sombra projetada
+  //   Sintaxe: offset-x offset-y blur-radius cor
+  //   rgba(r, g, b, alpha) → cor com transparência (alpha: 0=transparente, 1=opaco)
+
+  // ── SELETOR FILHO: .tb-title ────────────────────────────────────────────
+  .tb-title {
+    font-size: 14px;
+    font-weight: 700; // Negrito (valores: 100-900; 400=normal, 700=bold)
+    flex: 1; // Ocupa o espaço disponível (empurra o botão p/ direita)
+
+    span {
+      color: var(--red); // Aplica a cor vermelha do tema
+    }
+  }
+
+  // ── SELETOR FILHO: .tb-btn ──────────────────────────────────────────────
+  .tb-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px; // Cantos arredondados (8px de raio)
+    border: 1.5px solid var(--border);
+    background: none; // Fundo transparente
+    cursor: pointer; // Cursor muda para "mão" ao passar o mouse
+    display: flex;
+    align-items: center;
+    justify-content: center; // Centraliza o conteúdo horizontalmente
+    color: var(--muted);
+    font-size: 13px;
+    transition: 0.14s; // Animação suave de 0.14 segundos nas mudanças
+
+    // ── PSEUDO-CLASSE :hover ──────────────────────────────────────────────
+    // :hover é ativada quando o mouse está sobre o elemento.
+    // O "&" no SCSS representa o seletor pai (.tb-btn).
+    // Compila para: .topbar .tb-btn:hover { ... }
+    &:hover {
+      border-color: var(--red);
+      color: var(--red);
+    }
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ÁREA DE CONTEÚDO — .content
+// ─────────────────────────────────────────────────────────────────────────────
+.content {
+  padding: 20px; // Espaçamento interno de 20px em todos os lados
+  flex: 1; // Expande verticalmente
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLASSE UTILITÁRIA — .req (campo obrigatório)
+// ─────────────────────────────────────────────────────────────────────────────
+// Usada em formulários para marcar campos obrigatórios com asterisco vermelho.
+// Exemplo de uso no HTML: <label>Nome <span class="req">*</span></label>
+// ─────────────────────────────────────────────────────────────────────────────
+.req {
+  color: var(--red);
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ESTILOS GLOBAIS REUTILIZÁVEIS — :host ::ng-deep
+// ─────────────────────────────────────────────────────────────────────────────
+// CONCEITOS ANGULAR:
+//
+//   :host → pseudo-classe CSS que representa o próprio componente.
+//           No caso, refere-se ao <app-root> no DOM.
+//
+//   ::ng-deep → diretiva do Angular que DESLIGA o encapsulamento de escopo.
+//               Permite que os estilos definidos aqui ATRAVESSEM para os
+//               componentes filhos.
+//
+// POR QUE USAR ::ng-deep AQUI?
+//   As classes .card, .card-hd e .btn são reutilizadas em VÁRIOS componentes
+//   do sistema. Sem ::ng-deep, cada componente teria que redefinir esses estilos.
+//
+// ATENÇÃO:
+//   O Angular pode descontinuar ::ng-deep no futuro.
+//   Alternativa moderna: criar um arquivo styles.scss global ou usar
+//   mixins SCSS compartilhados.
+//
+// SINTAXE "&.p":
+//   O "&" representa o seletor pai (.btn).
+//   "&.p" compila para: .btn.p { ... }
+//   Ou seja, seleciona elementos que tenham AMBAS as classes: class="btn p"
+// ─────────────────────────────────────────────────────────────────────────────
+:host ::ng-deep {
+
+  // ── CARD — Container visual padrão ──────────────────────────────────────
+  .card {
+    background: var(--card);
+    border-radius: var(--r);
+    border: 1px solid var(--border);
+    box-shadow: var(--sh);
+    overflow: hidden; // Esconde conteúdo que ultrapasse as bordas
+    margin-bottom: 16px; // Espaçamento inferior entre cards
+  }
+
+  // ── CABEÇALHO DO CARD ───────────────────────────────────────────────────
+  .card-hd {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    h3 {
+      font-size: 12.5px;
+      font-weight: 700;
+      flex: 1;
+    }
+  }
+
+  // ── SISTEMA DE BOTÕES ───────────────────────────────────────────────────
+  // Botões reutilizáveis em todo o sistema.
+  // Classes modificadoras:
+  //   .btn       → estilo base
+  //   .btn.p     → primário (vermelho, ação principal)
+  //   .btn.s     → secundário (borda, ação neutra)
+  //   .btn.sm    → tamanho pequeno
+  //
+  // Exemplo de uso:
+  //   <button class="btn p">Salvar</button>
+  //   <button class="btn s sm">Cancelar</button>
+  .btn {
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    transition: 0.14s;
+    display: inline-flex; // Flex inline — permite ícone + texto alinhados
+    align-items: center;
+    gap: 5px;
+
+    // ── MODIFICADOR .p (primário) ─────────────────────────────────────────
+    &.p {
+      background: var(--red);
+      color: #fff; // Branco puro (hexadecimal)
+
+      &:hover {
+        background: var(--red-dark);
+      }
+    }
+
+    // ── MODIFICADOR .s (secundário) ───────────────────────────────────────
+    &.s {
+      background: var(--card);
+      color: var(--text);
+      border: 1.5px solid var(--border);
+
+      &:hover {
+        border-color: var(--red);
+        color: var(--red);
+      }
+    }
+
+    // ── MODIFICADOR .sm (pequeno) ─────────────────────────────────────────
+    &.sm {
+      padding: 4px 9px;
+      font-size: 11px;
+    }
+  }
+}

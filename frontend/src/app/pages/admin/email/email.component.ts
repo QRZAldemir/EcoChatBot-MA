@@ -24,7 +24,7 @@ export class EmailComponent implements OnInit {
 
   alerta: { tipo: 'sucesso' | 'erro'; msg: string } | null = null;
 
-  constructor(private emailService: EmailService) {}
+  constructor(private emailService: EmailService) { }
 
   ngOnInit(): void {
     this.carregar();
@@ -58,7 +58,7 @@ export class EmailComponent implements OnInit {
         this.mostrarAlerta(
           e.status === 'erro' ? 'erro' : 'sucesso',
           e.status === 'simulado' ? 'E-mail registrado (SMTP não configurado neste ambiente — envio simulado).' :
-          e.status === 'erro' ? 'Falha ao enviar o e-mail.' : 'E-mail enviado.'
+            e.status === 'erro' ? 'Falha ao enviar o e-mail.' : 'E-mail enviado.'
         );
       },
       error: () => { this.enviando = false; this.mostrarAlerta('erro', 'Erro ao enviar o e-mail.'); }

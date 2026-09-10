@@ -36,7 +36,7 @@ export class AtendimentosComponent implements OnInit, OnDestroy {
     private auth: AuthService,
     private atendimentoService: AtendimentoService,
     private departamentoService: DepartamentoService,
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     if (!this.usuario?.departamentoId) {
@@ -46,7 +46,7 @@ export class AtendimentosComponent implements OnInit, OnDestroy {
 
     this.departamentoService.buscarPorId(this.usuario.departamentoId).subscribe({
       next: d => this.departamentoNome = d.nome,
-      error: () => {},
+      error: () => { },
     });
 
     this.pollSub = interval(POLL_MS).pipe(

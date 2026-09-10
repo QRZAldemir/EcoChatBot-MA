@@ -8,7 +8,7 @@ import { environment } from '../../../environments/environment';
 export class EmailService {
   private api = `${environment.apiUrl}/emails`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   listar(): Observable<EmailEnviado[]> {
     return this.http.get<any[]>(this.api).pipe(map(es => es.map(e => this._normalizar(e))));

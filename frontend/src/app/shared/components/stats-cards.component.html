@@ -1,0 +1,31 @@
+<div class="stats-grid">
+    <div class="stat-card green">
+        <div class="stat-icon"><i class="fas fa-inbox"></i></div>
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">Total de Atendimentos</div>
+        <div class="stat-trend">
+            {{ stats.humanos }} atend. + {{ stats.robos }} não atend. + {{ stats.emAberto }} em aberto
+        </div>
+    </div>
+
+    <div class="stat-card blue">
+        <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+        <div class="stat-value">{{ stats.humanos }}</div>
+        <div class="stat-label">Atendidos por Humano</div>
+        <div class="stat-trend">{{ pctHumanos }} do total</div>
+    </div>
+
+    <div class="stat-card red">
+        <div class="stat-icon"><i class="fas fa-robot"></i></div>
+        <div class="stat-value">{{ stats.robos }}</div>
+        <div class="stat-label">Não Atendidos (Robô)</div>
+        <div class="stat-trend">TME: {{ tmeFormatado }}</div>
+    </div>
+
+    <div class="stat-card purple">
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-value">{{ tmaFormatado }}</div>
+        <div class="stat-label">Tempo Médio Atendimento</div>
+        <div class="stat-trend">Criação → Finalização</div>
+    </div>
+</div>

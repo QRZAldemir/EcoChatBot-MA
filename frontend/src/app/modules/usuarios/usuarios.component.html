@@ -1,0 +1,28 @@
+<div class="usuarios-container">
+  <!-- Stats -->
+  <div class="stats">
+    <div class="sc r">
+      <div class="sc-num">{{ stats.total }}</div>
+      <div class="sc-lbl">Usuários Cadastrados</div>
+    </div>
+    <div class="sc b">
+      <div class="sc-num">{{ stats.departamentos }}</div>
+      <div class="sc-lbl">Departamentos</div>
+    </div>
+    <div class="sc g">
+      <div class="sc-num">{{ stats.canais }}</div>
+      <div class="sc-lbl">Canais Ativos</div>
+    </div>
+    <div class="sc p">
+      <div class="sc-num">{{ stats.conexoes }}</div>
+      <div class="sc-lbl">Conexões WhatsApp</div>
+    </div>
+  </div>
+
+  <!-- Layout Duplo -->
+  <div class="layout">
+    <app-usuario-form (usuarioSalvo)="onUsuarioSalvo()"></app-usuario-form>
+    <app-usuario-list [usuarios]="usuarios" (usuarioDeletado)="onUsuarioDeletado()">
+    </app-usuario-list>
+  </div>
+</div>

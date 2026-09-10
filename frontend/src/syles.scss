@@ -1,0 +1,100 @@
+// src/styles.scss
+
+// 1. Variáveis Globais
+:root {
+  // Cores
+  --primary: #3b82f6;
+  --primary-light: #93c5fd;
+  --primary-dark: #1d4ed8;
+
+  // Tipografia
+  --font-family: 'Inter', sans-serif;
+  --font-size-base: 14px;
+  --line-height-base: 1.5;
+
+  // Espaçamentos
+  --spacing-unit: 8px;
+  --spacing-xs: calc(var(--spacing-unit) * 0.5);
+  --spacing-sm: var(--spacing-unit);
+  --spacing-md: calc(var(--spacing-unit) * 2);
+  --spacing-lg: calc(var(--spacing-unit) * 3);
+
+  // Border radius
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+// 2. Reset e Base
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  color: var(--text-primary);
+  background: var(--bg-primary);
+}
+
+// 3. Mixins
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin button-base {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// 4. Componentes Base
+.btn {
+  @include button-base;
+  border: none;
+  cursor: pointer;
+
+  &--primary {
+    background: var(--primary);
+    color: white;
+
+    &:hover {
+      background: var(--primary-dark);
+    }
+  }
+}
+
+// 5. Layout
+.app-layout {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  min-height: 100vh;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// 6. Temas
+.theme-light {
+  --bg-primary: #ffffff;
+  --text-primary: #1f2937;
+  --border-color: #e5e7eb;
+}
+
+.theme-dark {
+  --bg-primary: #1f2937;
+  --text-primary: #f3f4f6;
+  --border-color: #374151;
+}

@@ -1,0 +1,42 @@
+<aside class="sb">
+  <div class="sb-brand">
+    <div class="sb-logo"><span>M</span></div>
+    <div class="sb-txt">
+      <strong>EcoChat</strong>
+      <small>Marcx · Central de Atendimento</small>
+    </div>
+  </div>
+
+  <nav class="sb-nav">
+    <div class="sb-sec">Configuração</div>
+
+    <div class="ni" [class.active]="paginaAtual === 'usuarios'" (click)="navegar('usuarios')">
+      <i class="fas fa-users"></i> Usuários
+    </div>
+
+    <div class="ni" [class.active]="paginaAtual === 'turnos'" (click)="navegar('turnos')">
+      <i class="fas fa-clock"></i> Turnos de Trabalho
+    </div>
+
+    <div class="ni" [class.active]="paginaAtual === 'departamentos'" (click)="navegar('departamentos')">
+      <i class="fas fa-building"></i> Departamentos
+    </div>
+
+    <div class="ni" [class.active]="paginaAtual === 'canais'" (click)="navegar('canais')">
+      <i class="fas fa-project-diagram"></i> Canais
+    </div>
+  </nav>
+
+  <div class="sb-foot">
+    <div class="agent-row">
+      <div class="av">
+        AD
+        <div class="dot-status on"></div>
+      </div>
+      <div>
+        <strong>Administrador</strong>
+        <small>Online</small>
+      </div>
+    </div>
+  </div>
+</aside>
