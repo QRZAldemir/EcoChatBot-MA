@@ -1,31 +1,24 @@
-<<<<<<< HEAD
-import { Routes } from '@angular/router';
-import { authGuard } from './core/guards/auth.guard';
-import { nivelGuard } from './core/guards/nivel.guard';
-=======
 //╔══════════════════════════════════════════════════════════════════════════════╗
 // ║  PROJETO.......: EcoChatBotMarcx — Sistema de Atendimento Digital          ║
 // ║  ARQUIVO.......: app.routes.ts                                             ║
-// ║  LOCALIZAÇÃO...: Frontend/App/app.routes.ts                                ║
+// ║  LOCALIZAÇÃO...: frontend/src/app/app.routes.ts                            ║
 // ║  AUTOR.........: Ademir Queiroz                                            ║
 // ║  DATA..........: 08/09/2026                                                ║
-// ║  VERSÃO........: 1.0.0                                                     ║
+// ║  VERSÃO........: 1.0.1                                                     ║
 // ║                                                                            ║
 // ║  DESCRIÇÃO                                                                 ║
 // ║  Configuração moderna de rotas usando o padrão standalone do Angular 17+.  ║
 // ║  Define toda a navegação do sistema:                                       ║
 // ║    • Login (público)                                                       ║
-// ║    • Painel administrativo (protegido por authGuard)                       ║
+// ║    • Painel administrativo (protegido por authGuard + nivelGuard)          ║
 // ║    • Interface pública de chat do cliente/paciente                         ║
 // ║                                                                            ║
 // ║  DIFERENÇA PARA app-routing.module.ts:                                     ║
 // ║    • Não utiliza @NgModule                                                 ║
 // ║    • Usa loadComponent() ao invés de loadChildren()                        ║
-// ║    • Registra rotas via provideRouter() no main.ts                         ║
+// ║    • Registra rotas via provideRouter() no app.config.ts                   ║
 // ║    • É o padrão recomendado a partir do Angular 17                         ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IMPORTAÇÕES
@@ -35,30 +28,22 @@ import { Routes } from '@angular/router';
 //   Fornece autocomplete e validação em tempo de compilação.
 
 import { authGuard } from './core/guards/auth.guard';
-//   authGuard → função de guarda de rota.
-//   Verifica se o usuário está autenticado antes de permitir o acesso.
+//   authGuard → verifica se o usuário está autenticado antes de permitir acesso.
 //   Se não estiver autenticado, redireciona para /login.
-//
-//   GUARDS (canActivate, canDeactivate, canLoad):
-//     São funções/métodos que executam lógica ANTES da ativação da rota.
-//     Retornam:
-//       true            → permite a navegação
-//       false           → bloqueia a navegação
-//       UrlTree         → redireciona para outra URL
-//       Observable/Promise dos valores acima → versão assíncrona
 
+import { nivelGuard } from './core/guards/nivel.guard';
+//   nivelGuard → verifica se o usuário tem o nível MÍNIMO exigido pela rota.
+//   O nível é lido de `data.nivelMinimo` definido em cada rota filha.
+//   Hierarquia esperada: atendente < supervisor < gerente < administrador.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ARRAY DE ROTAS
 // ─────────────────────────────────────────────────────────────────────────────
-// O "export const" torna a constante acessível para importação em outros
-// arquivos (como o main.ts, que a registra via provideRouter(routes)).
-// ─────────────────────────────────────────────────────────────────────────────
 export const routes: Routes = [
 
   // ── ROTA RAIZ ─────────────────────────────────────────────────────────────
+  // Redireciona a raiz para o dashboard administrativo.
   { path: '', redirectTo: 'admin/dashboard', pathMatch: 'full' },
-
 
   // ─────────────────────────────────────────────────────────────────────────
   // LOGIN — Rota pública
@@ -67,34 +52,26 @@ export const routes: Routes = [
   // Acesso: qualquer pessoa (sem autenticação necessária)
   //
   // loadComponent() → carrega o componente sob demanda (lazy loading).
-  //   Diferente de loadChildren() que carrega um módulo inteiro,
-  //   loadComponent() carrega apenas UM componente específico.
-  //
   // title → define o título da aba do navegador (<title>).
   // ─────────────────────────────────────────────────────────────────────────
   {
     path: 'login',
     loadComponent: () =>
-      import('./pages/login/login.component')
-        .then(m => m.LoginComponent),
+      import('./pages/login/login.component').then(m => m.LoginComponent),
     title: 'Login — EcoChatBotMarcx'
   },
 
-
   // ─────────────────────────────────────────────────────────────────────────
-  // ADMIN — Rotas protegidas por autenticação
+  // ADMIN — Rotas protegidas por autenticação + nível
   // ─────────────────────────────────────────────────────────────────────────
   // URL: http://dominio/admin/*
   // Acesso: apenas usuários autenticados (verificado pelo authGuard)
   //
-  // canActivate: [authGuard]
-  //   Array de guards executados ANTES da ativação da rota.
+  // canActivate: [authGuard] → executado ANTES da ativação da rota.
   //   Se authGuard retornar false, o usuário é redirecionado para /login.
   //
-  // loadComponent() → carrega o AdminLayoutComponent, que contém:
-  //   • Sidebar (menu lateral)
-  //   • Topbar (barra superior)
-  //   • <router-outlet> interno para as rotas filhas
+  // loadComponent() → carrega o AdminLayoutComponent (sidebar + topbar +
+  //   <router-outlet> interno para as rotas filhas).
   //
   // children → array de rotas filhas, renderizadas DENTRO do layout admin.
   // ─────────────────────────────────────────────────────────────────────────
@@ -108,6 +85,7 @@ export const routes: Routes = [
 
       // ── DASHBOARD ───────────────────────────────────────────────────────
       // URL: http://dominio/admin/dashboard
+      // Acesso: qualquer usuário autenticado (sem exigência de nível)
       {
         path: 'dashboard',
         loadComponent: () =>
@@ -118,21 +96,11 @@ export const routes: Routes = [
 
       // ── ATENDIMENTOS ────────────────────────────────────────────────────
       // URL: http://dominio/admin/atendimentos
+      // Nível mínimo: atendente
       {
         path: 'atendimentos',
-<<<<<<< HEAD
         canActivate: [nivelGuard],
         data: { nivelMinimo: 'atendente' },
-        loadComponent: () => import('./pages/admin/atendimentos/atendimentos.component').then(m => m.AtendimentosComponent),
-        title: 'Atendimentos — EcoChat Marcx'
-      },
-      {
-        path: 'usuarios',
-        canActivate: [nivelGuard],
-        data: { nivelMinimo: 'supervisor' },
-        loadComponent: () => import('./pages/admin/usuarios/usuarios.component').then(m => m.UsuariosComponent),
-        title: 'Usuários — EcoChat Marcx'
-=======
         loadComponent: () =>
           import('./pages/admin/atendimentos/atendimentos.component')
             .then(m => m.AtendimentosComponent),
@@ -141,151 +109,115 @@ export const routes: Routes = [
 
       // ── USUÁRIOS ────────────────────────────────────────────────────────
       // URL: http://dominio/admin/usuarios
+      // Nível mínimo: supervisor
       {
         path: 'usuarios',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'supervisor' },
         loadComponent: () =>
           import('./pages/admin/usuarios/usuarios.component')
             .then(m => m.UsuariosComponent),
         title: 'Usuários — EcoChatBotMarcx'
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
       },
 
       // ── DEPARTAMENTOS ───────────────────────────────────────────────────
       // URL: http://dominio/admin/departamentos
+      // Nível mínimo: gerente
       {
         path: 'departamentos',
-<<<<<<< HEAD
         canActivate: [nivelGuard],
         data: { nivelMinimo: 'gerente' },
-        loadComponent: () => import('./pages/admin/departamentos/departamentos.component').then(m => m.DepartamentosComponent),
-        title: 'Departamentos — EcoChat Marcx'
-=======
         loadComponent: () =>
           import('./pages/admin/departamentos/departamentos.component')
             .then(m => m.DepartamentosComponent),
         title: 'Departamentos — EcoChatBotMarcx'
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
       },
 
       // ── CANAIS DE ATENDIMENTO ───────────────────────────────────────────
       // URL: http://dominio/admin/canais
+      // Nível mínimo: gerente
       {
         path: 'canais',
-<<<<<<< HEAD
         canActivate: [nivelGuard],
         data: { nivelMinimo: 'gerente' },
-        loadComponent: () => import('./pages/admin/canais/canais.component').then(m => m.CanaisComponent),
-        title: 'Canais de Atendimento — EcoChat Marcx'
-=======
         loadComponent: () =>
           import('./pages/admin/canais/canais.component')
             .then(m => m.CanaisComponent),
         title: 'Canais de Atendimento — EcoChatBotMarcx'
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
       },
 
       // ── CONEXÕES ────────────────────────────────────────────────────────
       // URL: http://dominio/admin/conexoes
+      // Nível mínimo: administrador
       {
         path: 'conexoes',
-<<<<<<< HEAD
         canActivate: [nivelGuard],
         data: { nivelMinimo: 'administrador' },
-        loadComponent: () => import('./pages/admin/conexoes/conexoes.component').then(m => m.ConexoesComponent),
-        title: 'Conexões — EcoChat Marcx'
-=======
         loadComponent: () =>
           import('./pages/admin/conexoes/conexoes.component')
             .then(m => m.ConexoesComponent),
         title: 'Conexões — EcoChatBotMarcx'
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
       },
 
       // ── CONTATOS ────────────────────────────────────────────────────────
       // URL: http://dominio/admin/contatos
+      // Nível mínimo: gerente
       {
         path: 'contatos',
-<<<<<<< HEAD
         canActivate: [nivelGuard],
         data: { nivelMinimo: 'gerente' },
-        loadComponent: () => import('./pages/admin/contatos/contatos.component').then(m => m.ContatosComponent),
-        title: 'Contatos — EcoChat Marcx'
-=======
         loadComponent: () =>
           import('./pages/admin/contatos/contatos.component')
             .then(m => m.ContatosComponent),
         title: 'Contatos — EcoChatBotMarcx'
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
       },
 
       // ── E-MAIL ──────────────────────────────────────────────────────────
       // URL: http://dominio/admin/email
+      // Nível mínimo: gerente
       {
         path: 'email',
-<<<<<<< HEAD
         canActivate: [nivelGuard],
         data: { nivelMinimo: 'gerente' },
-        loadComponent: () => import('./pages/admin/email/email.component').then(m => m.EmailComponent),
-        title: 'E-mail — EcoChat Marcx'
-=======
         loadComponent: () =>
           import('./pages/admin/email/email.component')
             .then(m => m.EmailComponent),
         title: 'E-mail — EcoChatBotMarcx'
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
       },
 
       // ── CAMPANHAS ───────────────────────────────────────────────────────
       // URL: http://dominio/admin/campanhas
+      // Nível mínimo: gerente
       {
         path: 'campanhas',
-<<<<<<< HEAD
         canActivate: [nivelGuard],
         data: { nivelMinimo: 'gerente' },
-        loadComponent: () => import('./pages/admin/campanhas/campanhas.component').then(m => m.CampanhasComponent),
-        title: 'Campanhas — EcoChat Marcx'
-=======
         loadComponent: () =>
           import('./pages/admin/campanhas/campanhas.component')
             .then(m => m.CampanhasComponent),
         title: 'Campanhas — EcoChatBotMarcx'
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
       },
 
       // ── ARQUIVOS ────────────────────────────────────────────────────────
       // URL: http://dominio/admin/arquivos
+      // Nível mínimo: atendente
       {
         path: 'arquivos',
-<<<<<<< HEAD
         canActivate: [nivelGuard],
         data: { nivelMinimo: 'atendente' },
-        loadComponent: () => import('./pages/admin/arquivos/arquivos.component').then(m => m.ArquivosComponent),
-        title: 'Arquivos — EcoChat Marcx'
-=======
         loadComponent: () =>
           import('./pages/admin/arquivos/arquivos.component')
             .then(m => m.ArquivosComponent),
         title: 'Arquivos — EcoChatBotMarcx'
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
       },
 
       // ── MENSAGENS ───────────────────────────────────────────────────────
       // URL: http://dominio/admin/mensagens
+      // Nível mínimo: gerente
       {
         path: 'mensagens',
-<<<<<<< HEAD
         canActivate: [nivelGuard],
         data: { nivelMinimo: 'gerente' },
-        loadComponent: () => import('./pages/admin/mensagens/mensagens.component').then(m => m.MensagensComponent),
-        title: 'Mensagens — EcoChat Marcx'
-      },
-      {
-        path: 'niveis',
-        canActivate: [nivelGuard],
-        data: { nivelMinimo: 'administrador' },
-        loadComponent: () => import('./pages/admin/niveis/niveis.component').then(m => m.NiveisComponent),
-        title: 'Níveis de Usuário — EcoChat Marcx'
-=======
         loadComponent: () =>
           import('./pages/admin/mensagens/mensagens.component')
             .then(m => m.MensagensComponent),
@@ -294,47 +226,37 @@ export const routes: Routes = [
 
       // ── NÍVEIS DE USUÁRIO ───────────────────────────────────────────────
       // URL: http://dominio/admin/niveis
+      // Nível mínimo: administrador
       {
         path: 'niveis',
+        canActivate: [nivelGuard],
+        data: { nivelMinimo: 'administrador' },
         loadComponent: () =>
           import('./pages/admin/niveis/niveis.component')
             .then(m => m.NiveisComponent),
         title: 'Níveis de Usuário — EcoChatBotMarcx'
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
       },
 
       // ── ESCALAS ─────────────────────────────────────────────────────────
       // URL: http://dominio/admin/escalas
+      // Nível mínimo: gerente
       {
         path: 'escalas',
-<<<<<<< HEAD
         canActivate: [nivelGuard],
         data: { nivelMinimo: 'gerente' },
-        loadComponent: () => import('./pages/admin/escalas/escalas.component').then(m => m.EscalasComponent),
-        title: 'Painel de Escalas — EcoChat Marcx'
-=======
         loadComponent: () =>
           import('./pages/admin/escalas/escalas.component')
             .then(m => m.EscalasComponent),
         title: 'Painel de Escalas — EcoChatBotMarcx'
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
       },
 
       // ── RELATÓRIO ───────────────────────────────────────────────────────
       // URL: http://dominio/admin/relatorio
+      // Nível mínimo: supervisor
       {
         path: 'relatorio',
-<<<<<<< HEAD
         canActivate: [nivelGuard],
         data: { nivelMinimo: 'supervisor' },
-        loadComponent: () => import('./pages/admin/relatorio/relatorio.component').then(m => m.RelatorioComponent),
-        title: 'Relatório — EcoChat Marcx'
-      },
-    ]
-  },
-
-  // ── Chat (interface do cliente) ────────────────────────────────
-=======
         loadComponent: () =>
           import('./pages/admin/relatorio/relatorio.component')
             .then(m => m.RelatorioComponent),
@@ -342,7 +264,6 @@ export const routes: Routes = [
       }
     ]
   },
-
 
   // ─────────────────────────────────────────────────────────────────────────
   // CHAT — Interface pública do cliente/paciente
@@ -353,7 +274,6 @@ export const routes: Routes = [
   // Esta seção expõe a interface de atendimento para o cliente final.
   // O cliente acessa via link/QR Code fornecido pelo bot do WhatsApp.
   // ─────────────────────────────────────────────────────────────────────────
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
   {
     path: 'chat',
     children: [
@@ -388,19 +308,14 @@ export const routes: Routes = [
       //       map(params => params.get('canal'))
       //     );
       {
-<<<<<<< HEAD
-        // /chat/:canal → atendimento do canal
-        // Exemplos: /chat/atendimento  /chat/comercial
-=======
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
         path: ':canal',
         loadComponent: () =>
           import('./pages/chat/atendimento/atendimento.component')
-            .then(m => m.AtendimentoComponent)
+            .then(m => m.AtendimentoComponent),
+        title: 'Atendimento — EcoChatBotMarcx'
       }
     ]
   },
-
 
   // ── WILDCARD (catch-all) ──────────────────────────────────────────────────
   // path: '**' → casa com qualquer URL não mapeada.

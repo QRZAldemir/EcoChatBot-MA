@@ -3,7 +3,7 @@
 PONTO DE ENTRADA DA APLICAÇÃO (MAIN APP) - ECOCHAT MARCX API
 ================================================================================
 Autor: Aldemir Queiroz da Silva
-Versão: 1.0.0
+Versão: 1.1.0 (Adicionado router de Empresas/Tenants)
 Data de Criação: 03 de Julho de 2026
 ================================================================================
 FINALIDADE DO SCRIPT:
@@ -14,7 +14,7 @@ Suas responsabilidades incluem:
 3. Configurar middlewares de segurança e cross-origin (CORS) para comunicação 
    com o frontend (Angular).
 4. Registrar e agrupar os módulos de rotas (routers) que compõem os endpoints 
-   da API, organizando-os por domínios (Usuários, Departamentos, IA, etc.).
+   da API, organizando-os por domínios (Empresas, Usuários, Departamentos, IA, etc.).
 5. Expor endpoints básicos de verificação de status (Root e Health Check).
 ================================================================================
 """
@@ -41,6 +41,7 @@ load_dotenv()
 # específica da API. O uso de parênteses permite quebrar a linha (PEP 8).
 from app.routers import (
     auth,
+    empresas,       # <--- NOVO: Router de gestão de empresas e tenants
     usuarios,
     departamentos,
     canais,
@@ -57,13 +58,7 @@ from app.routers import (
     webhook,
     audio
 )
-<<<<<<< HEAD
 from app.security import exigir_nivel_minimo, obter_usuario_atual
-=======
-from app.routers.tenant import atendimentos as tenant_atendimentos
-from app.routers.tenant import usuarios as tenant_usuarios
-from app.security import obter_usuario_atual
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
 
 # ==============================================================================
 # 3. CONFIGURAÇÃO DA INSTÂNCIA FASTAPI
@@ -73,7 +68,7 @@ from app.security import obter_usuario_atual
 app = FastAPI(
     title="EcoChat Marcx API",
     description="API omnichannel de atendimento (WhatsApp, filas, campanhas e menus interativos)",
-    version="1.0.0",
+    version="1.1.0",
     docs_url="/docs",      # URL para o Swagger UI (Documentação interativa)
     redoc_url="/redoc"     # URL para o ReDoc (Documentação alternativa)
 )
@@ -101,16 +96,16 @@ app.add_middleware(
 # 5. REGISTRO DE ROTAS (ROUTERS)
 # ==============================================================================
 # MELHORIA DE ENGENHARIA (DRY - Don't Repeat Yourself): Em vez de chamar 
-# app.include_router() 8 vezes de forma repetitiva, agrupamos os routers em 
-# uma lista de tuplas. Se amanhã você precisar adicionar 10 novos módulos, 
+# app.include_router() diversas vezes de forma repetitiva, agrupamos os routers em 
+# uma lista de tuplas. Se amanhã você precisar adicionar novos módulos, 
 # basta inserir novas linhas nesta lista, mantendo o código limpo e escalável.
 #
 # NOTA DE ENGENHARIA (tags sem acentuação): as tags abaixo alimentam tanto o
 # Swagger UI (/docs) quanto o gerador de cliente TypeScript para o Angular
 # (openapi-typescript-codegen, ver frontend/package.json -> "generate:api").
 # Esse gerador usa a tag para nomear a classe do service (ex.: tag
-# "Usuários" -> "UsuRiosService" — a translieração de acentos quebra o
-# identificador). Por isso as tags são mantidas em ASCII aqui.
+# "Usuarios" -> "UsuariosService"). Acentos ou barras quebram o identificador.
+# Por isso, usamos "Empresas" em vez de "Empresas / Tenants".
 #
 # NOTA DE SEGURANÇA:
 #   protegido=True  → JWT em todas as rotas (obter_usuario_atual)
@@ -121,8 +116,8 @@ app.add_middleware(
 #
 # Hierarquia: atendente < supervisor < gerente < administrador
 ROUTERS_CONFIG: List[tuple] = [
-<<<<<<< HEAD
     (auth, "/api/auth", "Autenticacao", False, None),
+    (empresas, "/api/empresas", "Empresas", True, "administrador"),  # <--- NOVO: Protegido, exige nível administrador
     (usuarios, "/api/usuarios", "Usuarios", True, None),
     (departamentos, "/api/departamentos", "Departamentos", True, None),
     (canais, "/api/canais", "Canais", False, None),
@@ -138,26 +133,6 @@ ROUTERS_CONFIG: List[tuple] = [
     (atendimento, "/api/atendimento", "Atendimento", True, "atendente"),
     (webhook, "/api/webhook", "Webhook", False, None),
     (audio, "/api/audio", "Audio", False, None),
-=======
-    (auth, "/api/auth", "Autenticacao", False),
-    (usuarios, "/api/usuarios", "Usuarios", True),
-    (departamentos, "/api/departamentos", "Departamentos", True),
-    (canais, "/api/canais", "Canais", False),
-    (conexoes, "/api/conexoes", "Conexoes", True),
-    (contatos, "/api/contatos", "Contatos", True),
-    (email, "/api/emails", "Email", True),
-    (campanhas, "/api/campanhas", "Campanhas", True),
-    (arquivos, "/api/arquivos", "Arquivos", True),
-    (ia, "/api/ia", "Inteligencia Artificial", False),
-    (mensagem, "/api/mensagem", "Mensagens", False),
-    (menus, "/api/menus", "Menus", False),
-    (modelos_mensagem, "/api/modelos-mensagem", "Modelos de Mensagem", False),
-    (atendimento, "/api/atendimento", "Atendimento", True),
-    (webhook, "/api/webhook", "Webhook", False),
-    (audio, "/api/audio", "Audio", False),
-    (tenant_atendimentos, "/api", "Tenant Atendimentos", True),
-    (tenant_usuarios, "/api", "Tenant Usuarios", True)
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
 ]
 
 

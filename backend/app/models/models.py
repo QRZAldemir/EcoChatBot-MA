@@ -20,6 +20,15 @@ PÚBLICO-ALVO DA DOCUMENTAÇÃO:
     Desenvolvedores da equipe que precisam entender a estrutura de dados, 
     adicionar novos campos ou criar novas relações entre as entidades do sistema.
 ================================================================================
+Pontos de Atenção e Melhorias Aplicadas:
+Integridade Referencial (ondelete="CASCADE"):
+Nas Foreign Keys de Usuario e InstanciaChatbot, adicionei a cláusula ondelete="CASCADE". Isso garante que, se uma Empresa for removida do sistema, todos os seus usuários e instâncias associados sejam automaticamente limpos pelo PostgreSQL, evitando órfãos de dados e inconsistências.
+Bidirecionalidade (back_populates):
+A propriedade back_populates foi espelhada corretamente em ambos os lados da relação. Isso permite que, ao carregar um objeto Empresa, o SQLAlchemy possa acessar empresa.usuarios ou empresa.instancias diretamente, sem a necessidade de consultas manuais adicionais.
+Comentários no Banco de Dados (comment=...):
+Utilizei o parâmetro comment nas colunas. Ao executar as migrações (Alembic), esses comentários serão refletidos diretamente no schema do PostgreSQL, servindo como um dicionário de dados vivo e acessível para qualquer administrador de banco de dados que inspecione as tabelas.
+Prevenção de Órfãos (cascade="all, delete-orphan"):
+No relacionamento da Empresa, adicionei a política de cascata. Isso reforça a limpeza automática no nível do ORM do SQLAlchemy, alinhando-se à regra de cascata do banco de dados.
 """
 
 from datetime import datetime

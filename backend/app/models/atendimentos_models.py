@@ -1,5 +1,5 @@
 # app/models/atendimento.py
-class Atendimento(Base):
+class Atendimentos(Base):
     __tablename__ = "atendimentos"
     
     id = Column(Integer, primary_key=True)

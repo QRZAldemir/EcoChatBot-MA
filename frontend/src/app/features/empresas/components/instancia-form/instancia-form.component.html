@@ -1,0 +1,107 @@
+<!--
+  @author  Aldemir Queiroz
+  @angular 17
+  Template do formulário de criação de instância WhatsApp.
+-->
+<form
+  [formGroup]="form"
+  (ngSubmit)="onSubmit()"
+  class="p-6 bg-white rounded-lg shadow-md space-y-6 max-w-2xl mx-auto"
+>
+  <!-- Cabeçalho -->
+  <header class="border-b pb-2 mb-4">
+    <h2 class="text-xl font-bold text-gray-800">Nova Instância WhatsApp</h2>
+    <p class="text-sm text-gray-500 mt-1">
+      Empresa ID:
+      <span class="font-mono font-semibold text-blue-600">{{ empresaId }}</span>
+    </p>
+  </header>
+
+  <div class="space-y-4">
+    <!-- Campo: Nome da Instância -->
+    <div>
+      <label for="nome_instancia" class="block text-sm font-medium text-gray-700 mb-1">
+        Nome da Instância *
+      </label>
+      <input
+        id="nome_instancia"
+        formControlName="nome_instancia"
+        type="text"
+        autocomplete="off"
+        class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-green-500 outline-none font-mono"
+        placeholder="ex: empresa_x_suporte"
+      />
+
+      <app-field-error
+        [control]="nomeInstancia"
+        [customPatternMsg]="VALIDACOES.nomeInstancia.msg"
+      />
+
+      <p class="text-xs text-gray-500 mt-1">
+        ℹ️ Use apenas letras, números, hífens (-) e underscores (_). Sem espaços.
+      </p>
+    </div>
+
+    <!-- Campo: Webhook URL (Opcional) -->
+    <div>
+      <label for="webhook_url" class="block text-sm font-medium text-gray-700 mb-1">
+        Webhook URL <span class="text-gray-400 font-normal">(Opcional)</span>
+      </label>
+      <input
+        id="webhook_url"
+        formControlName="webhook_url"
+        type="url"
+        autocomplete="off"
+        class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-green-500 outline-none"
+        placeholder="https://seu-dominio.com/api/webhook"
+      />
+
+      <app-field-error
+        [control]="webhookUrl"
+        customPatternMsg="A URL deve começar com http:// ou https://"
+      />
+    </div>
+  </div>
+
+  <!-- Ações -->
+  <footer class="pt-4 flex justify-end gap-3">
+    <button
+      type="button"
+      (click)="onReset()"
+      [disabled]="isLoading"
+      class="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded hover:bg-gray-50 disabled:opacity-50 transition-colors"
+    >
+      Limpar
+    </button>
+
+    <button
+      type="submit"
+      [disabled]="form.invalid || isLoading || !empresaId"
+      class="px-6 py-2 bg-green-600 text-white font-medium rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+    >
+      @if (isLoading) {
+        <svg
+          class="animate-spin h-5 w-5 text-white"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <circle
+            class="opacity-25"
+            cx="12" cy="12" r="10"
+            stroke="currentColor" stroke-width="4"
+          ></circle>
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          ></path>
+        </svg>
+        <span>Conectando à Evolution API...</span>
+      } @else {
+        <span>Gerar Instância e QR Code</span>
+      }
+    </button>
+  </footer>
+</form>
