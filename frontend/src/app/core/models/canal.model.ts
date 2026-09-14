@@ -14,11 +14,11 @@ export interface Canal {
   criadoEm?: string;
 }
 
-// Canais padrão do sistema Marcx
+// Exemplos neutros usados apenas quando o modo local precisa de dados iniciais.
 export const CANAIS_PADRAO: Partial<Canal>[] = [
-  { nome: 'Atendimento-Cliente', arquivoMenu: '1atendimento-ma.html', icone: '📞', cor: '#2563eb' },
-  { nome: 'Agendamento-Ambulatorial', arquivoMenu: '2agendamento-ma.html', icone: '📅', cor: '#f59e0b' },
-  { nome: 'Exames-Diagnostico', arquivoMenu: '3examesdiagnostico-ma.html', icone: '🩺', cor: '#22c55e' },
-  { nome: 'Portaria', arquivoMenu: '7portaria-ma.html', icone: '🚪', cor: '#c8102e' },
-  { nome: 'Ouvidoria', arquivoMenu: '8ouvidoria-ma.html', icone: '📢', cor: '#7c3aed' },
+  { nome: 'Atendimento Geral', arquivoMenu: '', icone: '💬', cor: '#2563eb' },
+  { nome: 'Vendas', arquivoMenu: '', icone: '🛍️', cor: '#f59e0b' },
+  { nome: 'Suporte', arquivoMenu: '', icone: '🛠️', cor: '#22c55e' },
+  { nome: 'Financeiro', arquivoMenu: '', icone: '💳', cor: '#0f766e' },
+  { nome: 'Feedback', arquivoMenu: '', icone: '📢', cor: '#7c3aed' },
 ];

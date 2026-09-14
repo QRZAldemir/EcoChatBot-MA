@@ -1,10 +1,6 @@
-<<<<<<< HEAD
 # EcoChatBot-MA
-=======
-# EcoChatBotMarcx
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
 ## Sistema de Atendimento Digital Configurável
-### Adaptável para qualquer segmento: saúde, comércio, serviços, indústria, instituições e mais
+### Adaptável para qualquer segmento: comércio, serviços, indústria, educação e instituições
 
 ---
 
@@ -17,10 +13,6 @@
 5. ESTRUTURA DE PASTAS E ARQUIVOS
 6. CANAIS E ROTEIROS DE ATENDIMENTO
 7. GUIA DE INSTALAÇÃO
-8. TECNOLOGIAS UTILIZADAS
-9. VARIÁVEIS DE AMBIENTE
-10. PAINEL ANALÍTICO E RELATÓRIOS
-11. EVOLUÇÃO E PERSPECTIVAS
 
 ---
 
@@ -84,11 +76,11 @@ ATENDENTE → Conduz a conversa, responde ao cliente e finaliza o atendimento
 
 Todo o poder de adaptação do EcoChatBot-MA está em três elementos simples que você cadastra:
 
-| Elemento | O que representa | Exemplo para Loja | Exemplo para Clínica |
+| Elemento | O que representa | Exemplo para Comércio | Exemplo para Serviços |
 |---|---|---|---|
-| DEPARTAMENTO | Setor ou equipe responsável pelo atendimento | Vendas, Financeiro, Entregas | Recepção, Consultas, Exames |
-| CANAL | Tipo de atendimento com nome visível ao cliente | Orçamento, Reclamação, Suporte | Agendamento, Retorno, Ouvidoria |
-| ROTEIRO | Arquivo com perguntas e fluxo específicos | orcamento-loja.html | agendamento-clinica.html |
+| DEPARTAMENTO | Setor ou equipe responsável pelo atendimento | Vendas, Financeiro, Entregas | Comercial, Suporte, Operações |
+| CANAL | Tipo de atendimento com nome visível ao cliente | Orçamento, Pedido, Troca | Proposta, Suporte, Feedback |
+| ROTEIRO | Arquivo com perguntas e fluxo específicos | pedidos.html | suporte.html |
 
 Você altera apenas estes três elementos e o sistema se adapta ao seu negócio. Sem precisar mudar nenhum código de programação.
 
@@ -327,8 +319,4 @@ Próximas Etapas de Evolução Prevista:
 - Implementar suporte a Multi-Empresa ou Multi-Tenant para que uma instalação atenda vários negócios ao mesmo tempo
 - Desenvolver Construtor Visual de Roteiros permitindo criar fluxos de atendimento sem precisar editar arquivos HTML
 - Disponibilizar Integrações Prontas com sistemas de pagamento, agendas, ERPs e plataformas de comércio eletrônico
-<<<<<<< HEAD
 - Aprimorar a Inteligência Artificial para aprender com o próprio histórico de atendimentos e responder de forma autônoma e personalizada
-=======
-- Aprimorar a Inteligência Artificial para aprender com o próprio histórico de atendimentos e responder de forma autônoma e personalizada
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507

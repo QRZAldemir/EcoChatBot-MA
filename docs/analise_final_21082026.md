@@ -76,7 +76,7 @@ precisa ser feito. Use como guia para continuar o trabalho sem perder a lógica 
 | # | Pendência | Detalhe | Prioridade |
 |---|---|---|---|
 | 10 | **Erros de sintaxe em `bot_handlers/`** | `agendamento.py:204` (await fora de async), `atendimento.py:840` (parêntese não fechado), `pedidos_handler.py:784` (bloco except incompleto). | Alta |
-| 11 | **Rotas duplicadas no frontend** | `app.routes.ts` tem `atendimentos` e `mensagens` duplicadas (títulos "Marcx"/"Mackenzie"). Limpar. | Baixa |
+| 11 | **Rotas duplicadas no frontend** | `app.routes.ts` tinha rotas duplicadas com títulos divergentes. Consolidar em uma definição por tela. | Baixa |
 | 12 | **Política de senha forte** | Schemas agora exigem senha ≥ 8 com maiúscula/número/especial. Alinhar telas de cadastro/reset e seed. | Média |
 | 13 | **README desatualizado** | Seção 5 (estrutura) e estado atual não refletem módulos novos, tenant e repositórios. Atualizar. | Baixa |
 

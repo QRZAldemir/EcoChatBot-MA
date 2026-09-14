@@ -19,10 +19,10 @@ export class DepartamentoService {
   private carregarDepartamentos(): void {
     const raw = localStorage.getItem(this.STORAGE_KEY);
     const data = raw ? JSON.parse(raw) : [
-      { id: 1, nome: 'Portaria', status: 'ativo' },
-      { id: 2, nome: 'Agendamento', status: 'ativo' },
-      { id: 3, nome: 'Triagem', status: 'ativo' },
-      { id: 4, nome: 'Atendimento ao Cliente', status: 'ativo' },
+      { id: 1, nome: 'Atendimento', status: 'ativo' },
+      { id: 2, nome: 'Comercial', status: 'ativo' },
+      { id: 3, nome: 'Suporte', status: 'ativo' },
+      { id: 4, nome: 'Operações', status: 'ativo' },
     ];
     this.departamentosSubject.next(data);
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));

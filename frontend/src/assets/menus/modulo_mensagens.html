@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EcoChat — Escalas &amp; Mensagens</title>
+    <title>EcoChat — Turnos e Mensagens</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <style>
@@ -17,8 +17,7 @@
         }
 
         /* ========== SIDEBAR ========== */
-        /* Paleta neutra alinhada ao modulo_EcoChatBotMa.html (sidebar branca,
-           destaque azul) — substitui o gradiente vermelho do Hospital Mackenzie. */
+        /* Paleta neutra do painel configurável. */
         .sidebar {
             width: 200px;
             background: #ffffff;
@@ -986,29 +985,28 @@
     <!-- ==================== SIDEBAR ==================== -->
     <aside class="sidebar">
         <div class="logo-box">
-            <img src="LogoMackenzie.png" alt="Logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-            <div class="fallback" style="display:none; flex-direction:column;">
+            <div class="fallback" style="display:flex; flex-direction:column;">
                 <span style="font-weight:600;">Eco<span style="color:#c8102e;">Chat</span></span>
             </div>
         </div>
 
         <div class="sidebar-title">
-            <h2>Escalas &amp; Mensagens</h2>
+            <h2>Turnos e Mensagens</h2>
             <small>Central de Atendimento</small>
         </div>
 
         <div class="nav-divider">Visualização</div>
-        <div class="nav-item active" data-page="pediatria">
-            <span class="icon">👶</span>
-            <span>Escala Pediatria</span>
+        <div class="nav-item active" data-page="operacional">
+            <span class="icon">👥</span>
+            <span>Equipe Operacional</span>
         </div>
-        <div class="nav-item" data-page="adulto">
-            <span class="icon">🩺</span>
-            <span>PS Clínico Adulto</span>
+        <div class="nav-item" data-page="comercial">
+            <span class="icon">🛍️</span>
+            <span>Equipe Comercial</span>
         </div>
-        <div class="nav-item" data-page="go">
-            <span class="icon">🌸</span>
-            <span>PS Ginecologia / Obstetrícia</span>
+        <div class="nav-item" data-page="suporte">
+            <span class="icon">🛠️</span>
+            <span>Equipe de Suporte</span>
         </div>
 
         <div class="nav-divider">Mensagens</div>
@@ -1028,7 +1026,7 @@
         <div class="nav-divider">Importação</div>
         <div class="nav-item" data-page="importar">
             <span class="icon">📤</span>
-            <span>Importar Escalas</span>
+            <span>Importar Turnos</span>
         </div>
 
         <div class="nav-divider">Sistema</div>
@@ -1048,7 +1046,7 @@
 
         <!-- ============ PÁGINA: IMPORTAR ============ -->
         <div class="page" id="page-importar">
-            <h1>📤 Importação de Escalas</h1>
+            <h1>📤 Importação de Turnos</h1>
             <div class="sub">
                 <strong>Fluxo recomendado:</strong> Execute <code>processar_escalas.py</code> → importe os <code>.xlsx</code> gerados.<br>
                 Também aceita imagens JPG/PNG com OCR local (Tesseract.js).
@@ -1082,7 +1080,7 @@
                 </div>
 
                 <div style="display:flex; gap:12px; flex-wrap:wrap; margin:16px 0; align-items:center;">
-                    <button id="btnImportarXlsx" disabled>📥 Importar Escalas</button>
+                    <button id="btnImportarXlsx" disabled>📥 Importar Turnos</button>
                     <button id="btnLimparTudo" class="reset-btn">🗑️ Limpar Bases</button>
                 </div>
             </div>
@@ -1092,7 +1090,7 @@
                 <div class="import-dropzone" id="importDropzone">
                     <div class="dropzone-icon">🗂️</div>
                     <h3>Arraste imagens aqui</h3>
-                    <p>JPG / PNG de qualquer escala médica</p>
+                    <p>JPG / PNG de qualquer escala ou agenda operacional</p>
                     <input type="file" id="fileInputGlobal" multiple accept="image/jpeg,image/jpg,image/png,image/webp" style="display:none;">
                     <button class="dropzone-btn" onclick="document.getElementById('fileInputGlobal').click()">📁 Selecionar Imagens</button>
                 </div>
@@ -1126,17 +1124,17 @@
             <!-- CARDS DE CONTAGEM -->
             <div class="cards-grid" style="margin-top:24px;">
                 <div class="card pediatria">
-                    <h3>👶 Pediatria</h3>
+                    <h3>👥 Operacional</h3>
                     <div class="big-number" id="count-pediatria">0</div>
                     <div class="label">dias carregados</div>
                 </div>
                 <div class="card adulto">
-                    <h3>🩺 Clínico Adulto</h3>
+                    <h3>🛍️ Comercial</h3>
                     <div class="big-number" id="count-adulto">0</div>
                     <div class="label">dias carregados</div>
                 </div>
                 <div class="card go">
-                    <h3>🌸 G.O.</h3>
+                    <h3>🛠️ Suporte</h3>
                     <div class="big-number" id="count-go">0</div>
                     <div class="label">dias carregados</div>
                 </div>
@@ -1148,38 +1146,38 @@
             </div>
         </div>
 
-        <!-- ============ PÁGINA: PEDIATRIA ============ -->
-        <div class="page active" id="page-pediatria">
-            <h1>👶 Escala PS Pediatria <small>Turnos: 07h–13h | 13h–19h | 19h–07h</small></h1>
+        <!-- ============ PÁGINA: OPERACIONAL ============ -->
+        <div class="page active" id="page-operacional">
+            <h1>👥 Equipe Operacional <small>Turnos configuráveis</small></h1>
             <div class="sub">📅 Visualização com filtros por data, turno e profissional.</div>
 
             <div class="filtros">
                 <div class="filtro-group">
                     <label>📆 Data Início</label>
-                    <input type="date" class="filter-inicio" data-tipo="pediatria">
+                    <input type="date" class="filter-inicio" data-tipo="operacional">
                 </div>
                 <div class="filtro-group">
                     <label>📆 Data Fim</label>
-                    <input type="date" class="filter-fim" data-tipo="pediatria">
+                    <input type="date" class="filter-fim" data-tipo="operacional">
                 </div>
                 <div class="filtro-group">
                     <label>👤 Profissional</label>
-                    <input type="text" class="filter-prof" data-tipo="pediatria" placeholder="Ex: MIGUEL, TATIANA...">
+                    <input type="text" class="filter-prof" data-tipo="operacional" placeholder="Ex: NOME, EQUIPE...">
                 </div>
                 <div class="filtro-group">
                     <label>⏰ Turno</label>
-                    <select class="filter-turno" data-tipo="pediatria">
+                    <select class="filter-turno" data-tipo="operacional">
                         <option value="">Todos</option>
                         <option value="manha">🌅 Manhã (07-13)</option>
                         <option value="tarde">☀️ Tarde (13-19)</option>
                         <option value="noite">🌙 Noite (19-07)</option>
                     </select>
                 </div>
-                <button class="reset-btn btn-reset" data-tipo="pediatria">Limpar filtros</button>
+                <button class="reset-btn btn-reset" data-tipo="operacional">Limpar filtros</button>
             </div>
 
             <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
-                <button onclick="copiarEscalaWhatsApp('pediatria')" style="background:linear-gradient(135deg,#25d366,#128c7e); font-size:0.82rem; padding:8px 18px;">📲 Copiar para WhatsApp</button>
+                <button onclick="copiarEscalaWhatsApp('operacional')" style="background:linear-gradient(135deg,#25d366,#128c7e); font-size:0.82rem; padding:8px 18px;">📲 Copiar para WhatsApp</button>
             </div>
 
             <div style="overflow-x:auto;">
@@ -1193,14 +1191,14 @@
                             <th class="turno-noite">Noite (19h–07h)</th>
                         </tr>
                     </thead>
-                    <tbody id="tbody-pediatria"></tbody>
+                    <tbody id="tbody-operacional"></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- ============ PÁGINA: ADULTO ============ -->
-        <div class="page" id="page-adulto">
-            <h1>🩺 Escala PS Clínico Adulto <small>Turnos: 07h–13h | 13h–19h | 19h–07h</small></h1>
+        <!-- ============ PÁGINA: COMERCIAL ============ -->
+        <div class="page" id="page-comercial">
+            <h1>🛍️ Equipe Comercial <small>Turnos configuráveis</small></h1>
             <div class="sub">📅 Visualização com filtros por data, turno e profissional. Profissionais (NIR) do Núcleo Interno de Regulação aparecem destacados.</div>
 
             <div class="filtros">
@@ -1213,23 +1211,23 @@
                     <input type="date" class="filter-fim" data-tipo="adulto">
                 </div>
                 <div class="filtro-group">
-                    <label>👤 Profissional</label>
-                    <input type="text" class="filter-prof" data-tipo="adulto" placeholder="Ex: NIKOLAS, PEDRO ANNO...">
+                    <label>👤 Responsável</label>
+                    <input type="text" class="filter-prof" data-tipo="comercial" placeholder="Ex: NOME, EQUIPE...">
                 </div>
                 <div class="filtro-group">
                     <label>⏰ Turno</label>
-                    <select class="filter-turno" data-tipo="adulto">
+                    <select class="filter-turno" data-tipo="comercial">
                         <option value="">Todos</option>
                         <option value="manha">🌅 Manhã (07-13)</option>
                         <option value="tarde">☀️ Tarde (13-19)</option>
                         <option value="noite">🌙 Noite (19-07)</option>
                     </select>
                 </div>
-                <button class="reset-btn btn-reset" data-tipo="adulto">Limpar filtros</button>
+                <button class="reset-btn btn-reset" data-tipo="comercial">Limpar filtros</button>
             </div>
 
             <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
-                <button onclick="copiarEscalaWhatsApp('adulto')" style="background:linear-gradient(135deg,#25d366,#128c7e); font-size:0.82rem; padding:8px 18px;">📲 Copiar para WhatsApp</button>
+                <button onclick="copiarEscalaWhatsApp('comercial')" style="background:linear-gradient(135deg,#25d366,#128c7e); font-size:0.82rem; padding:8px 18px;">📲 Copiar para WhatsApp</button>
             </div>
 
             <div style="overflow-x:auto;">
@@ -1243,14 +1241,14 @@
                             <th class="turno-noite">Noite (19h–07h)</th>
                         </tr>
                     </thead>
-                    <tbody id="tbody-adulto"></tbody>
+                    <tbody id="tbody-comercial"></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- ============ PÁGINA: G.O. ============ -->
-        <div class="page" id="page-go">
-            <h1>🌸 Escala PS Ginecologia / Obstetrícia <small>Turnos: 07h–13h | 13h–19h | 19h–07h</small></h1>
+        <!-- ============ PÁGINA: SUPORTE ============ -->
+        <div class="page" id="page-suporte">
+            <h1>🛠️ Equipe de Suporte <small>Turnos configuráveis</small></h1>
             <div class="sub">📅 Visualização com filtros por data, turno e profissional.</div>
 
             <div class="filtros">
@@ -1264,22 +1262,22 @@
                 </div>
                 <div class="filtro-group">
                     <label>👤 Profissional</label>
-                    <input type="text" class="filter-prof" data-tipo="go" placeholder="Ex: CAMILA, VALENTINA...">
+                    <input type="text" class="filter-prof" data-tipo="suporte" placeholder="Ex: NOME, EQUIPE...">
                 </div>
                 <div class="filtro-group">
                     <label>⏰ Turno</label>
-                    <select class="filter-turno" data-tipo="go">
+                    <select class="filter-turno" data-tipo="suporte">
                         <option value="">Todos</option>
                         <option value="manha">🌅 Manhã (07-13)</option>
                         <option value="tarde">☀️ Tarde (13-19)</option>
                         <option value="noite">🌙 Noite (19-07)</option>
                     </select>
                 </div>
-                <button class="reset-btn btn-reset" data-tipo="go">Limpar filtros</button>
+                <button class="reset-btn btn-reset" data-tipo="suporte">Limpar filtros</button>
             </div>
 
             <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
-                <button onclick="copiarEscalaWhatsApp('go')" style="background:linear-gradient(135deg,#25d366,#128c7e); font-size:0.82rem; padding:8px 18px;">📲 Copiar para WhatsApp</button>
+                <button onclick="copiarEscalaWhatsApp('suporte')" style="background:linear-gradient(135deg,#25d366,#128c7e); font-size:0.82rem; padding:8px 18px;">📲 Copiar para WhatsApp</button>
             </div>
 
             <div style="overflow-x:auto;">
@@ -1293,7 +1291,7 @@
                             <th class="turno-noite">Noite (19h–07h)</th>
                         </tr>
                     </thead>
-                    <tbody id="tbody-go"></tbody>
+                    <tbody id="tbody-suporte"></tbody>
                 </table>
             </div>
         </div>
@@ -1528,7 +1526,7 @@
 // ============================================================
 
 // =====================================================
-// IMPORTAÇÃO EXCEL (.xlsx) — PAINEL MACKENZIE v1.8
+// IMPORTAÇÃO EXCEL (.xlsx) — DADOS DE TURNOS E EQUIPES
 // =====================================================
 
 // Troca de abas Excel / Imagem
@@ -1616,9 +1614,9 @@ function detectarTipoDoXlsx(wb, nomeArq) {
     }
     // 2. Fallback: detecta pelo nome do arquivo
     const n = nomeArq.toLowerCase();
-    if (n.includes('pediatria') || n.includes('ped')) return 'pediatria';
-    if (n.includes('adulto') || n.includes('clinico') || n.includes('pronto')) return 'adulto';
-    if (n.includes('go') || n.includes('gineco') || n.includes('obstet')) return 'go';
+    if (n.includes('operacional') || n.includes('equipe')) return 'operacional';
+    if (n.includes('comercial') || n.includes('vendas')) return 'comercial';
+    if (n.includes('suporte') || n.includes('atendimento')) return 'suporte';
     return null;
 }
 
@@ -1708,7 +1706,7 @@ async function importarXlsxSelecionados() {
             const tipo = detectarTipoDoXlsx(wb, file.name);
 
             if (!tipo) {
-                log(`⚠️ ${file.name}: tipo não detectado. Renomeie o arquivo para incluir: pediatria, adulto ou go.`, 'warning');
+                log(`⚠️ ${file.name}: grupo não detectado. Renomeie o arquivo para incluir operacional, comercial ou suporte.`, 'warning');
                 continue;
             }
 
@@ -1745,13 +1743,13 @@ async function importarXlsxSelecionados() {
 
 <script>
 // =================================================
-// PAINEL ESCALAS MACKENZIE — SCRIPT PRINCIPAL
+// PAINEL DE TURNOS E EQUIPES — SCRIPT PRINCIPAL
 // =================================================
 
 document.addEventListener('DOMContentLoaded', () => {
 
     const diasSemanaNomes = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
-    const TIPOS = ["pediatria","adulto","go"];
+    const TIPOS = ["operacional","comercial","suporte"];
 
     // ========== ARMAZENAMENTO LOCAL ==========
     function carregarBase(tipo) {
@@ -1767,9 +1765,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let bases = {
-        pediatria: addDiaSemana(carregarBase("pediatria")),
-        adulto:    addDiaSemana(carregarBase("adulto")),
-        go:        addDiaSemana(carregarBase("go"))
+        operacional: addDiaSemana(carregarBase("operacional")),
+        comercial:   addDiaSemana(carregarBase("comercial")),
+        suporte:     addDiaSemana(carregarBase("suporte"))
     };
 
     // ========== NAVEGAÇÃO ==========
@@ -1832,7 +1830,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (file.type.startsWith('image/')) {
                 // Evitar duplicatas pelo nome
                 if (!selectedFiles.find(f => f.file.name === file.name && f.file.size === file.size)) {
-                    selectedFiles.push({ file, tipo: 'pediatria' });
+                    selectedFiles.push({ file, tipo: 'operacional' });
                 }
             }
         });
@@ -1859,9 +1857,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="aname" title="${item.file.name}">${item.file.name}</span>
                 <span style="color:#94a3b8; font-size:0.7rem; flex-shrink:0;">${sizeKb}KB</span>
                 <select class="assign-select" onchange="window._setTipo(${idx}, this.value)">
-                    <option value="pediatria" ${item.tipo==='pediatria'?'selected':''}>👶 Pediatria</option>
-                    <option value="adulto"    ${item.tipo==='adulto'?'selected':''}>🩺 Adulto</option>
-                    <option value="go"        ${item.tipo==='go'?'selected':''}>🌸 G.O.</option>
+                    <option value="operacional" ${item.tipo==='operacional'?'selected':''}>👥 Operacional</option>
+                    <option value="comercial"   ${item.tipo==='comercial'?'selected':''}>🛍️ Comercial</option>
+                    <option value="suporte"     ${item.tipo==='suporte'?'selected':''}>🛠️ Suporte</option>
                 </select>
                 <span style="cursor:pointer; color:#e74c3c; font-size:1.2rem;" onclick="window._removerArq(${idx})" title="Remover">✕</span>
             </div>`;
@@ -1967,9 +1965,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!texto || texto.trim() === '') return '<span style="color:#cbd5e1;">—</span>';
         const partes = texto.split('/').map(p => p.trim()).filter(p => p);
         return partes.map(p => {
-            const temNir = /\(NIR\)/i.test(p);
-            const nome = p.replace(/\(NIR\)/gi, '').trim();
-            return `<span class="badge-prof">${nome}${temNir ? '<span class="nir-badge">NIR</span>' : ''}</span>`;
+            return `<span class="badge-prof">${p}</span>`;
         }).join(' ');
     }
 
@@ -2025,9 +2021,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========== COPIAR ESCALA PARA WHATSAPP ==========
     window.copiarEscalaWhatsApp = function(tipo) {
         const labels = {
-            pediatria: '👶 PS Pediatria',
-            adulto:    '🩺 PS Clínico Adulto',
-            go:        '🌸 GO — Ginecologia/Obstetrícia'
+            operacional: '👥 Equipe Operacional',
+            comercial:   '🛍️ Equipe Comercial',
+            suporte:     '🛠️ Equipe de Suporte'
         };
         const tbody = document.getElementById('tbody-' + tipo);
         if (!tbody) return;
@@ -2501,10 +2497,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // mais de um canal no futuro), por isso ficam em dois selects vinculados.
     const DEPARTAMENTOS_CANAIS = [
         { dep: 'atendimento', depNome: 'Atendimento Geral / SAC',      canal: '1atendimento', canalLabel: '📞 Atendimento',         arquivo: '1atendimento-ma.html' },
-        { dep: 'agendamento', depNome: 'Agendamento de Consultas',     canal: '2agendamento', canalLabel: '📅 Agendamento',          arquivo: '2agendamento-ma.html' },
-        { dep: 'exames',      depNome: 'Exames e Diagnóstico',         canal: '3exames',      canalLabel: '🩺 Exames Diagnóstico',   arquivo: '3examesdiagnostico-ma.html' },
-        { dep: 'portaria',    depNome: 'Portaria e Segurança',         canal: '7portaria',    canalLabel: '🚪 Portaria',             arquivo: '7portaria-ma.html' },
-        { dep: 'ouvidoria',   depNome: 'Ouvidoria',                    canal: '8ouvidoria',   canalLabel: '📢 Ouvidoria',            arquivo: '8ouvidoria-ma.html' },
+        { dep: 'vendas',      depNome: 'Vendas',                       canal: '2vendas',      canalLabel: '🛍️ Vendas',               arquivo: '' },
+        { dep: 'suporte',     depNome: 'Suporte',                      canal: '3suporte',     canalLabel: '🛠️ Suporte',              arquivo: '' },
+        { dep: 'financeiro',  depNome: 'Financeiro',                   canal: '4financeiro',  canalLabel: '💳 Financeiro',            arquivo: '' },
+        { dep: 'feedback',    depNome: 'Feedback',                     canal: '5feedback',    canalLabel: '📢 Feedback',              arquivo: '' },
     ];
 
     function escapeHtml(s) {
@@ -2712,7 +2708,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderMensagensInterativas();
 
         // Roteamento por hash — permite que o menu principal abra esta janela
-        // já direto na página desejada (ex.: #mensagens-interativas ou #pediatria).
+        // já direto na página desejada (ex.: #mensagens-interativas ou #operacional).
         const hash = (window.location.hash || '').replace('#', '');
         if (hash) {
             const target = document.querySelector(`.nav-item[data-page="${hash}"]`);
