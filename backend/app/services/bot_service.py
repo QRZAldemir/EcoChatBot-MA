@@ -2,21 +2,18 @@
 app/services/bot_service.py
 ──────────────────────────────────────────────────────────────────
 Máquina de estados da conversa WhatsApp (plataforma SaaS genérica).
-
 Fluxos de departamento NÃO são hardcoded: o hub e as telas de cada
 canal vêm do cadastro (Menu / MenuOpcao / Canal). Qualquer opção após
 a 1ª tela do canal encaminha para atendimento humano (fila).
 
-  BOOT → AGUARDAR_LGPD → AGUARDAR_NOME → AGUARDAR_HUB
-    └─► DEPTO_DINAMICO (menu do canal) → EM_ATENDIMENTO
-  FINALIZADO — reinicia no próximo contato
+BOOT → AGUARDAR_LGPD → AGUARDAR_NOME → AGUARDAR_HUB
+└─► DEPTO_DINAMICO (menu do canal) → EM_ATENDIMENTO
+FINALIZADO — reinicia no próximo contato
 
 Identidade da empresa (nome, rodapé, saudação, URL da LGPD) vem de
 variáveis de ambiente — o mesmo código atende qualquer vertical.
-
 Acessibilidade por voz: o cliente liga/desliga com ÁUDIO / TEXTO.
 """
-
 import contextvars
 import logging
 import os
@@ -27,7 +24,6 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy.orm import Session
-
 from app.models import Atendimento, AtendimentoContext, Canal, Menu, Usuario
 from app.services import audio_service, evolution_service
 
@@ -38,12 +34,31 @@ RODAPE = os.getenv("EMPRESA_RODAPE", EMPRESA_NOME)
 LGPD_URL = os.getenv("LGPD_URL", "").strip()
 BOT_MENSAGEM_BOAS_VINDAS = os.getenv("BOT_MENSAGEM_BOAS_VINDAS", "").strip()
 
-_MESES_PT = ["", "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+_MESES_PT = [" ", "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
 
+# URL pública pela qual o Evolution API busca os áudios gerados
+BACKEND_PUBLIC_URL = os.getenv("BACKEND_PUBLIC_URL", "http://localhost:8000").rstrip("/")
 
-def _substituir_variaveis(texto: Optional[str], nome_cliente: str = "") -> Optional[str]:
-    """Expande [NOME_CLIENTE]/[DATA]/[HORA] no corpo de mensagens cadastradas
-    (Menu/ModeloMensagem) antes do envio via WhatsApp."""
+# Contexto ambiente (por requisição/atendimento)
+_ctx_db: contextvars.ContextVar[Session] = contextvars.ContextVar("_ctx_db")
+_ctx_at: contextvars.ContextVar[Atendimento] = contextvars.ContextVar("_ctx_at")
+
+# ══════════════════════════════════════════════════════════════
+# CONSTANTES DE STEP
+# ══════════════════════════════════════════════════════════════
+BOOT           = "BOOT"
+AGUARDAR_LGPD  = "AGUARDAR_LGPD"
+AGUARDAR_NOME  = "AGUARDAR_NOME"
+AGUARDAR_HUB   = "AGUARDAR_HUB"
+EM_ATENDIMENTO = "EM_ATENDIMENTO"
+FINALIZADO     = "FINALIZADO"
+DEPTO_DINAMICO = "DEPTO_DINAMICO"
+
+# ══════════════════════════════════════════════════════════════
+# UTILIDADES
+# ══════════════════════════════════════════════════════════════
+def _substituir_variaveis(texto: Optional[str], nome_cliente: str = " ") -> Optional[str]:
+    """Expande [NOME_CLIENTE]/[DATA]/[HORA] no corpo de mensagens."""
     if not texto:
         return texto
     agora = datetime.now()
@@ -56,47 +71,13 @@ def _substituir_variaveis(texto: Optional[str], nome_cliente: str = "") -> Optio
         texto = texto.replace(chave, valor)
     return texto
 
-# URL pública pela qual o Evolution API busca os áudios gerados (ver
-# app/routers/audio.py). Precisa ser alcançável pela instância da Evolution,
-# não apenas pelo backend — configure o domínio real em produção.
-BACKEND_PUBLIC_URL = os.getenv("BACKEND_PUBLIC_URL", "http://localhost:8000").rstrip("/")
-
-# Contexto ambiente (por requisição/atendimento) usado pelos helpers de
-# envio (_txt/_lista) para persistir o modo de áudio e o último texto falado
-# sem precisar alterar a assinatura das ~130 chamadas existentes a eles.
-_ctx_db: contextvars.ContextVar[Session] = contextvars.ContextVar("_ctx_db")
-_ctx_at: contextvars.ContextVar[Atendimento] = contextvars.ContextVar("_ctx_at")
-
-# ══════════════════════════════════════════════════════════════
-# CONSTANTES DE STEP
-# ══════════════════════════════════════════════════════════════
-
-# Hub
-BOOT           = "BOOT"
-AGUARDAR_LGPD  = "AGUARDAR_LGPD"
-AGUARDAR_NOME  = "AGUARDAR_NOME"
-AGUARDAR_HUB   = "AGUARDAR_HUB"
-EM_ATENDIMENTO = "EM_ATENDIMENTO"
-FINALIZADO     = "FINALIZADO"
-
-# A 1ª tela do canal vem do cadastro (Menu vinculado); qualquer opção
-# clicada só encaminha para atendimento humano.
-DEPTO_DINAMICO = "DEPTO_DINAMICO"
-
-
-# ══════════════════════════════════════════════════════════════
-# UTILIDADES
-# ══════════════════════════════════════════════════════════════
-
 def _protocolo(prefixo: str = "WP") -> str:
     return f"{prefixo}-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
-
 
 def _tel(remote_jid: str) -> str:
     return remote_jid.split("@")[0]
 
-
-def _get(db: Session, atendimento_id: int, key: str) -> str | None:
+def _get(db: Session, atendimento_id: int, key: str) -> Optional[str]:
     row = (
         db.query(AtendimentoContext)
         .filter(
@@ -106,7 +87,6 @@ def _get(db: Session, atendimento_id: int, key: str) -> str | None:
         .first()
     )
     return row.value if row else None
-
 
 def _set(db: Session, atendimento_id: int, key: str, value: str) -> None:
     row = (
@@ -121,15 +101,13 @@ def _set(db: Session, atendimento_id: int, key: str, value: str) -> None:
         row.value = value
     else:
         db.add(AtendimentoContext(atendimento_id=atendimento_id, context_key=key, value=value))
-    db.commit()
-
+        db.commit()
 
 def _step(db: Session, atendimento: Atendimento, novo_step: str) -> None:
     _set(db, atendimento.id, "step", novo_step)
 
-
 def _buscar_ou_criar(
-    db: Session, telefone: str, instance: str, push_name: str | None
+    db: Session, telefone: str, instance: str, push_name: Optional[str]
 ) -> tuple[Atendimento, bool]:
     at = (
         db.query(Atendimento)
@@ -146,7 +124,7 @@ def _buscar_ou_criar(
             at.nome_contato = push_name
             db.commit()
         return at, False
-
+    
     at = Atendimento(
         protocolo=_protocolo(),
         telefone=telefone,
@@ -162,25 +140,12 @@ def _buscar_ou_criar(
     _set(db, at.id, "step", BOOT)
     return at, True
 
-
 # ══════════════════════════════════════════════════════════════
 # ACESSIBILIDADE POR VOZ (MODO ÁUDIO)
 # ══════════════════════════════════════════════════════════════
-# O cliente liga/desliga o modo áudio a qualquer momento digitando ÁUDIO
-# ou TEXTO. O estado fica salvo em AtendimentoContext (chave "modo_audio"),
-# então persiste entre mensagens. Enquanto ligado, _txt e _lista — os dois
-# únicos pontos por onde o bot inteiro envia mensagem — também mandam uma
-# nota de voz com o mesmo conteúdo, então todo menu e todo memorando de
-# texto do bot passam a ficar disponíveis em áudio automaticamente, sem
-# precisar alterar as dezenas de funções de menu individuais.
-
-# Frases (já normalizadas: minúsculas e sem acento) que ligam/desligam o modo áudio.
 _FRASES_ATIVAR_AUDIO = {"audio", "ouvir", "escutar", "voz", "ouvir audio", "modo audio", "quero ouvir"}
 _FRASES_DESATIVAR_AUDIO = {"texto", "escrita", "modo texto", "parar audio", "sem audio", "desativar audio"}
 
-# Remove emojis (incluindo emojis-número como "1️⃣") e marcações do WhatsApp
-# (*negrito*, _itálico_, ~tachado~) para que o texto fique limpo antes de
-# virar fala — gTTS lê mal esses símbolos.
 _EMOJI_RE = re.compile(
     "["
     "\U0001F300-\U0001FAFF"
@@ -194,29 +159,24 @@ _EMOJI_RE = re.compile(
 )
 _MARKDOWN_RE = re.compile(r"[*_~`]")
 
-
 def _normalizar(texto: str) -> str:
-    """minúsculas, sem acento, sem espaços nas pontas — para comparar palavras-chave com tolerância."""
+    """minúsculas, sem acento, sem espaços nas pontas."""
     texto = texto.strip().lower()
     return "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn")
-
 
 def _pedido_ativar_audio(content: str) -> bool:
     return _normalizar(content) in _FRASES_ATIVAR_AUDIO
 
-
 def _pedido_desativar_audio(content: str) -> bool:
     return _normalizar(content) in _FRASES_DESATIVAR_AUDIO
-
 
 def _limpar_para_fala(texto: str) -> str:
     texto = _EMOJI_RE.sub("", texto)
     texto = _MARKDOWN_RE.sub("", texto)
     return re.sub(r"\s+", " ", texto).strip()
 
-
 def _texto_falado_menu(title: str, desc: str, rows: list[dict]) -> str:
-    """Monta o roteiro falado de um menu: título, descrição e cada opção numerada."""
+    """Monta o roteiro falado de um menu."""
     partes = [_limpar_para_fala(title)]
     if desc:
         partes.append(_limpar_para_fala(desc))
@@ -226,8 +186,7 @@ def _texto_falado_menu(title: str, desc: str, rows: list[dict]) -> str:
         if descricao:
             linha += f", {_limpar_para_fala(descricao)}"
         partes.append(f"Opção {i}: {linha}.")
-    return " ".join(partes)
-
+    return ". ".join(partes)
 
 def _modo_audio_ativo() -> bool:
     db = _ctx_db.get(None)
@@ -236,18 +195,15 @@ def _modo_audio_ativo() -> bool:
         return False
     return _get(db, at.id, "modo_audio") == "1"
 
-
 def _guardar_texto_falado(texto: str) -> None:
-    """Guarda a última mensagem enviada (já limpa) para poder relê-la em áudio sob demanda."""
     db = _ctx_db.get(None)
     at = _ctx_at.get(None)
     if db is None or at is None:
         return
     _set(db, at.id, "ultimo_texto_falado", _limpar_para_fala(texto))
 
-
 async def _enviar_audio(inst: str, tel: str, texto: str) -> None:
-    """Converte texto em MP3 (audio_service) e envia como nota de voz via Evolution API."""
+    """Converte texto em MP3 e envia como nota de voz."""
     texto = _limpar_para_fala(texto)
     if not texto:
         return
@@ -258,7 +214,7 @@ async def _enviar_audio(inst: str, tel: str, texto: str) -> None:
     except Exception:
         logger.exception("bot_service | falha ao gerar áudio | tel=%s", tel)
         return
-
+    
     media_url = f"{BACKEND_PUBLIC_URL}/api/audio/audios/{resultado['arquivo']}"
     try:
         await evolution_service.enviar_midia(
@@ -267,37 +223,33 @@ async def _enviar_audio(inst: str, tel: str, texto: str) -> None:
     except Exception:
         logger.exception("bot_service | falha ao enviar nota de voz | tel=%s", tel)
 
-
 async def _ativar_modo_audio(db: Session, at: Atendimento, inst: str, tel: str) -> None:
     _set(db, at.id, "modo_audio", "1")
     await evolution_service.enviar_texto(
         instance=inst, number=tel,
         text=(
-            "🔊 *Modo áudio ativado!* A partir de agora também vou te enviar "
+            "🔊 Modo áudio ativado! A partir de agora também vou te enviar "
             "as mensagens faladas.\n\nPara voltar ao modo texto, responda "
-            "*TEXTO* a qualquer momento."
+            "TEXTO a qualquer momento."
         ),
     )
     ultimo = _get(db, at.id, "ultimo_texto_falado")
     if ultimo:
         await _enviar_audio(inst, tel, ultimo)
 
-
 async def _desativar_modo_audio(db: Session, at: Atendimento, inst: str, tel: str) -> None:
     _set(db, at.id, "modo_audio", "0")
     await evolution_service.enviar_texto(
         instance=inst, number=tel,
         text=(
-            "⌨️ *Modo texto ativado.* Para voltar a ouvir as mensagens em "
-            "áudio, responda *ÁUDIO* a qualquer momento."
+            "⌨️ Modo texto ativado. Para voltar a ouvir as mensagens em "
+            "áudio, responda ÁUDIO a qualquer momento."
         ),
     )
-
 
 # ══════════════════════════════════════════════════════════════
 # HELPERS COMPARTILHADOS
 # ══════════════════════════════════════════════════════════════
-
 async def _lista(
     inst: str, tel: str,
     title: str, desc: str, button: str,
@@ -315,28 +267,18 @@ async def _lista(
     if _modo_audio_ativo():
         await _enviar_audio(inst, tel, texto_falado)
 
-
 async def _txt(inst: str, tel: str, msg: str) -> None:
     await evolution_service.enviar_texto(instance=inst, number=tel, text=msg)
     _guardar_texto_falado(msg)
     if _modo_audio_ativo():
         await _enviar_audio(inst, tel, msg)
 
-
 MSG_FILA_OCUPADA = (
     "Pedimos desculpa, mas todos os nossos agentes estão ocupados neste "
     "momento. Por favor, aguarde alguns minutos e estaremos com você em breve."
 )
 
-
 def _atendentes_disponiveis(db: Session, canal_id: int) -> int:
-    """
-    Capacidade livre de atendentes de um canal (MVP: 1 atendimento
-    simultâneo por atendente). Um atendente conta como ocupado quando já
-    tem algum Atendimento em_atendimento atribuído a ele (usuario_id).
-    Atendimentos na fila (status "fila", entregues mas ainda sem
-    usuario_id) não contam como ocupando ninguém.
-    """
     total_atendentes = (
         db.query(Usuario)
         .filter(Usuario.canal_id == canal_id, Usuario.ativo == True)
@@ -353,29 +295,17 @@ def _atendentes_disponiveis(db: Session, canal_id: int) -> int:
     )
     return total_atendentes - ocupados
 
-
 async def _transferir(
     db: Session, at: Atendimento, inst: str, tel: str,
     msg: str = "🗣️ Transferindo para um atendente. Aguarde! 😊"
 ) -> None:
-    # Se não há atendente livre no canal do atendimento, avisa que está na
-    # fila em vez da mensagem de "transferindo" (que sugeriria atendimento
-    # imediato). Sem canal_id definido (departamentos "em breve", sem Canal
-    # cadastrado) não dá para checar capacidade, então mantém o texto padrão.
     if at.canal_id is not None and _atendentes_disponiveis(db, at.canal_id) <= 0:
         msg = MSG_FILA_OCUPADA
-
     await _txt(inst, tel, msg)
-    # "fila": o bot entregou o atendimento a um departamento/canal, mas
-    # ainda não há atendente (usuario_id) que o tenha puxado. Só vira
-    # "em_atendimento" quando um humano de fato assume (ver
-    # AtendimentoService.transferir). Sem essa distinção, um relatório não
-    # consegue separar "entregue e aguardando" de "sendo atendido" — o
-    # mesmo ponto cego que o relatório da ZigChat tem hoje.
+    
     at.status = "fila"
     db.commit()
     _step(db, at, EM_ATENDIMENTO)
-
 
 async def _voltar_hub(
     db: Session, at: Atendimento, inst: str, tel: str
@@ -384,45 +314,37 @@ async def _voltar_hub(
     await _enviar_hub(db, inst, tel, at)
     _step(db, at, AGUARDAR_HUB)
 
-
 # ══════════════════════════════════════════════════════════════
 # PONTO DE ENTRADA
 # ══════════════════════════════════════════════════════════════
-
 async def processar_mensagem_recebida(
     db: Session,
     instance_nome: str,
     remote_jid: str,
-    push_name: str | None,
+    push_name: Optional[str],
     msg_type: str,
     content: str,
 ) -> None:
     if remote_jid.endswith("@g.us"):
         return
-
+        
     telefone = _tel(remote_jid)
     at, _ = _buscar_ou_criar(db, telefone, instance_nome, push_name)
     step = _get(db, at.id, "step") or BOOT
-
-    # Disponibiliza db/at para _txt e _lista (ver seção "ACESSIBILIDADE POR
-    # VOZ") sem precisar alterar a assinatura das dezenas de chamadas a eles.
+    
     _ctx_db.set(db)
     _ctx_at.set(at)
-
+    
     logger.info("step=%s tel=%s type=%s content=%r prot=%s",
                 step, telefone, msg_type, content, at.protocolo)
-
-    # Alternância de modo texto/áudio: funciona em qualquer step (exceto com
-    # o bot silenciado durante atendimento humano) e não avança a máquina de
-    # estados — o cliente continua exatamente de onde parou depois de trocar.
+                
     if step != EM_ATENDIMENTO and msg_type != "list_response":
         if _pedido_ativar_audio(content):
             return await _ativar_modo_audio(db, at, instance_nome, telefone)
         if _pedido_desativar_audio(content):
             return await _desativar_modo_audio(db, at, instance_nome, telefone)
-
+            
     try:
-        # Hub e fluxo inicial
         if step in (BOOT, FINALIZADO):
             await _boot(db, at, instance_nome, telefone)
         elif step == AGUARDAR_LGPD:
@@ -432,17 +354,15 @@ async def processar_mensagem_recebida(
         elif step == AGUARDAR_HUB:
             await _hub(db, at, instance_nome, telefone, msg_type, content)
         elif step == EM_ATENDIMENTO:
-            pass  # humano atendendo
+            pass
         elif step == "EM_BREVE_MENU":
             await _em_breve_menu(db, at, instance_nome, telefone, msg_type, content)
         elif step == DEPTO_DINAMICO:
             await _departamento_dinamico(db, at, instance_nome, telefone, msg_type, content)
         else:
-            # Conversas antigas de fluxos verticais (hospitalares) voltam ao hub.
             await _voltar_hub(db, at, instance_nome, telefone)
     except Exception:
         logger.exception("Erro step=%s prot=%s", step, at.protocolo)
-
 
 async def _em_breve_menu(db, at, inst, tel, msg_type, content):
     row = content.strip().upper() if msg_type == "list_response" else ""
@@ -450,46 +370,41 @@ async def _em_breve_menu(db, at, inst, tel, msg_type, content):
         return await _transferir(db, at, inst, tel)
     if row == "VOLTAR_HUB":
         return await _voltar_hub(db, at, inst, tel)
-    # qualquer outra mensagem: reexibe o aviso
+        
     nome_canal = _get(db, at.id, "canal_selecionado") or "este módulo"
     await _lista(inst, tel,
         f"🔧 {nome_canal}",
-        f"O módulo de *{nome_canal}* está em processo de implantação. "
-        "Em breve estará disponível!",
+        f"O módulo de {nome_canal} está em processo de implantação. Em breve estará disponível!",
         "O que deseja?",
         [
             {"title": "🗣️ Falar com Atendente", "description": "", "rowId": "FALAR"},
-            {"title": "🔙 Menu Principal",       "description": "", "rowId": "VOLTAR_HUB"},
+            {"title": "🔙 Menu Principal", "description": "", "rowId": "VOLTAR_HUB"},
         ],
     )
-
 
 # ══════════════════════════════════════════════════════════════
 # FLUXO HUB
 # ══════════════════════════════════════════════════════════════
-
 def _mensagem_boas_vindas() -> str:
     if BOT_MENSAGEM_BOAS_VINDAS:
         return BOT_MENSAGEM_BOAS_VINDAS
     return (
-        f"👋 *Olá! Seja bem-vindo ao*\n"
-        f"*{EMPRESA_NOME}*\n\n"
+        f"👋 Olá! Seja bem-vindo ao \n"
+        f"{EMPRESA_NOME}\n\n"
         "Sou seu assistente virtual e estou aqui para iniciar "
         "seu atendimento com agilidade. 🤝\n\n"
-        "💡 Se preferir ouvir em vez de ler, responda *ÁUDIO* a qualquer "
-        "momento (e *TEXTO* para voltar)."
+        "💡 Se preferir ouvir em vez de ler, responda ÁUDIO a qualquer "
+        "momento (e TEXTO para voltar)."
     )
-
 
 def _texto_lgpd() -> str:
     politica = f"📄 Leia nossa Política:\n🔗 {LGPD_URL}\n\n" if LGPD_URL else ""
     return (
         "Para continuarmos com segurança precisamos do seu consentimento "
-        f"para tratamento de dados, conforme a *LGPD*.\n\n"
+        f"para tratamento de dados, conforme a LGPD.\n\n"
         f"{politica}"
-        "Você declara que leu e *CONCORDA* com os termos?"
+        "Você declara que leu e CONCORDA com os termos?"
     )
-
 
 def _hub_rows_de_canais(db: Session) -> list[dict]:
     canais = db.query(Canal).filter(Canal.ativo == True).order_by(Canal.nome).all()
@@ -498,34 +413,30 @@ def _hub_rows_de_canais(db: Session) -> list[dict]:
         for c in canais
     ]
 
-
-def _resolver_canal_do_hub(db: Session, row: str) -> Optional[Canal]:
-    """Aceita rowId CANAL_<id> (cadastro de mensagens) ou o nome do canal."""
+def resolver_canal_do_hub(db: Session, row: str) -> Optional[Canal]:
     if row.startswith("CANAL_") and row[len("CANAL_"):].isdigit():
         return db.query(Canal).filter(
             Canal.id == int(row[len("CANAL_"):]), Canal.ativo == True
         ).first()
     return db.query(Canal).filter(Canal.nome.ilike(row), Canal.ativo == True).first()
 
-
 async def _boot(db: Session, at: Atendimento, inst: str, tel: str) -> None:
     if at.status == "finalizado":
         at.status = "aberto"
         at.ativo = True
         db.commit()
-
+        
     await _txt(inst, tel, _mensagem_boas_vindas())
     await _lista(inst, tel,
         "🔒 Política de Privacidade (LGPD)",
         _texto_lgpd(),
         "Responder",
         [
-            {"title": "✅ Sim, Li e Concordo",  "description": "", "rowId": "LGPD_ACEITO"},
+            {"title": "✅ Sim, Li e Concordo", "description": "", "rowId": "LGPD_ACEITO"},
             {"title": "❌ Não concordo / Sair", "description": "", "rowId": "LGPD_RECUSADO"},
         ],
     )
     _step(db, at, AGUARDAR_LGPD)
-
 
 async def _lgpd(db, at, inst, tel, msg_type, content):
     recusou = (
@@ -542,9 +453,9 @@ async def _lgpd(db, at, inst, tel, msg_type, content):
         db.commit()
         _step(db, at, FINALIZADO)
         return
-    await _txt(inst, tel, "Obrigado pela confiança! 🙏\n\nPor gentileza, informe seu *nome completo*:")
+        
+    await _txt(inst, tel, "Obrigado pela confiança! 🙏\n\nPor gentileza, informe seu nome completo:")
     _step(db, at, AGUARDAR_NOME)
-
 
 async def _nome(db, at, inst, tel, content):
     nome = content.strip().title()
@@ -554,33 +465,30 @@ async def _nome(db, at, inst, tel, content):
     at.nome_contato = nome
     db.commit()
     _set(db, at.id, "nome", nome)
-    await _txt(inst, tel, f"Obrigado, *{nome}*! Seja muito bem-vindo(a). 😊")
+    await _txt(inst, tel, f"Obrigado, {nome}! Seja muito bem-vindo(a). 😊")
     await _enviar_hub(db, inst, tel, at)
     _step(db, at, AGUARDAR_HUB)
-
 
 async def _hub(db, at, inst, tel, msg_type, content):
     if msg_type != "list_response":
         nome = _get(db, at.id, "nome") or "cliente"
-        await _txt(inst, tel, f"Olá, *{nome}*! Por favor, utilize o menu abaixo:")
+        await _txt(inst, tel, f"Olá, {nome}! Por favor, utilize o menu abaixo:")
         await _enviar_hub(db, inst, tel, at)
         return
-
-    canal = _resolver_canal_do_hub(db, content.strip().upper())
+        
+    canal = resolver_canal_do_hub(db, content.strip().upper())
     if canal:
         return await _entrar_departamento_dinamico(db, at, inst, tel, canal)
-
+        
     await _txt(inst, tel, "Opção não reconhecida. Utilize o menu abaixo:")
     await _enviar_hub(db, inst, tel, at)
 
-
 async def _entrar_departamento_dinamico(db, at, inst, tel, canal: Canal) -> None:
-    """Envia o Menu cadastrado para o Canal; sem menu, vai direto para a fila humana."""
     _set(db, at.id, "canal_selecionado", canal.nome)
     at.canal_id = canal.id
     at.departamento_id = canal.departamento_id
     db.commit()
-
+    
     menu = (
         db.query(Menu)
         .filter(Menu.canal_id == canal.id, Menu.ativo == True)
@@ -595,29 +503,27 @@ async def _entrar_departamento_dinamico(db, at, inst, tel, canal: Canal) -> None
     else:
         await _transferir(db, at, inst, tel)
 
-
 async def _departamento_dinamico(db, at, inst, tel, msg_type, content) -> None:
     row = content.strip().upper() if msg_type == "list_response" else ""
     if row == "VOLTAR_HUB":
         return await _voltar_hub(db, at, inst, tel)
-    # Qualquer outra opção (ou texto livre): não há fluxo Python cadastrado
-    # além desta 1ª tela, então encaminha para atendimento humano.
     await _transferir(db, at, inst, tel)
-
 
 async def _enviar_hub(db: Session, inst: str, tel: str, at: Optional[Atendimento] = None) -> None:
     hub = db.query(Menu).filter(Menu.canal_id == None, Menu.ativo == True).order_by(Menu.criado_em).first()
     nome_cliente = at.nome_contato if at else ""
+    
     if hub and hub.opcoes:
         rows = [{"title": op.titulo, "description": op.descricao or "", "rowId": op.row_id} for op in hub.opcoes]
         corpo = _substituir_variaveis(hub.descricao, nome_cliente) or "Selecione o departamento:"
         await _lista(inst, tel, hub.titulo, corpo, hub.texto_botao or "Ver departamentos", rows, hub.rodape or RODAPE)
         return
-
+        
     rows = _hub_rows_de_canais(db)
     if not rows:
         await _txt(inst, tel, "Nenhum canal de atendimento está ativo no momento. Tente novamente mais tarde.")
         return
+        
     await _lista(
         inst, tel,
         f"Central de Atendimento — {EMPRESA_NOME}",
