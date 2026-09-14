@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
@@ -68,6 +68,20 @@ class Atendimento(Base):
     usuario = relationship("Usuario", foreign_keys=[usuario_id])
     departamento = relationship("Departamento")
     contextos = relationship("AtendimentoContext", back_populates="atendimento", cascade="all, delete-orphan")
+
+
+class Pedido(Base):
+    """Pedido genérico associado a um atendimento, independente do segmento."""
+    __tablename__ = "pedidos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    atendimento_id = Column(Integer, ForeignKey("atendimentos.id"), nullable=False, index=True)
+    empresa_id = Column(Integer, index=True, nullable=False)
+    protocolo = Column(String(50), unique=True, nullable=False, index=True)
+    itens = Column(Text, nullable=False)
+    total = Column(Float, nullable=False, default=0)
+    status = Column(String(30), nullable=False, default="confirmado")
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class AtendimentoContext(Base):

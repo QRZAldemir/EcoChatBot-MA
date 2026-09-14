@@ -38,10 +38,10 @@ backend/app/services/
 │   ├── evolution_client.py          # Encapsula Evolution API
 │   ├── bot_machine.py               # Orquestrador principal
 │   ├── atendimento.py               # Handler de Atendimento (exemplo)
-│   ├── agendamento.py               # Handler de Agendamento (TODO)
-│   ├── exames.py                    # Handler de Exames (TODO)
-│   ├── portaria.py                  # Handler de Portaria (TODO)
-│   ├── ouvidoria.py                 # Handler de Ouvidoria (TODO)
+│   ├── agendamento.py               # Exemplo de fluxo configurável (TODO)
+│   ├── pedidos_handler.py           # Fluxo genérico de pedidos
+│   ├── fluxo_customizado.py         # Extensão para regras específicas (TODO)
+│   ├── ouvidoria.py                 # Exemplo de feedback (TODO)
 │   └── README_OOP_REFACTORING.md    # Este arquivo
 ├── bot_service.py                   # LEGADO (a remover gradualmente)
 └── ...
@@ -74,9 +74,8 @@ def criar_bot_machine(db: Session) -> BotMáquinaEstados:
     handlers = {
         "AT": AtendimentoHandler(db, evolution),
         "AG": AgendamentoHandler(db, evolution),  # TODO: implementar
-        "EX": ExamesHandler(db, evolution),       # TODO: implementar
-        "PO": PortariaHandler(db, evolution),     # TODO: implementar
-        "OV": OutvidoriaHandler(db, evolution),   # TODO: implementar
+        "FL": FluxoCustomizadoHandler(db, evolution), # TODO: implementar
+        "OV": OuvidoriaHandler(db, evolution),        # TODO: implementar
     }
     
     # Cria máquina de estados
@@ -236,7 +235,7 @@ class AtendimentoHandler(DepartamentoHandler):
    - Mesmo padrão
    - Estados EX:*
 
-3. **`portaria.py`** (200 linhas)
+3. **`fluxo_customizado.py`** (extensão para regras específicas do tenant)
    - Mesmo padrão
    - Estados PO:*
 

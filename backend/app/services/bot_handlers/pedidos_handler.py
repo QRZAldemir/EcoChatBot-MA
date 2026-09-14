@@ -780,5 +780,21 @@ class PedidosHandler(DepartamentoHandler):
                     }
                 )
                 return existing
+
+            pedido = Pedido(
+                atendimento_id=atendimento.id,
+                empresa_id=self.empresa_id,
+                protocolo=protocolo,
+                itens=json.dumps(carrinho, ensure_ascii=False),
+                total=total,
+                status="confirmado",
+            )
+            self.session.add(pedido)
+            self.session.commit()
+            self.session.refresh(pedido)
+            return pedido
+        except Exception:
+            self.session.rollback()
+            raise
             
            

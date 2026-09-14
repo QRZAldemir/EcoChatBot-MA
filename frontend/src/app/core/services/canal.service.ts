@@ -20,11 +20,11 @@ export class CanalService {
 
     if (canais.length === 0) {
       canais = [
-        { id: 1, nome: 'Atendimento-Cliente', icone: '📞', descricao: 'Central de atendimento ao cliente', arquivoMenu: '1atendimento-marcx.html', ativo: true, status: 'ativo' },
-        { id: 2, nome: 'Agendamento-Ambulatorial', icone: '📅', descricao: 'Agendamento de consultas ambulatoriais', arquivoMenu: '2agendamento-marcx.html', ativo: true, status: 'ativo' },
-        { id: 3, nome: 'Exames-Diagnostico', icone: '🩺', descricao: 'Informações sobre exames diagnósticos', arquivoMenu: '3examesdiagnostico-marcx.html', ativo: true, status: 'ativo' },
-        { id: 4, nome: 'Portaria', icone: '🚪', descricao: 'Atendimento de portaria e controle', arquivoMenu: '7portaria-marcx.html', ativo: true, status: 'ativo' },
-        { id: 5, nome: 'Ouvidoria', icone: '📢', descricao: 'Canal de ouvidoria e sugestões', arquivoMenu: '8ouvidoria-marcx.html', ativo: true, status: 'ativo' },
+        { id: 1, nome: 'Atendimento Geral', icone: '💬', descricao: 'Central de atendimento', arquivoMenu: '', ativo: true, status: 'ativo' },
+        { id: 2, nome: 'Vendas', icone: '🛍️', descricao: 'Vendas, propostas e oportunidades', arquivoMenu: '', ativo: true, status: 'ativo' },
+        { id: 3, nome: 'Suporte', icone: '🛠️', descricao: 'Dúvidas e suporte ao cliente', arquivoMenu: '', ativo: true, status: 'ativo' },
+        { id: 4, nome: 'Financeiro', icone: '💳', descricao: 'Cobranças e pagamentos', arquivoMenu: '', ativo: true, status: 'ativo' },
+        { id: 5, nome: 'Feedback', icone: '📢', descricao: 'Sugestões, elogios e reclamações', arquivoMenu: '', ativo: true, status: 'ativo' },
       ];
       this.salvarCanais(canais);
     } else {

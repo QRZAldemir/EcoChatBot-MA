@@ -691,7 +691,7 @@ Parâmetros de Rota (:canal)
 
 Exemplo de URLs:
 URL	Parâmetro canal
-/chat/portaria	portaria
+/chat/vendas	vendas
 /chat/agendamento	agendamento
 /chat/financeiro	financeiro
 
@@ -700,7 +700,7 @@ import { ActivatedRoute } from '@angular/router';
 
 constructor(private route: ActivatedRoute) {
   this.route.params.subscribe(params => {
-    const canal = params['canal']; // "portaria", "agendamento", etc.
+    const canal = params['canal']; // valor configurado pelo tenant, por exemplo "vendas"
   });
 }
 Guia de Instalação e Uso

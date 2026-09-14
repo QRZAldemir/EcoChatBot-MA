@@ -1,12 +1,12 @@
 1. CONTEXTO E PROPÓSITO
-Esta skill define a estrutura de dados, as regras de negócio e os padrões arquiteturais do EcoChatMarcx. O sistema evoluiu de uma solução vertical (hospitalar) para uma plataforma SaaS horizontal (genérica), adaptável a qualquer modelo de negócio (clínicas, varejo, educação, serviços, etc.). O foco central é o atendimento omnichannel (com ênfase em WhatsApp via Evolution API), gestão de tickets, automação de menus, campanhas de disparo e gestão de turnos/equipes.
+Esta skill define a estrutura de dados, as regras de negócio e os padrões arquiteturais do EcoChatMarcx, uma plataforma SaaS horizontal adaptável a qualquer modelo de negócio. O foco central é o atendimento omnichannel (com ênfase em WhatsApp via Evolution API), gestão de tickets, automação de menus, campanhas de disparo e gestão de turnos/equipes.
 ⚠️ REGRA DE OURO (DÍVIDA TÉCNICA RESOLVIDA):
 Nunca utilizar o mesmo identificador para uma Column (coluna de banco) e um relationship (relacionamento ORM) na mesma classe. O sistema sofreu previamente com isso na entidade Atendimento. A coluna que armazena o identificador deve possuir sufixo explícito (ex: tipo_canal, canal_id), distinguindo-se do objeto de relacionamento (ex: canal).
 2. PRINCÍPIOS ARQUITETURAIS GLOBAIS
 Multi-Tenancy e Isolamento: Embora o modelo atual utilize empresa_id ou contextos isolados, a evolução SaaS exige que todas as queries de negócio filtrem obrigatoriamente pelo identificador do tenant/empresa para evitar vazamento de dados entre clientes.
 Soft Delete: Entidades de negócio não são removidas fisicamente. Utiliza-se o campo ativo = Column(Boolean, default=True). Operações de exclusão devem realizar UPDATE ativo = False.
 Auditoria Temporal: Entidades críticas possuem criado_em e atualizado_em (com onupdate=datetime.utcnow).
-Abstração de Domínio: Termos médicos legados (ex: "Pediatria", "Ginecologia", "NIR") devem ser abstraidos para conceitos genéricos de negócio (ex: "Departamentos", "Canais", "Equipes de Plantão").
+Abstração de Domínio: Termos específicos de um segmento devem ser abstraídos para conceitos configuráveis de negócio (ex: "Departamentos", "Canais", "Equipes" e "Turnos").
 3. MAPEAMENTO DE DOMÍNIOS E ENTIDADES (ORM)
 3.1. Núcleo de Atendimento (Core Ticketing)
 Atendimento: Representa um ticket ou interação com o cliente.
@@ -15,7 +15,7 @@ Abstração: O campo tipo_canal (1=WhatsApp, 2=Interno) define a origem. O relac
 AtendimentoContext: Armazenamento de estado dinâmico (chave-valor) da conversa, utilizado pelo motor do bot para rastrear a jornada do usuário dentro de um menu.
 3.2. Estrutura Organizacional e RBAC (Controle de Acesso)
 NivelUsuario: Hierarquia de papéis (atendente, supervisor, gerente, administrador).
-Departamento: Unidades de negócio ou centros de custo (ex: "Vendas", "Suporte", "Triagem").
+Departamento: Unidades de negócio ou centros de custo (ex: "Vendas", "Suporte", "Operações").
 Canal: Pontos de contato específicos vinculados a um departamento (ex: "WhatsApp Loja 1", "Instagram Oficial"). Define o arquivo_menu (protótipo de fluxo) a ser utilizado.
 Usuario: Operadores do sistema. Vinculados a um nivel_id, departamento_id e, opcionalmente, a um canal_id específico.
 3.3. Automação e Fluxos Interativos
@@ -32,7 +32,7 @@ CampanhaContato: Tabela de associação (N:N) que rastreia o status individual d
 3.6. Utilitários, Segurança e Legado
 TokenRevogado: Blacklist de JWTs (armazena jti e expira_em) para garantir a invalidação real no logout.
 EmailEnviado: Log de e-mails transacionais.
-Módulo de Escalas (Legado/Genérico): O módulo de "Escalas Médicas" presente no HTML legado deve ser refatorado para Gestão de Turnos e Equipes. As especialidades (Pediatria, Adulto, GO) devem tornar-se "Departamentos" ou "Equipes" configuráveis, e os turnos (Manhã, Tarde, Noite) devem ser parâmetros de configuração do tenant, não hardcoded.
+Módulo de Turnos e Equipes: qualquer escala operacional deve ser apresentada como Gestão de Turnos e Equipes. As equipes, funções e turnos devem ser parâmetros de configuração do tenant, nunca valores hardcoded de um segmento.
 4. DIRETRIZES DE IMPLEMENTAÇÃO (PARA IA E DESENVOLVEDORES)
 Ao gerar código (Schemas Pydantic, Services, Controllers ou Migrações Alembic) para o EcoChatMarcx, siga estritamente estas diretrizes:
 A. Schemas Pydantic (Validação e Serialização)

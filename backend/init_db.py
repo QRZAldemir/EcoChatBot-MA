@@ -9,7 +9,7 @@ Data de Criação: 03 de Julho de 2026
 FINALIDADE DO SCRIPT:
 Este script tem como objetivo realizar a inicialização do esquema do banco de
 dados (criação das tabelas via SQLAlchemy) e popular as tabelas base com dados
-essenciais (seed data) para o funcionamento do sistema de gestão hospitalar.
+essenciais (seed data) para o funcionamento da plataforma de atendimento configurável.
 
 Ele garante que os níveis de usuário, departamentos, canais de atendimento e
 o usuário administrador estejam corretamente vinculados e prontos para uso

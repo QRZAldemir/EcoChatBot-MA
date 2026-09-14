@@ -57,13 +57,7 @@ from app.routers import (
     webhook,
     audio
 )
-<<<<<<< HEAD
 from app.security import exigir_nivel_minimo, obter_usuario_atual
-=======
-from app.routers.tenant import atendimentos as tenant_atendimentos
-from app.routers.tenant import usuarios as tenant_usuarios
-from app.security import obter_usuario_atual
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
 
 # ==============================================================================
 # 3. CONFIGURAÇÃO DA INSTÂNCIA FASTAPI
@@ -121,7 +115,6 @@ app.add_middleware(
 #
 # Hierarquia: atendente < supervisor < gerente < administrador
 ROUTERS_CONFIG: List[tuple] = [
-<<<<<<< HEAD
     (auth, "/api/auth", "Autenticacao", False, None),
     (usuarios, "/api/usuarios", "Usuarios", True, None),
     (departamentos, "/api/departamentos", "Departamentos", True, None),
@@ -138,26 +131,6 @@ ROUTERS_CONFIG: List[tuple] = [
     (atendimento, "/api/atendimento", "Atendimento", True, "atendente"),
     (webhook, "/api/webhook", "Webhook", False, None),
     (audio, "/api/audio", "Audio", False, None),
-=======
-    (auth, "/api/auth", "Autenticacao", False),
-    (usuarios, "/api/usuarios", "Usuarios", True),
-    (departamentos, "/api/departamentos", "Departamentos", True),
-    (canais, "/api/canais", "Canais", False),
-    (conexoes, "/api/conexoes", "Conexoes", True),
-    (contatos, "/api/contatos", "Contatos", True),
-    (email, "/api/emails", "Email", True),
-    (campanhas, "/api/campanhas", "Campanhas", True),
-    (arquivos, "/api/arquivos", "Arquivos", True),
-    (ia, "/api/ia", "Inteligencia Artificial", False),
-    (mensagem, "/api/mensagem", "Mensagens", False),
-    (menus, "/api/menus", "Menus", False),
-    (modelos_mensagem, "/api/modelos-mensagem", "Modelos de Mensagem", False),
-    (atendimento, "/api/atendimento", "Atendimento", True),
-    (webhook, "/api/webhook", "Webhook", False),
-    (audio, "/api/audio", "Audio", False),
-    (tenant_atendimentos, "/api", "Tenant Atendimentos", True),
-    (tenant_usuarios, "/api", "Tenant Usuarios", True)
->>>>>>> 37038798148d95e3284b5959b5d7ab66266a4507
 ]
 
 

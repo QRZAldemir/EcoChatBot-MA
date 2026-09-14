@@ -1,12 +1,12 @@
 SKILL: ANALISE ESTRUTURAL E PLANEJAMENTO DE ARQUITETURA ANGULAR E PYTHON PARA O MODULO DE MENSAGENS INTERATIVAS DO CHATBOTMARCX
 CONTEXTO E OBJETIVO
-Voce atuara como um Arquiteto de Software Senior especialista em Angular, Python, APIs RESTful e arquitetura multi-tenant. O projeto atual e o EcoChat v2.0 (Painel_Escalas_MackenzieVs7.html), que sera refatorado e renomeado para ChatBotMarcx, uma plataforma SaaS generica adaptavel a qualquer modelo de negocio. A stack tecnologica sera Angular no frontend e Python (FastAPI) no backend. O foco desta skill e exclusivamente o modulo de Mensagens Interativas, baseado no template visual e funcional do ZigChat.
+Voce atuara como um Arquiteto de Software Senior especialista em Angular, Python, APIs RESTful e arquitetura multi-tenant. O EcoChatBotMarcx e uma plataforma SaaS generica, adaptavel a qualquer modelo de negocio. A stack tecnologica e Angular no frontend e Python (FastAPI) no backend. O foco desta skill e exclusivamente o modulo de Mensagens Interativas, baseado no template visual e funcional do ZigChat.
 REFERENCIA VISUAL - TEMPLATE ZIGCHAT E HTML ATUAL
 Analise o arquivo HTML fornecido (EcoChat v2.0) e os prints do ZigChat como referencia de interface. O sistema atual (EcoChat) possui os seguintes modulos:
-MODULO DE ESCALAS (Nao sera abordado nesta skill):
-Escala Pediatria
-PS Clinico Adulto
-PS Ginecologia / Obstetricia
+MODULO DE TURNOS (Nao sera abordado nesta skill):
+Turnos e equipes configuraveis pelo tenant
+Funcoes operacionais configuraveis pelo tenant
+Importacao de escalas ou agendas conforme o negocio
 Importacao de Escalas (Excel e OCR)
 MODULO DE MENSAGENS INTERATIVAS (Foco desta skill):
 Baseado no HTML atual e no template ZigChat, o modulo deve ter:
@@ -73,11 +73,11 @@ Otimiza volume de dados, performance e complexidade
 Logica de filtro no BFF mantem frontend limpo
 INSTRUCAO 1: AUDITORIA DO FRONTEND ATUAL E MAPEAMENTO DO TEMPLATE ZIGCHAT
 Analise o arquivo HTML fornecido (EcoChat v2.0) e os prints do ZigChat. Identifique e documente:
-A. Acoplamentos especificos do negocio Mackenzie/EcoChat que devem ser removidos ou parametrizados:
-Referencias a Hospital Presbiteriano Mackenzie no texto da mensagem de exemplo
-Referencias a Dr. e Sra. Goldsby King no logo
-Nomes de departamentos especificos como Recepcionando Ambulatorio (DIVA), GUIA MATERNIDADE, AGENDAMENTO CIRURGICO GERAL
-Estes devem se tornar configuraveis por tenant, com valores padrao editaveis
+A. Acoplamentos especificos de qualquer negocio que devem ser removidos ou parametrizados:
+Referencias a uma empresa, marca ou unidade especifica no texto de exemplo
+Nomes de pessoas, equipes, departamentos ou produtos reais na identidade visual
+Nomes de fluxos especificos de um segmento ou cliente
+Todos esses valores devem ser configuraveis por tenant, com valores padrao editaveis
 B. Estrutura do formulario de Mensagem Modelo (baseado no ZigChat e HTML atual):
 Descricao: campo obrigatorio, maximo 100 caracteres, contador de caracteres visivel (0/100), deve ser unico por tenant, automaticamente convertido para maiusculas
 Cabecalho: campo opcional, maximo 60 caracteres, contador visivel (0/60)
@@ -1272,7 +1272,7 @@ Formulario: Campos obrigatorios com asterisco (*), Contadores de caracteres visi
 Validacoes visuais: Campo obrigatorio vazio (borda vermelha), Limite de caracteres excedido (contador vermelho), Tipo de arquivo invalido (mensagem de erro), Descricao duplicada (erro 409)
 FORMATO DE SAIDA ESPERADO
 Voce deve responder com um relatorio tecnico detalhado em texto puro contendo:
-Analise completa do HTML atual (EcoChat v2.0) identificando todos os acoplamentos com o negocio Mackenzie que precisam ser removidos ou parametrizados
+Analise completa do HTML atual identificando todos os acoplamentos com um cliente especifico que precisam ser removidos ou parametrizados
 Mapeamento completo das entidades MessageTemplate, Department, Channel, User com todos os atributos, tipos de dados, constraints, relacionamentos e indices
 Especificacao completa dos endpoints RESTful seguindo a gramatica de APIs (Verbo HTTP, Path/Query/Body/Header Parameters, Status codes, Idempotencia, Exemplos)
 Modelagem de dados SQLAlchemy completa (colunas, tipos, foreign keys, constraints, indices, soft delete)

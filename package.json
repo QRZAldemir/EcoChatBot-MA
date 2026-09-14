@@ -1,0 +1,30 @@
+{
+  "name": "ecochatbot-ma",
+  "version": "1.0.0",
+  "description": "---",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd frontend && npm start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QRZAldemir/EcoChatBot-MA.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/QRZAldemir/EcoChatBot-MA/issues"
+  },
+  "homepage": "https://github.com/QRZAldemir/EcoChatBot-MA#readme",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

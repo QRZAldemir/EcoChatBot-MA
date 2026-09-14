@@ -48,7 +48,7 @@ export class AtendimentoComponent implements OnInit {
     if (state?.canal) {
       this.carregarCanal(state.canal);
     } else {
-      // Fallback: busca o canal pelo nome na URL (/chat/portaria → busca "Portaria")
+      // Fallback: busca o canal configurado pelo cliente usando o nome da URL.
       const nomeRota = this.route.snapshot.paramMap.get('canal') ?? '';
       this.canalService.listar().subscribe(canais => {
         const encontrado = canais.find(c =>

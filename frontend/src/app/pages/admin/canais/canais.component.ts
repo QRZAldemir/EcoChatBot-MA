@@ -31,11 +31,11 @@ export class CanaisComponent implements OnInit {
 
   // Arquivos de menu disponíveis no sistema
   arquivosMenu = [
-    { arquivo: '1atendimento-ma.html', label: '📞 Atendimento ao Cliente' },
-    { arquivo: '2agendamento-ma.html', label: '📅 Agendamento Ambulatório' },
-    { arquivo: '3examesdiagnostico-ma.html', label: '🩺 Exames Diagnóstico' },
-    { arquivo: '7portaria-ma.html', label: '🚪 Portaria' },
-    { arquivo: '8ouvidoria-ma.html', label: '📢 Ouvidoria' },
+    { arquivo: '', label: '💬 Atendimento Geral' },
+    { arquivo: '', label: '🛍️ Vendas' },
+    { arquivo: '', label: '🛠️ Suporte' },
+    { arquivo: '', label: '💳 Financeiro' },
+    { arquivo: '', label: '📢 Feedback' },
   ];
 
   constructor(private canalService: CanalService) { }
