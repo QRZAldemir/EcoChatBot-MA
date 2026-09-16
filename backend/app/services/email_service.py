@@ -10,6 +10,7 @@
 # não quebra — o registro é salvo com status "simulado" e um aviso vai para o
 # log. Quando as credenciais SMTP reais forem configuradas no .env, o mesmo
 # código passa a enviar de verdade.
+# Armazena uploads de imagens e documentos no diretório configurado em `UPLOAD_DIR` com nomes únicos via UUID e persiste os metadados no banco
 #
 # Variáveis de ambiente:
 #     SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, SMTP_USE_TLS

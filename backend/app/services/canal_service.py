@@ -613,3 +613,12 @@ class CanalService:
         ).group_by(Canal.tipo).all()
         
         return {tipo: qtd for tipo, qtd in resultados}
+
+  def _serializar_configuracao(self, configuracao: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not configuracao:
+        return None
+    try:
+        # Converte o JSON do frontend em string para salvar no banco
+        return json.dumps(configuracao, ensure_ascii=False)
+    except (TypeError, ValueError) ase:
+        raise RecursoInvalidoError("Configurações em formato inválido")
