@@ -1,36 +1,25 @@
+<!-- src/index.html -->
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Sistema de atendimento automatizado com IA">
-  <meta name="theme-color" content="#3b82f6">
-
-  <!-- Preload de recursos críticos -->
-  <link rel="preload" href="assets/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin>
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/x-icon" href="assets/images/favicon.ico">
-
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
-  <!-- Manifesto PWA -->
-  <link rel="manifest" href="manifest.json">
-
-  <!-- Base URL -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Painel de Turnos, Mensagens e Memorandos do EcoChat">
+  <meta name="theme-color" content="#c8102e">
+  
+  <!-- Pré-carregamento de Fonte (Performance) -->
+  <link rel="preload" href="assets/fonts/roboto-v51-latin-regular.woff2" as="font" type="font/woff2" crossorigin>
+  
+  <title>EcoChat — Central de Atendimento</title>
   <base href="/">
-
-  <!-- Title -->
-  <title>EcoChat Marcx - Sistema de Atendimento</title>
 </head>
-
-<body class="app-body">
+<body class="theme-light">
+  <!-- Ponto de montagem do Angular -->
   <app-root></app-root>
-
-  <!-- Scripts críticos no final do body -->
-  <script src="assets/js/polyfills.js"></script>
+  
+  <!-- Fallback para navegadores sem JS (Acessibilidade) -->
+  <noscript>
+    <p>Este sistema requer JavaScript habilitado para funcionar corretamente.</p>
+  </noscript>
 </body>
-
 </html>

@@ -1,41 +1,49 @@
-# backend/app/services/pabx_service.py
-import httpx
-import logging
+"""
+================================================================================
+PROJETO: EcoChatBotMarcx - Omnichannel SaaS
+MÓDULO: services/pabx_service.py
+AUTOR: Aldemir Queiroz
+CONTATO: [Inserir E-mail] | [Inserir LinkedIn] | [Inserir GitHub]
+DATA: 2024-05-20
+================================================================================
+PROPÓSITO:
+Orquestrar o gateway de Telefonia IPVoIP/PABX. Processa eventos de chamada,
+navegação por DTMF (URA), transcrição de voz (STT) e geração de respostas
+sintetizadas (TTS) utilizando o DeepSeekService para inteligência artificial.
 
-logger = logging.getLogger(__name__)
+ARQUITETURA E INTEGRAÇÃO:
+Camada de Serviço de Domínio. Consome `DeepSeekService`, `STTService` e 
+`TTSService`. Expõe seus métodos para o `pabx_router.py`.
+================================================================================
+"""
+from app.services.deepseek_service import DeepSeekService
 
 class PabxService:
-    def __init__(self, db: Session):
-        self.db = db
+    def __init__(self, stt_service, tts_service, ai_service: DeepSeekService):
+        self.stt = stt_service
+        self.tts = tts_service
+        self.ai = ai_service
 
-    async def iniciar_chamada_cross_channel(self, canal_id: int, numero_destino: str):
-        # 1. Busca o canal no banco
-        canal = self.db.query(Canal).filter(Canal.id == canal_id, Canal.tipo == "voip_telefonia").first()
-        if not canal:
-            raise ValueError("Canal VoIP não encontrado")
-
-        # 2. Desserializa o JSON que está salvo no banco
-        config = canal.configuracao_json  # Usa a @property que criamos no modelo Canal
+    async def processar_evento_chamada(self, evento: dict):
+        tipo_evento = evento.get("tipo")
         
-        # 3. Extrai as variáveis do seu JSON
-        api_url = config.get("api_base_url")
-        api_user = config.get("api_user")
-        api_secret = config.get("api_secret")
-        trunk = config.get("trunk_outbound")
-        context = config.get("context_ura")
-
-        # 4. Monta a requisição específica para o provedor (ex: Asterisk ARI)
-        if config.get("pabx_type") == "asterisk_ari":
-            payload = {
-                "endpoint": f"SIP/{trunk}/{numero_destino}",
-                "context": context,
-                "extension": "s", # Ou a extensão da sua URA
-                "priority": 1
-            }
-            headers = {"Authorization": f"Basic {base64.b64encode(f'{api_user}:{api_secret}'.encode()).decode()}"}
+        if tipo_evento == "dtmf":
+            return await self._navegar_menu_ura(evento.get("tecla"))
             
-            # 5. Dispara a ordem para o PABX do cliente
-            async with httpx.AsyncClient() as client:
-                response = await client.post(f"{api_url}/channels", json=payload, headers=headers)
-                response.raise_for_status()
-                logger.info(f"Chamada iniciada no PABX para {numero_destino}")
+        elif tipo_evento == "audio":
+            # 1. Transcrever áudio do cliente (STT)
+            transcricao = await self.stt.transcrever(evento["audio_url"])
+            
+            # 2. Gerar resposta inteligente via IA (DeepSeek)
+            resposta_ia = await self.ai.gerar_resposta(transcricao)
+            
+            # 3. Sintetizar resposta em áudio (TTS)
+            audio_resposta_url = await self.tts.sintetizar(resposta_ia)
+            
+            return {"acao": "reproduzir_audio", "audio_url": audio_resposta_url}
+            
+        return {"acao": "nenhuma"}
+
+    async def _navegar_menu_ura(self, tecla: str):
+        # Lógica de roteamento por tecla (ex: 1 para Vendas, 2 para Suporte)
+        return {"acao": "transferir", "fila": f"fila_{tecla}"}

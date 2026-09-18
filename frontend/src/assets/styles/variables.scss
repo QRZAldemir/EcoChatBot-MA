@@ -1,32 +1,28 @@
+// src/styles/_variables.scss
 :root {
-    --red: #c8102e;
-    --red-dark: #8a0a1f;
-    --red-pale: #fff0f2;
-    --red-glow: rgba(200, 16, 46, 0.15);
-    --green: #22c55e;
-    --green-dark: #15803d;
-    --green-pale: #f0fdf4;
-    --wa: #25D366;
-    --wa-dark: #128C7E;
-    --blue: #2563eb;
-    --blue-dark: #1d4ed8;
-    --blue-pale: #eff6ff;
-    --yellow: #f59e0b;
-    --yellow-pale: #fffbeb;
-    --yellow-dark: #b45309;
-    --purple: #7c3aed;
-    --purple-pale: #f5f3ff;
-    --purple-dark: #5b21b6;
-    --teal: #0891b2;
-    --teal-pale: #ecfeff;
-    --teal-dark: #0e7490;
-    --bg: #f4f0ed;
-    --card: #ffffff;
-    --border: #e5ddd8;
-    --text: #18181b;
-    --muted: #78716c;
-    --font: 'Roboto', system-ui, sans-serif;
-    --r: 13px;
-    --sh: 0 2px 10px rgba(0, 0, 0, 0.06);
-    --shl: 0 8px 30px rgba(0, 0, 0, 0.12);
+  // Paleta extraída do monolito
+  --red: #c8102e; --red-dark: #8a0a1f; --red-pale: #fff0f2;
+  --blue: #2563eb; --blue-pale: #eff6ff;
+  --bg: #f4f0ed; --card: #ffffff; --border: #e5ddd8;
+  --text: #18181b; --muted: #78716c;
+  --font: 'Roboto', system-ui, sans-serif;
+  --r: 13px; --sh: 0 2px 10px rgba(0,0,0,0.06);
+}
+
+// src/styles.scss (Ponto de entrada global)
+@use 'variables' as v;
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: v.$font;
+  background: v.$bg;
+  color: v.$text;
+  line-height: 1.5;
+}
+
+// Classe utilitária para acessibilidade (esconde visualmente, mas mantém para leitores de tela)
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
 }

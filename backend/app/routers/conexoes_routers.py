@@ -1,142 +1,85 @@
-# ==============================================================================
-# Autor: Aldemir Queiroz
-# ==============================================================================
-# Arquivo: conexoes.py (Pasta: app/routers)
-#
-# DESCRIÇÃO:
-# Rotas do painel "Conexões" — gerencia números WhatsApp (WABA) vinculados ao
-# sistema via Evolution API. Ver docs/Painel de Controle com vinculo da
-# empresa que contratou  o sistema.png para o desenho de referência.
-# ==============================================================================
+"""
+================================================================================
+PROJETO: EcoChatBotMarcx - Omnichannel SaaS
+MÓDULO: routers/conexoes.py
+AUTOR: Aldemir Queiroz
+CONTATO: [Inserir E-mail] | [Inserir LinkedIn] | [Inserir GitHub]
+DATA: 2024-05-20
+================================================================================
+PROPÓSITO:
+Gerenciar o ciclo de vida das instâncias WhatsApp/WABA via Evolution API.
+Substitui o código legado duplicado, oferecendo endpoints completos para 
+criação, QR Code, status, reconexão, logout e definições de instância.
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import List
+ARQUITETURA E INTEGRAÇÃO:
+Camada de Apresentação (API). Consome o `EvolutionApiClient` (Service).
+Integração direta com o Frontend (Angular `conexoes.component.ts`).
+================================================================================
+"""
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.deps import get_current_user, get_db
+from app.services.evolution_api_client import EvolutionApiClient
+from app.schemas.conexao import ConexaoCreate, ConexaoUpdate
 
-from app.database import get_db
-from app.services.conexao_service import ConexaoService
-from app.schemas import (
-    ConexaoCreate,
-    ConexaoUpdate,
-    ConexaoResponse,
-    ConexaoQRCodeResponse,
-)
+router = APIRouter(prefix="/api/conexoes", tags=["Conexões WhatsApp/WABA"])
 
-router = APIRouter()
+@router.get("/", status_code=status.HTTP_200_OK)
+async def listar_instancias(db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    client = EvolutionApiClient(db, user.cliente_id)
+    return await client.list_instances()
 
+@router.get("/{instancia_id}", status_code=status.HTTP_200_OK)
+async def obter_instancia(instancia_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    client = EvolutionApiClient(db, user.cliente_id)
+    return await client.get_instance(instancia_id)
 
-# ==============================================================================
-# LEITURA / CONSULTA
-# ==============================================================================
+@router.post("/", status_code=status.HTTP_201_CREATED)
+async def criar_instancia(data: ConexaoCreate, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    client = EvolutionApiClient(db, user.cliente_id)
+    return await client.create_instance(data.dict())
 
-@router.get("/", response_model=List[ConexaoResponse])
-def listar_conexoes(db: Session = Depends(get_db)):
-    """Lista todas as conexões WhatsApp cadastradas ('Conexões cadastradas')."""
-    return ConexaoService.listar(db)
+@router.put("/{instancia_id}", status_code=status.HTTP_200_OK)
+async def atualizar_instancia(instancia_id: str, data: ConexaoUpdate, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    client = EvolutionApiClient(db, user.cliente_id)
+    return await client.update_instance(instancia_id, data.dict(exclude_unset=True))
 
+@router.delete("/{instancia_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def deletar_instancia(instancia_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    client = EvolutionApiClient(db, user.cliente_id)
+    await client.delete_instance(instancia_id)
 
-@router.get("/{conexao_id}", response_model=ConexaoResponse)
-def buscar_conexao(conexao_id: int, db: Session = Depends(get_db)):
-    conexao = ConexaoService.buscar_por_id(db, conexao_id)
-    if not conexao:
-        raise HTTPException(status_code=404, detail="Conexão não encontrada")
-    return conexao
+@router.post("/{instancia_id}/status", status_code=status.HTTP_200_OK)
+async def obter_status(instancia_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    client = EvolutionApiClient(db, user.cliente_id)
+    return await client.get_connection_state(instancia_id)
 
+@router.post("/{instancia_id}/desconectar", status_code=status.HTTP_200_OK)
+async def desconectar(instancia_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    client = EvolutionApiClient(db, user.cliente_id)
+    await client.logout(instancia_id)
+    return {"message": "Instância desconectada."}
 
-# ==============================================================================
-# CRIAÇÃO / EDIÇÃO / REMOÇÃO
-# ==============================================================================
+@router.post("/{instancia_id}/reconectar", status_code=status.HTTP_200_OK)
+async def reconectar(instancia_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    client = EvolutionApiClient(db, user.cliente_id)
+    await client.reconnect(instancia_id)
+    return {"message": "Reconexão solicitada."}
 
-@router.post("/", response_model=ConexaoQRCodeResponse, status_code=201)
-async def criar_conexao(dto: ConexaoCreate, db: Session = Depends(get_db)):
-    """'+ Nova conexão' — cadastra o número e devolve o QR Code de pareamento."""
-    conexao, qrcode_info = await ConexaoService.criar(db, dto)
-    return _resposta_qrcode(conexao, qrcode_info)
+@router.post("/{instancia_id}/limpar-fila", status_code=status.HTTP_200_OK)
+async def limpar_fila(instancia_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    client = EvolutionApiClient(db, user.cliente_id)
+    await client.clear_queue(instancia_id)
+    return {"message": "Fila de mensagens limpa."}
 
+@router.post("/{instancia_id}/tornar-padrao", status_code=status.HTTP_200_OK)
+async def tornar_padrao(instancia_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    client = EvolutionApiClient(db, user.cliente_id)
+    await client.set_default(instancia_id)
+    return {"message": "Instância definida como padrão."}
 
-@router.put("/{conexao_id}", response_model=ConexaoResponse)
-def atualizar_conexao(conexao_id: int, dto: ConexaoUpdate, db: Session = Depends(get_db)):
-    conexao = ConexaoService.atualizar(db, conexao_id, dto)
-    if not conexao:
-        raise HTTPException(status_code=404, detail="Conexão não encontrada")
-    return conexao
-
-
-@router.delete("/{conexao_id}", status_code=204)
-async def deletar_conexao(conexao_id: int, db: Session = Depends(get_db)):
-    sucesso = await ConexaoService.deletar(db, conexao_id)
-    if not sucesso:
-        raise HTTPException(status_code=404, detail="Conexão não encontrada")
-    return None
-
-
-# ==============================================================================
-# AÇÕES DO PAINEL DE CONTROLE
-# ==============================================================================
-
-@router.post("/{conexao_id}/atualizar", response_model=ConexaoResponse)
-async def atualizar_status(conexao_id: int, db: Session = Depends(get_db)):
-    conexao = await ConexaoService.atualizar_status(db, conexao_id)
-    if not conexao:
-        raise HTTPException(status_code=404, detail="Conexão não encontrada")
-    return conexao
-
-
-@router.post("/{conexao_id}/desconectar", response_model=ConexaoResponse)
-async def desconectar(conexao_id: int, db: Session = Depends(get_db)):
-    conexao = await ConexaoService.desconectar(db, conexao_id)
-    if not conexao:
-        raise HTTPException(status_code=404, detail="Conexão não encontrada")
-    return conexao
-
-
-@router.post("/{conexao_id}/reconectar", response_model=ConexaoQRCodeResponse)
-async def reconectar(conexao_id: int, db: Session = Depends(get_db)):
-    conexao, qrcode_info = await ConexaoService.reconectar(db, conexao_id)
-    if not conexao:
-        raise HTTPException(status_code=404, detail="Conexão não encontrada")
-    return _resposta_qrcode(conexao, qrcode_info)
-
-
-@router.post("/{conexao_id}/limpar-fila", response_model=ConexaoResponse)
-def limpar_fila(conexao_id: int, db: Session = Depends(get_db)):
-    conexao = ConexaoService.limpar_fila(db, conexao_id)
-    if not conexao:
-        raise HTTPException(status_code=404, detail="Conexão não encontrada")
-    return conexao
-
-
-@router.post("/{conexao_id}/tornar-padrao", response_model=ConexaoResponse)
-def tornar_padrao(conexao_id: int, db: Session = Depends(get_db)):
-    conexao = ConexaoService.tornar_padrao(db, conexao_id)
-    if not conexao:
-        raise HTTPException(status_code=404, detail="Conexão não encontrada")
-    return conexao
-
-
-@router.post("/{conexao_id}/alternar-ativo", response_model=ConexaoResponse)
-def alternar_ativo(conexao_id: int, db: Session = Depends(get_db)):
-    """Botão 'Desativar' (e 'Ativar' quando já desativada)."""
-    conexao = ConexaoService.alternar_ativo(db, conexao_id)
-    if not conexao:
-        raise HTTPException(status_code=404, detail="Conexão não encontrada")
-    return conexao
-
-
-# ==============================================================================
-# HELPERS
-# ==============================================================================
-
-def _resposta_qrcode(conexao, qrcode_info: dict | None) -> ConexaoQRCodeResponse:
-    if qrcode_info:
-        return ConexaoQRCodeResponse(
-            conexao=conexao,
-            qrcode_base64=qrcode_info.get("base64") or qrcode_info.get("qrcode"),
-            pairing_code=qrcode_info.get("pairingCode") or qrcode_info.get("code"),
-            simulado=False,
-        )
-    return ConexaoQRCodeResponse(
-        conexao=conexao,
-        simulado=True,
-        mensagem="Evolution API indisponível neste ambiente — vincule o número quando a integração estiver ativa.",
-    )
+@router.post("/{instancia_id}/alternar-ativo", status_code=status.HTTP_200_OK)
+async def alternar_ativo(instancia_id: str, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    client = EvolutionApiClient(db, user.cliente_id)
+    await client.toggle_active(instancia_id)
+    return {"message": "Status ativo/inativo alternado."}
