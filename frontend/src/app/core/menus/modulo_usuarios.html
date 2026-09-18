@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cadastro de Usuários — EcoChat Marcx</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --red:#c8102e; --red-dark:#8a0a1f; --red-pale:#fff0f2;
+  --green:#22c55e; --green-dark:#15803d; --green-pale:#f0fdf4;
+  --blue:#2563eb; --blue-pale:#eff6ff; --blue-dark:#1d4ed8;
+  --yellow:#f59e0b; --yellow-pale:#fffbeb; --yellow-dark:#b45309;
+  --purple:#7c3aed; --purple-pale:#f5f3ff; --purple-dark:#5b21b6;
+  --teal:#0891b2; --teal-pale:#ecfeff; --teal-dark:#0e7490;
+  --wa:#25D366; --wa-dark:#128C7E;
+  --sb:#0c0004; --bg:#f4f0ed; --card:#fff; --border:#e5ddd8;
+  --text:#18181b; --muted:#78716c;
+  --font:'DM Sans',system-ui,sans-serif;
+  --r:12px; --sh:0 2px 10px rgba(0,0,0,0.06); --shl:0 8px 30px rgba(0,0,0,0.12);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;min-height:100vh;font-size:13.5px;}
+
+/* ━━━ SIDEBAR ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.sb{width:248px;background:var(--sb);display:flex;flex-direction:column;position:fixed;inset:0 auto 0 0;z-index:200;}
+.sb-brand{padding:14px 14px 12px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.sb-logo{width:36px;height:36px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sb-logo span{font-family:'Times New Roman',serif;font-size:20px;font-weight:900;color:#fff;}
+.sb-txt strong{color:#fff;font-size:13px;font-weight:700;display:block;}
+.sb-txt small{color:rgba(255,255,255,0.3);font-size:9.5px;}
+.sb-nav{flex:1;overflow-y:auto;padding:10px 0;}
+.sb-sec{padding:12px 14px 3px;font-size:9px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,0.2);text-transform:uppercase;}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 13px;margin:2px 7px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,0.48);font-size:12.5px;font-weight:500;transition:all .15s;user-select:none;text-decoration:none;}
+.ni:hover{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.85);}
+.ni.active{background:var(--red);color:#fff;box-shadow:0 4px 14px rgba(200,16,46,0.4);}
+.ni i{width:16px;text-align:center;font-size:12.5px;flex-shrink:0;}
+.sb-foot{padding:12px 14px;border-top:1px solid rgba(255,255,255,0.06);}
+.agent-row{display:flex;align-items:center;gap:8px;}
+.av{width:32px;height:32px;border-radius:50%;background:var(--red);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;}
+.dot-status{width:9px;height:9px;border-radius:50%;border:2px solid var(--sb);position:absolute;bottom:0;right:0;}
+.dot-status.on{background:var(--green);}
+.agent-row strong{color:#fff;font-size:11.5px;display:block;}
+.agent-row small{color:rgba(255,255,255,0.35);font-size:10px;}
+
+/* ━━━ MAIN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.main{margin-left:248px;flex:1;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{height:52px;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+.tb-title{font-size:14px;font-weight:700;flex:1;}
+.tb-title span{color:var(--red);}
+.tb-btn{width:32px;height:32px;border-radius:8px;border:1.5px solid var(--border);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;transition:.14s;}
+.tb-btn:hover{border-color:var(--red);color:var(--red);}
+.content{padding:20px;flex:1;}
+
+/* ━━━ PAINEL DUPLO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.layout{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start;}
+
+/* ━━━ CARD ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.card{background:var(--card);border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden;margin-bottom:16px;}
+.card-hd{padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.card-hd h3{font-size:12.5px;font-weight:700;flex:1;}
+.card-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
+.card-ico.r{background:var(--red-pale);color:var(--red);}
+.card-ico.b{background:var(--blue-pale);color:var(--blue);}
+.card-ico.g{background:var(--green-pale);color:var(--wa);}
+.card-ico.p{background:var(--purple-pale);color:var(--purple);}
+.card-ico.t{background:var(--teal-pale);color:var(--teal);}
+.card-ico.y{background:var(--yellow-pale);color:var(--yellow-dark);}
+.cb{padding:16px;}
+
+/* ━━━ FOTO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.foto-wrap{display:flex;flex-direction:column;align-items:center;padding:20px 16px;border-bottom:1px solid var(--border);}
+.foto-circle{width:90px;height:90px;border-radius:50%;background:var(--bg);border:3px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:12px;position:relative;}
+.foto-circle img{width:100%;height:100%;object-fit:cover;}
+.foto-circle .placeholder{font-size:36px;color:var(--muted);}
+.foto-circle .foto-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center;cursor:pointer;border-radius:50%;}
+.foto-circle:hover .foto-overlay{display:flex;}
+.foto-overlay i{color:#fff;font-size:20px;}
+.btn-foto{background:var(--red);color:#fff;border:none;padding:6px 14px;border-radius:7px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px;}
+.btn-foto:hover{background:var(--red-dark);}
+#inputFoto{display:none;}
+
+/* ━━━ FORM ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+.fg label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.3px;text-transform:uppercase;display:flex;align-items:center;gap:4px;}
+.req{color:var(--red);}
+.fg input,.fg select,.fg textarea{padding:9px 11px;border:1.5px solid var(--border);border-radius:7px;font-size:12.5px;font-family:var(--font);background:var(--card);color:var(--text);outline:none;transition:border-color .14s;width:100%;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--red);}
+.fg input::placeholder{color:#bbb;}
+.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.helper{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* ━━━ SEÇÃO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.sec-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;}
+
+/* ━━━ CONEXÃO SELECIONADA ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.conexao-tag{display:inline-flex;align-items:center;gap:6px;background:var(--green-pale);border:1px solid var(--green);color:var(--green-dark);padding:5px 10px;border-radius:20px;font-size:11.5px;font-weight:600;margin-top:8px;}
+.conexao-tag i{font-size:11px;}
+.conexao-vazia{color:var(--muted);font-size:11.5px;font-style:italic;margin-top:6px;}
+
+/* ━━━ TURNO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.turno-vazio{color:var(--muted);font-size:11.5px;font-style:italic;margin-top:6px;}
+.turno-tag{display:inline-flex;align-items:center;gap:6px;background:var(--yellow-pale);border:1px solid var(--yellow);color:var(--yellow-dark);padding:5px 10px;border-radius:20px;font-size:11.5px;font-weight:600;margin-top:8px;}
+
+/* ━━━ LISTA USUÁRIOS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
+.search-box{display:flex;align-items:center;background:var(--bg);border:1.5px solid var(--border);border-radius:20px;padding:5px 13px;gap:7px;flex:1;min-width:180px;}
+.search-box input{border:none;background:none;outline:none;font-family:var(--font);font-size:12px;color:var(--text);width:100%;}
+.search-box i{color:var(--muted);font-size:11px;}
+.tbl{width:100%;border-collapse:collapse;font-size:11.5px;}
+.tbl th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);background:var(--bg);border-bottom:1px solid var(--border);white-space:nowrap;}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tbl tbody tr:hover{background:#fafafa;}
+
+/* Agrupamento por departamento */
+.dept-row td{background:var(--bg);padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.dept-count{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;font-size:9px;font-weight:700;margin-left:6px;}
+
+/* ━━━ BADGES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap;}
+.badge.ativo{background:var(--green-pale);color:var(--green-dark);}
+.badge.inativo{background:var(--red-pale);color:var(--red-dark);}
+.badge.atendente{background:var(--blue-pale);color:var(--blue-dark);}
+.badge.supervisor{background:var(--yellow-pale);color:var(--yellow-dark);}
+.badge.gerente{background:var(--purple-pale);color:var(--purple-dark);}
+.badge.administrador{background:var(--red-pale);color:var(--red-dark);}
+
+/* ━━━ BOTÕES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.btn{padding:7px 16px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:600;transition:.14s;display:inline-flex;align-items:center;gap:5px;}
+.btn.p{background:var(--red);color:#fff;}.btn.p:hover{background:var(--red-dark);}
+.btn.s{background:var(--card);color:var(--text);border:1.5px solid var(--border);}.btn.s:hover{border-color:var(--red);color:var(--red);}
+.btn.sm{padding:4px 9px;font-size:11px;}
+.btn-ico{width:28px;height:28px;border-radius:6px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);transition:.13s;margin-left:3px;}
+.btn-ico:hover{border-color:var(--blue);color:var(--blue);}
+.btn-ico.del:hover{border-color:var(--red);color:var(--red);}
+
+/* ━━━ ALERT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.alert{padding:10px 13px;border-radius:8px;border-left:3px solid;margin-bottom:12px;display:flex;gap:8px;align-items:flex-start;font-size:12px;}
+.alert.ok{background:var(--green-pale);border-color:var(--green);color:var(--green-dark);}
+.alert.err{background:var(--red-pale);border-color:var(--red);color:var(--red-dark);}
+
+/* ━━━ GRADE DE HORÁRIOS (TURNOS) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.dias-box{border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;}
+.dia-row{display:flex;align-items:center;gap:8px;padding:5px 0;}
+.dia-row + .dia-row{border-top:1px dashed var(--border);}
+.dia-lbl{width:32px;font-size:11.5px;font-weight:700;color:var(--text);flex-shrink:0;}
+.dia-ranges{flex:1;display:flex;flex-direction:column;gap:5px;}
+.dia-range{display:flex;align-items:center;gap:6px;}
+.dia-range input[type=time]{padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:11.5px;font-family:var(--font);background:var(--card);color:var(--text);outline:none;width:92px;}
+.dia-range input[type=time]:focus{border-color:var(--red);}
+.dia-range .as{font-size:11px;color:var(--muted);}
+.dia-vazio{font-size:11px;color:var(--muted);font-style:italic;}
+.pill-dia{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;font-size:9.5px;font-weight:700;margin-right:3px;background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+.pill-dia.on{background:var(--yellow-pale);color:var(--yellow-dark);border-color:var(--yellow);}
+
+/* ━━━ STATS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;}
+.sc{background:var(--card);border-radius:var(--r);padding:13px;border:1px solid var(--border);box-shadow:var(--sh);position:relative;}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0;}
+.sc.r::before{background:var(--red);}
+.sc.b::before{background:var(--blue);}
+.sc.g::before{background:var(--wa);}
+.sc.p::before{background:var(--purple);}
+.sc-num{font-size:22px;font-weight:700;line-height:1;margin-bottom:4px;}
+.sc-lbl{font-size:10.5px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+<aside class="sb">
+  <div class="sb-brand">
+    <div class="sb-logo"><span>M</span></div>
+    <div class="sb-txt">
+      <strong>EcoChat</strong>
+      <small>Marcx · Central de Atendimento</small>
+    </div>
+  </div>
+
+  <nav class="sb-nav">
+    <div class="sb-sec">Configuração</div>
+    <div class="ni active" onclick="goPage('usuarios',this)"><i class="fas fa-users"></i> Usuários</div>
+    <div class="ni" onclick="goPage('turnos',this)"><i class="fas fa-clock"></i> Turnos de Trabalho</div>
+    <div class="ni" onclick="goPage('departamentos',this)"><i class="fas fa-building"></i> Departamentos</div>
+    <div class="ni" onclick="goPage('canais',this)"><i class="fas fa-project-diagram"></i> Canais</div>
+    <div class="ni" onclick="goPage('niveis',this)"><i class="fas fa-shield-halved"></i> Níveis de Acesso</div>
+  </nav>
+
+  <div class="sb-foot">
+    <div class="agent-row">
+      <div class="av">AD<div class="dot-status on"></div></div>
+      <div>
+        <strong>Administrador</strong>
+        <small>Online</small>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══════════════════════ MAIN ═══════════════════════ -->
+<div class="main">
+  <div class="topbar">
+    <div class="tb-title"><i class="fas fa-users" style="color:var(--red);margin-right:8px"></i>Cadastro de <span>Usuários</span></div>
+    <button class="tb-btn" title="Atualizar" onclick="location.reload()"><i class="fas fa-rotate-right"></i></button>
+  </div>
+
+  <div class="content">
+    <div id="alertContainer"></div>
+
+    <!-- ══════ PÁGINA: USUÁRIOS ══════ -->
+    <div id="page-usuarios">
+
+    <!-- STATS -->
+    <div class="stats">
+      <div class="sc r"><div class="sc-num" id="st-total">0</div><div class="sc-lbl">Usuários Cadastrados</div></div>
+      <div class="sc b"><div class="sc-num" id="st-deptos">0</div><div class="sc-lbl">Departamentos</div></div>
+      <div class="sc g"><div class="sc-num" id="st-canais">0</div><div class="sc-lbl">Canais Ativos</div></div>
+      <div class="sc p"><div class="sc-num" id="st-conexoes">1</div><div class="sc-lbl">Conexões WhatsApp</div></div>
+    </div>
+
+    <!-- LAYOUT DUPLO -->
+    <div class="layout">
+
+      <!-- ── COLUNA ESQUERDA: FORMULÁRIO ── -->
+      <div>
+        <!-- FOTO -->
+        <div class="card">
+          <div class="foto-wrap">
+            <div class="foto-circle" onclick="document.getElementById('inputFoto').click()">
+              <i class="fas fa-user-tie placeholder" id="fotoPlaceholder"></i>
+              <img id="fotoPreview" src="" style="display:none">
+              <div class="foto-overlay"><i class="fas fa-camera"></i></div>
+            </div>
+            <input type="file" id="inputFoto" accept="image/*" onchange="previewFoto(this)">
+            <button class="btn-foto" onclick="document.getElementById('inputFoto').click()">
+              <i class="fas fa-plus"></i> Alterar foto
+            </button>
+          </div>
+
+          <!-- DADOS BÁSICOS -->
+          <div class="cb">
+            <div class="sec-title"><i class="fas fa-id-card"></i> Dados do Usuário</div>
+
+            <div class="fg-row">
+              <div class="fg">
+                <label>Usuário <span class="req">*</span></label>
+                <input type="text" id="usernameField" placeholder="ex: joao.silva">
+              </div>
+              <div class="fg">
+                <label>Tipo <span class="req">*</span></label>
+                <select id="tipoField">
+                  <option value="atendente">Atendente</option>
+                  <option value="supervisor">Supervisor</option>
+                  <option value="gerente">Gerente</option>
+                  <option value="administrador">Administrador</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="fg">
+              <label>Nome Completo <span class="req">*</span></label>
+              <input type="text" id="nomeField" placeholder="Ex: João da Silva">
+            </div>
+
+            <div class="fg">
+              <label>E-mail <span class="req">*</span></label>
+              <input type="email" id="emailField" placeholder="joao@marcx.com">
+            </div>
+
+            <div class="fg-row">
+              <div class="fg">
+                <label>Departamento <span class="req">*</span></label>
+                <select id="deptoField">
+                  <option value="">Selecione...</option>
+                  <option value="call-center">Call-Center</option>
+                  <option value="recepcao">Recepção</option>
+                  <option value="ouvidoria">Ouvidoria</option>
+                  <option value="administrativo">Administrativo</option>
+                </select>
+              </div>
+              <div class="fg">
+                <label>Canal <span class="req">*</span></label>
+                <select id="canalField">
+                  <option value="">Selecione...</option>
+                  <option value="atendimento-cliente">📞 Atendimento-Cliente</option>
+                  <option value="agendamento-ambulatorial">📅 Agendamento-Ambulatorial</option>
+                  <option value="exames-diagnostico">🩺 Exames-Diagnostico</option>
+                  <option value="portaria">🚪 Portaria</option>
+                  <option value="ouvidoria">📢 Ouvidoria</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="fg-row">
+              <div class="fg">
+                <label>Senha <span class="req">*</span></label>
+                <input type="password" id="senhaField" placeholder="Mín. 6 caracteres">
+              </div>
+              <div class="fg">
+                <label>Confirmar Senha <span class="req">*</span></label>
+                <input type="password" id="senhaConfField" placeholder="Repita a senha">
+              </div>
+            </div>
+
+            <div class="fg">
+              <label>Status</label>
+              <select id="statusField">
+                <option value="ativo">🟢 Ativo</option>
+                <option value="inativo">🔴 Inativo</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONEXÕES WHATSAPP -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ico g"><i class="fab fa-whatsapp"></i></div>
+            <h3>Conexões Vinculadas</h3>
+          </div>
+          <div class="cb">
+            <div class="sec-title"><i class="fas fa-link"></i> Número WhatsApp Business</div>
+            <div class="fg">
+              <label>Conexão <span class="req">*</span></label>
+              <select id="conexaoField" onchange="atualizarConexao()">
+                <option value="">Selecione...</option>
+                <option value="67-3416-7800">67 3416-7800 — Oficial</option>
+                <option value="67-3416-7801">67 3416-7801 — Suporte</option>
+              </select>
+            </div>
+            <div id="conexaoTag" class="conexao-vazia">Nenhuma conexão selecionada.</div>
+
+            <div class="fg" style="margin-top:12px">
+              <label>Conexão Padrão</label>
+              <select id="conexaoPadraoField">
+                <option value="">Selecione...</option>
+                <option value="67-3416-7800">67 3416-7800 — Oficial</option>
+                <option value="67-3416-7801">67 3416-7801 — Suporte</option>
+              </select>
+            </div>
+            <small class="helper">O atendente receberá conversas somente das conexões vinculadas.</small>
+          </div>
+        </div>
+
+        <!-- TURNO -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ico y"><i class="fas fa-clock"></i></div>
+            <h3>Turno Vinculado</h3>
+          </div>
+          <div class="cb">
+            <div class="fg">
+              <label>Turno</label>
+              <select id="turnoField" onchange="atualizarTurno()">
+                <option value="">Selecione...</option>
+              </select>
+            </div>
+            <div id="turnoTag" class="turno-vazio">Nenhum turno selecionado.</div>
+          </div>
+        </div>
+
+        <!-- AÇÕES -->
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn p" style="flex:1" onclick="salvar()"><i class="fas fa-save"></i> Salvar Usuário</button>
+          <button class="btn s" onclick="limpar()"><i class="fas fa-times"></i> Limpar</button>
+        </div>
+      </div>
+
+      <!-- ── COLUNA DIREITA: LISTA ── -->
+      <div>
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ico b"><i class="fas fa-list"></i></div>
+            <h3>Usuários Cadastrados</h3>
+            <span id="contLbl" style="font-size:11px;color:var(--muted);margin-left:auto">0 usuários</span>
+          </div>
+
+          <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
+            <div class="toolbar">
+              <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="filtroNome" placeholder="Pesquisar nome..." oninput="renderTabela()">
+              </div>
+              <select id="filtroDepto" onchange="renderTabela()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;font-family:var(--font);background:var(--card);outline:none;cursor:pointer;">
+                <option value="">Todos os Departamentos</option>
+                <option value="call-center">Call-Center</option>
+                <option value="recepcao">Recepção</option>
+                <option value="ouvidoria">Ouvidoria</option>
+                <option value="administrativo">Administrativo</option>
+              </select>
+              <select id="filtroStatus" onchange="renderTabela()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;font-family:var(--font);background:var(--card);outline:none;cursor:pointer;">
+                <option value="">Todos os Status</option>
+                <option value="ativo">🟢 Ativo</option>
+                <option value="inativo">🔴 Inativo</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>Usuário / Nome</th>
+                  <th>Departamento</th>
+                  <th>Canal</th>
+                  <th>Conexão WhatsApp</th>
+                  <th>Turno</th>
+                  <th>Tipo</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="corpoTabela">
+                <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px;font-size:12px">Nenhum usuário cadastrado</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /layout -->
+    </div><!-- /page-usuarios -->
+
+    <!-- ══════ PÁGINA: TURNOS DE TRABALHO ══════ -->
+    <div id="page-turnos" style="display:none">
+      <div style="display:grid;grid-template-columns:380px 1fr;gap:18px;align-items:start">
+
+        <!-- FORM -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ico y"><i class="fas fa-clock"></i></div>
+            <h3>Novo Turno</h3>
+          </div>
+          <div class="cb">
+            <div class="fg">
+              <label>Descrição <span class="req">*</span></label>
+              <input type="text" id="t-desc" placeholder="Ex: Turno Manhã">
+            </div>
+
+            <div class="fg">
+              <label>Turnos</label>
+              <div class="dias-box" id="t-dias-container"></div>
+            </div>
+
+            <div class="fg">
+              <label>Ação para novos atendimentos</label>
+              <select id="t-acao">
+                <option value="">Selecione...</option>
+                <option value="fila">Colocar em fila de espera</option>
+                <option value="mensagem">Enviar mensagem automática</option>
+                <option value="encaminhar">Encaminhar para outro turno</option>
+                <option value="bloquear">Não aceitar novos atendimentos</option>
+              </select>
+            </div>
+
+            <div class="fg">
+              <label>Mensagem para atendimentos em andamento</label>
+              <textarea id="t-msg-andamento" rows="3" placeholder="Escreva a mensagem..."></textarea>
+            </div>
+
+            <div class="fg">
+              <label>Mensagem de encerramento</label>
+              <textarea id="t-msg-encerramento" rows="3" placeholder="Escreva a mensagem..."></textarea>
+            </div>
+
+            <div class="fg">
+              <label>Status</label>
+              <select id="t-status">
+                <option value="ativo">🟢 Ativo</option>
+                <option value="inativo">🔴 Inativo</option>
+              </select>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:4px">
+              <button class="btn p" style="flex:1" onclick="salvarTurno()"><i class="fas fa-save"></i> Salvar Turno</button>
+              <button class="btn s" onclick="limparTurno()"><i class="fas fa-times"></i> Limpar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- LISTA -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ico b"><i class="fas fa-list"></i></div>
+            <h3>Turnos Cadastrados</h3>
+            <span id="t-cont" style="font-size:11px;color:var(--muted);margin-left:auto">0 turnos</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th>Descrição</th><th>Dias</th><th>Atendentes</th><th>Status</th><th></th></tr></thead>
+              <tbody id="t-corpo"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════ PÁGINA: DEPARTAMENTOS ══════ -->
+    <div id="page-departamentos" style="display:none">
+      <div style="display:grid;grid-template-columns:320px 1fr;gap:18px;align-items:start">
+
+        <!-- FORM -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ico b"><i class="fas fa-building"></i></div>
+            <h3>Novo Departamento</h3>
+          </div>
+          <div class="cb">
+            <div class="fg">
+              <label>Nome do Departamento <span class="req">*</span></label>
+              <input type="text" id="d-nome" placeholder="Ex: Call-Center, Recepção...">
+            </div>
+            <div class="fg">
+              <label>Descrição</label>
+              <input type="text" id="d-desc" placeholder="Descrição do departamento">
+            </div>
+            <div class="fg">
+              <label>Status</label>
+              <select id="d-status">
+                <option value="ativo">🟢 Ativo</option>
+                <option value="inativo">🔴 Inativo</option>
+              </select>
+            </div>
+            <button class="btn p" style="width:100%;margin-top:4px" onclick="salvarDepto()">
+              <i class="fas fa-save"></i> Salvar Departamento
+            </button>
+          </div>
+        </div>
+
+        <!-- LISTA -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ico r"><i class="fas fa-list"></i></div>
+            <h3>Departamentos Cadastrados</h3>
+            <span id="d-cont" style="font-size:11px;color:var(--muted);margin-left:auto">0 departamentos</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th>Nome</th><th>Descrição</th><th>Usuários</th><th>Status</th><th></th></tr></thead>
+              <tbody id="d-corpo"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════ PÁGINA: CANAIS ══════ -->
+    <div id="page-canais" style="display:none">
+
+      <!-- DIAGRAMA CONCEITUAL: CANAL = PONTE -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:0;flex-wrap:wrap;box-shadow:var(--sh)">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--blue-pale);border:1.5px solid var(--blue);border-radius:10px;font-size:12px;font-weight:700;color:var(--blue-dark)">
+          <i class="fas fa-user-headset"></i> Atendente
+        </div>
+        <div style="padding:0 12px;color:var(--muted);font-size:18px;font-weight:300">→</div>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--green-pale);border:1.5px solid var(--wa);border-radius:10px;font-size:12px;font-weight:700;color:var(--green-dark)">
+          <i class="fas fa-project-diagram"></i> Canal <span style="font-weight:400;font-size:10.5px;margin-left:4px">(ponte)</span>
+        </div>
+        <div style="padding:0 12px;color:var(--muted);font-size:18px;font-weight:300">→</div>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--yellow-pale);border:1.5px solid var(--yellow);border-radius:10px;font-size:12px;font-weight:700;color:var(--yellow-dark)">
+          <i class="fas fa-file-code"></i> Menu HTML <span style="font-weight:400;font-size:10px;margin-left:4px">ex: 7portaria-marcx.html</span>
+        </div>
+        <div style="padding:0 12px;color:var(--muted);font-size:18px;font-weight:300">→</div>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--green-pale);border:1.5px solid var(--wa);border-radius:10px;font-size:12px;font-weight:700;color:var(--wa-dark)">
+          <i class="fab fa-whatsapp"></i> Paciente vê botões no WhatsApp
+        </div>
+        <div style="margin-left:auto;font-size:10.5px;color:var(--muted);max-width:220px;text-align:right;line-height:1.5">
+          O Canal não é o questionário — ele apenas <strong>aponta</strong> para o arquivo HTML que contém o fluxo completo.
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start">
+
+        <!-- FORM -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ico g"><i class="fas fa-project-diagram"></i></div>
+            <h3>Novo Canal</h3>
+          </div>
+          <div class="cb">
+            <div class="fg">
+              <label>Nome do Canal <span class="req">*</span></label>
+              <input type="text" id="c-nome" placeholder="Ex: Agendamento-Ambulatorial">
+            </div>
+            <div class="fg">
+              <label>Ícone (emoji)</label>
+              <input type="text" id="c-icone" placeholder="📅">
+            </div>
+            <div class="fg">
+              <label>Descrição</label>
+              <input type="text" id="c-desc" placeholder="Descrição do canal">
+            </div>
+            <div class="fg">
+              <label>Arquivo de Menu <span class="req">*</span></label>
+              <select id="c-arquivo" onchange="atualizarPreviewMenu()">
+                <option value="">Selecione o arquivo HTML...</option>
+                <option value="1atendimento-marcx.html">📞 1atendimento-marcx.html</option>
+                <option value="2agendamento-marcx.html">📅 2agendamento-marcx.html</option>
+                <option value="3examesdiagnostico-marcx.html">🩺 3examesdiagnostico-marcx.html</option>
+                <option value="7portaria-marcx.html">🚪 7portaria-marcx.html</option>
+                <option value="8ouvidoria-marcx.html">📢 8ouvidoria-marcx.html</option>
+              </select>
+              <div id="menu-preview-box" style="display:none;margin-top:8px;padding:9px 12px;background:var(--green-pale);border:1.5px solid var(--green);border-radius:8px;align-items:center;gap:8px">
+                <i class="fas fa-file-code" style="color:var(--green-dark);font-size:13px;flex-shrink:0"></i>
+                <span id="menu-preview-label" style="font-size:11.5px;flex:1;font-weight:600;color:var(--green-dark)"></span>
+                <button class="btn s sm" type="button" onclick="abrirMenuPreview()" title="Abre o questionário que o paciente verá no WhatsApp">
+                  <i class="fas fa-eye"></i> Visualizar
+                </button>
+              </div>
+              <small class="helper">O canal é uma <strong>ponte</strong>: Atendente → Canal → Menu HTML → Paciente no WhatsApp</small>
+            </div>
+            <div class="fg">
+              <label>Status</label>
+              <select id="c-status">
+                <option value="ativo">🟢 Ativo</option>
+                <option value="inativo">🔴 Inativo</option>
+              </select>
+            </div>
+            <button class="btn p" style="width:100%;margin-top:4px" onclick="salvarCanal()">
+              <i class="fas fa-save"></i> Salvar Canal
+            </button>
+          </div>
+        </div>
+
+        <!-- LISTA -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ico b"><i class="fas fa-list"></i></div>
+            <h3>Canais Cadastrados</h3>
+            <span id="c-cont" style="font-size:11px;color:var(--muted);margin-left:auto">0 canais</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th>Canal</th><th>→ Menu do Paciente (WhatsApp)</th><th>Atendentes</th><th>Status</th><th></th></tr></thead>
+              <tbody id="c-corpo"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div>
+
+<script>
+// ─── DADOS ────────────────────────────────────────────────────
+let usuarios = JSON.parse(localStorage.getItem('ecochat_usuarios') || '[]');
+
+const deptoLabel = {
+  'call-center':'Call-Center','recepcao':'Recepção',
+  'ouvidoria':'Ouvidoria','administrativo':'Administrativo'
+};
+const canalLabel = {
+  'atendimento-cliente':'📞 Atendimento-Cliente',
+  'agendamento-ambulatorial':'📅 Agendamento-Ambulatorial',
+  'exames-diagnostico':'🩺 Exames-Diagnostico',
+  'portaria':'🚪 Portaria',
+  'ouvidoria':'📢 Ouvidoria'
+};
+const DIAS = [
+  { key:'dom', label:'Dom' }, { key:'seg', label:'Seg' }, { key:'ter', label:'Ter' },
+  { key:'qua', label:'Qua' }, { key:'qui', label:'Qui' }, { key:'sex', label:'Sex' },
+  { key:'sab', label:'Sáb' }
+];
+const conexaoLabel = {
+  '67-3416-7800':'67 3416-7800 — Oficial',
+  '67-3416-7801':'67 3416-7801 — Suporte'
+};
+
+// ─── FOTO PREVIEW ─────────────────────────────────────────────
+function previewFoto(input) {
+  const f = input.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('fotoPreview').src = e.target.result;
+    document.getElementById('fotoPreview').style.display = 'block';
+    document.getElementById('fotoPlaceholder').style.display = 'none';
+  };
+  reader.readAsDataURL(f);
+}
+
+// ─── CONEXÃO / TURNO TAGS ─────────────────────────────────────
+function atualizarConexao() {
+  const v = document.getElementById('conexaoField').value;
+  const el = document.getElementById('conexaoTag');
+  if (v) {
+    el.className = 'conexao-tag';
+    el.innerHTML = `<i class="fab fa-whatsapp"></i> ${conexaoLabel[v]}`;
+    document.getElementById('conexaoPadraoField').value = v;
+  } else {
+    el.className = 'conexao-vazia';
+    el.textContent = 'Nenhuma conexão selecionada.';
+  }
+}
+
+function atualizarTurno() {
+  const v = document.getElementById('turnoField').value;
+  const el = document.getElementById('turnoTag');
+  if (v) {
+    el.className = 'turno-tag';
+    el.innerHTML = `<i class="fas fa-clock"></i> ${v}`;
+  } else {
+    el.className = 'turno-vazio';
+    el.textContent = 'Nenhum turno selecionado.';
+  }
+}
+
+// ─── SALVAR ───────────────────────────────────────────────────
+function salvar() {
+  const nome    = document.getElementById('nomeField').value.trim();
+  const user    = document.getElementById('usernameField').value.trim();
+  const email   = document.getElementById('emailField').value.trim();
+  const senha   = document.getElementById('senhaField').value;
+  const senhaC  = document.getElementById('senhaConfField').value;
+  const depto   = document.getElementById('deptoField').value;
+  const canal   = document.getElementById('canalField').value;
+  const tipo    = document.getElementById('tipoField').value;
+  const status  = document.getElementById('statusField').value;
+  const conexao = document.getElementById('conexaoField').value;
+  const turno   = document.getElementById('turnoField').value;
+
+  if (!nome || !user || !email || !depto || !canal) return alerta('Preencha os campos obrigatórios.', 'err');
+  if (!senha || senha.length < 6)                  return alerta('Senha mínimo 6 caracteres.', 'err');
+  if (senha !== senhaC)                            return alerta('As senhas não conferem.', 'err');
+  if (!conexao)                                    return alerta('Selecione uma Conexão WhatsApp.', 'err');
+
+  const u = { id: Date.now(), nome, usuario: user, email, depto, canal, tipo, status, conexao, turno,
+              foto: document.getElementById('fotoPreview').src || '',
+              data: new Date().toLocaleDateString('pt-BR') };
+  usuarios.push(u);
+  localStorage.setItem('ecochat_usuarios', JSON.stringify(usuarios));
+  alerta('✓ Usuário cadastrado com sucesso!', 'ok');
+  limpar();
+  renderTabela();
+  atualizarStats();
+}
+
+// ─── DELETAR ──────────────────────────────────────────────────
+function deletar(id) {
+  if (!confirm('Confirma exclusão deste usuário?')) return;
+  usuarios = usuarios.filter(u => u.id !== id);
+  localStorage.setItem('ecochat_usuarios', JSON.stringify(usuarios));
+  renderTabela();
+  atualizarStats();
+}
+
+// ─── TABELA AGRUPADA POR DEPARTAMENTO ────────────────────────
+function renderTabela() {
+  const filtNome   = document.getElementById('filtroNome').value.toLowerCase();
+  const filtDepto  = document.getElementById('filtroDepto').value;
+  const filtStatus = document.getElementById('filtroStatus').value;
+
+  const filtrados = usuarios.filter(u =>
+    (!filtNome   || u.nome.toLowerCase().includes(filtNome) || u.usuario.toLowerCase().includes(filtNome)) &&
+    (!filtDepto  || u.depto === filtDepto) &&
+    (!filtStatus || u.status === filtStatus)
+  );
+
+  document.getElementById('contLbl').textContent = filtrados.length + ' usuário(s)';
+
+  if (filtrados.length === 0) {
+    document.getElementById('corpoTabela').innerHTML =
+      `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px;font-size:12px">Nenhum usuário encontrado</td></tr>`;
+    return;
+  }
+
+  // Agrupa por departamento
+  const grupos = {};
+  filtrados.forEach(u => {
+    const d = deptoLabel[u.depto] || u.depto;
+    if (!grupos[d]) grupos[d] = [];
+    grupos[d].push(u);
+  });
+
+  let html = '';
+  Object.entries(grupos).sort().forEach(([depto, lista]) => {
+    html += `<tr class="dept-row"><td colspan="8">
+      <i class="fas fa-building" style="margin-right:6px"></i>${depto}
+      <span class="dept-count">${lista.length}</span>
+    </td></tr>`;
+    lista.forEach(u => {
+      html += `<tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            ${u.foto ? `<img src="${u.foto}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0">` :
+              `<div style="width:28px;height:28px;border-radius:50%;background:var(--bg);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted)"><i class="fas fa-user"></i></div>`}
+            <div>
+              <strong style="font-size:12px">${u.nome}</strong>
+              <div style="font-size:10px;color:var(--muted)">@${u.usuario}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-size:11.5px">${deptoLabel[u.depto] || u.depto}</td>
+        <td style="font-size:11.5px">${canalLabel[u.canal] || u.canal}</td>
+        <td>
+          <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--wa-dark);font-weight:600">
+            <i class="fab fa-whatsapp"></i> ${conexaoLabel[u.conexao] || u.conexao || '—'}
+          </span>
+        </td>
+        <td style="font-size:11px">${u.turno ? `<i class="fas fa-clock" style="color:var(--yellow-dark);margin-right:4px"></i>${u.turno}` : '—'}</td>
+        <td><span class="badge ${u.tipo}">${u.tipo}</span></td>
+        <td><span class="badge ${u.status}">${u.status === 'ativo' ? '● Ativo' : '● Inativo'}</span></td>
+        <td>
+          <button class="btn-ico del" onclick="deletar(${u.id})" title="Excluir"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`;
+    });
+  });
+
+  document.getElementById('corpoTabela').innerHTML = html;
+}
+
+// ─── STATS ────────────────────────────────────────────────────
+function atualizarStats() {
+  document.getElementById('st-total').textContent = usuarios.length;
+  const deptos = new Set(usuarios.map(u => u.depto)).size;
+  const canais = new Set(usuarios.map(u => u.canal)).size;
+  document.getElementById('st-deptos').textContent = deptos;
+  document.getElementById('st-canais').textContent = canais;
+}
+
+// ─── LIMPAR ───────────────────────────────────────────────────
+function limpar() {
+  ['usernameField','nomeField','emailField','senhaField','senhaConfField'].forEach(id => document.getElementById(id).value = '');
+  ['deptoField','canalField','tipoField','conexaoField','conexaoPadraoField','turnoField'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('statusField').value = 'ativo';
+  document.getElementById('fotoPreview').style.display = 'none';
+  document.getElementById('fotoPlaceholder').style.display = 'block';
+  document.getElementById('fotoPreview').src = '';
+  document.getElementById('inputFoto').value = '';
+  atualizarConexao();
+  atualizarTurno();
+}
+
+// ─── ALERT ────────────────────────────────────────────────────
+function alerta(msg, tipo) {
+  const d = document.createElement('div');
+  d.className = `alert ${tipo}`;
+  d.innerHTML = `<i class="fas fa-${tipo==='ok'?'check':'exclamation'}-circle"></i><span>${msg}</span>`;
+  const c = document.getElementById('alertContainer');
+  c.innerHTML = '';
+  c.appendChild(d);
+  setTimeout(() => d.remove(), 4000);
+}
+
+// ─── DADOS: DEPARTAMENTOS, CANAIS E TURNOS ───────────────────
+let departamentos = JSON.parse(localStorage.getItem('ecochat_deptos') || '[]');
+let canais        = JSON.parse(localStorage.getItem('ecochat_canais') || '[]');
+let turnos        = JSON.parse(localStorage.getItem('ecochat_turnos') || '[]');
+
+// Pré-carrega dados padrão se estiver vazio
+if (departamentos.length === 0) {
+  departamentos = [
+    { id: 1, nome: 'Call-Center',    desc: 'Central de atendimento telefônico e digital', status: 'ativo' },
+    { id: 2, nome: 'Recepção',       desc: 'Atendimento presencial e portaria',            status: 'ativo' },
+    { id: 3, nome: 'Ouvidoria',      desc: 'Canal de ouvidoria e reclamações',             status: 'ativo' },
+    { id: 4, nome: 'Administrativo', desc: 'Departamento administrativo e financeiro',     status: 'ativo' },
+  ];
+  localStorage.setItem('ecochat_deptos', JSON.stringify(departamentos));
+}
+if (canais.length === 0) {
+  canais = [
+    { id: 1, nome: 'Atendimento-Cliente',      icone: '📞', desc: 'Central de atendimento ao cliente',         arquivo: '1atendimento-marcx.html',        status: 'ativo' },
+    { id: 2, nome: 'Agendamento-Ambulatorial', icone: '📅', desc: 'Agendamento de consultas ambulatoriais',    arquivo: '2agendamento-marcx.html',        status: 'ativo' },
+    { id: 3, nome: 'Exames-Diagnostico',       icone: '🩺', desc: 'Informações sobre exames diagnósticos',    arquivo: '3examesdiagnostico-marcx.html',  status: 'ativo' },
+    { id: 4, nome: 'Portaria',                 icone: '🚪', desc: 'Atendimento de portaria e controle',       arquivo: '7portaria-marcx.html',           status: 'ativo' },
+    { id: 5, nome: 'Ouvidoria',                icone: '📢', desc: 'Canal de ouvidoria e sugestões',           arquivo: '8ouvidoria-marcx.html',          status: 'ativo' },
+  ];
+  localStorage.setItem('ecochat_canais', JSON.stringify(canais));
+}
+function diasFixos(ini, fim) {
+  const d = {};
+  DIAS.forEach(({key}) => { d[key] = [{ini, fim}]; });
+  return d;
+}
+if (turnos.length === 0) {
+  turnos = [
+    { id: 1, desc: 'Manhã',    dias: diasFixos('06:00','14:00'), acao: 'fila',      msgAndamento: '', msgEncerramento: '', status: 'ativo' },
+    { id: 2, desc: 'Tarde',    dias: diasFixos('14:00','22:00'), acao: 'fila',      msgAndamento: '', msgEncerramento: '', status: 'ativo' },
+    { id: 3, desc: 'Noite',    dias: diasFixos('22:00','23:59'), acao: 'mensagem',  msgAndamento: '', msgEncerramento: '', status: 'ativo' },
+    { id: 4, desc: 'Integral', dias: diasFixos('00:00','23:59'), acao: 'fila',      msgAndamento: '', msgEncerramento: '', status: 'ativo' },
+  ];
+  localStorage.setItem('ecochat_turnos', JSON.stringify(turnos));
+}
+
+// ─── CRUD: DEPARTAMENTOS ─────────────────────────────────────
+function salvarDepto() {
+  const nome = document.getElementById('d-nome').value.trim();
+  const desc = document.getElementById('d-desc').value.trim();
+  const status = document.getElementById('d-status').value;
+  if (!nome) return alerta('Nome do departamento é obrigatório.', 'err');
+  departamentos.push({ id: Date.now(), nome, desc, status });
+  localStorage.setItem('ecochat_deptos', JSON.stringify(departamentos));
+  document.getElementById('d-nome').value = '';
+  document.getElementById('d-desc').value = '';
+  alerta('✓ Departamento cadastrado!', 'ok');
+  renderDeptos();
+  sincronizarSelects();
+}
+
+function deletarDepto(id) {
+  if (!confirm('Excluir este departamento?')) return;
+  departamentos = departamentos.filter(d => d.id !== id);
+  localStorage.setItem('ecochat_deptos', JSON.stringify(departamentos));
+  renderDeptos();
+  sincronizarSelects();
+}
+
+function renderDeptos() {
+  const corpo = document.getElementById('d-corpo');
+  const cont  = document.getElementById('d-cont');
+  if (!corpo) return;
+  cont.textContent = departamentos.length + ' departamento(s)';
+  if (departamentos.length === 0) {
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Nenhum departamento cadastrado</td></tr>`;
+    return;
+  }
+  corpo.innerHTML = departamentos.map(d => {
+    const qtd = usuarios.filter(u => u.depto === d.nome.toLowerCase().replace(/\s/g,'-')).length ||
+                usuarios.filter(u => u.depto === d.nome).length;
+    return `<tr>
+      <td><strong>${d.nome}</strong></td>
+      <td style="font-size:11.5px;color:var(--muted)">${d.desc || '—'}</td>
+      <td style="font-size:11.5px">${qtd} usuário(s)</td>
+      <td><span class="badge ${d.status}">${d.status === 'ativo' ? '● Ativo' : '● Inativo'}</span></td>
+      <td><button class="btn-ico del" onclick="deletarDepto(${d.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── VISUALIZAR MENU ──────────────────────────────────────────
+function abrirMenu(arquivo) {
+  if (!arquivo) return;
+  window.open(arquivo, '_blank', 'width=480,height=720,menubar=no,toolbar=no,location=no,status=no');
+}
+
+function abrirMenuPreview() {
+  const arquivo = document.getElementById('c-arquivo').value;
+  abrirMenu(arquivo);
+}
+
+function atualizarPreviewMenu() {
+  const v = document.getElementById('c-arquivo').value;
+  const box = document.getElementById('menu-preview-box');
+  const lbl = document.getElementById('menu-preview-label');
+  if (v) {
+    lbl.textContent = v;
+    box.style.display = 'flex';
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+// ─── CRUD: CANAIS ─────────────────────────────────────────────
+function salvarCanal() {
+  const nome    = document.getElementById('c-nome').value.trim();
+  const icone   = document.getElementById('c-icone').value.trim();
+  const desc    = document.getElementById('c-desc').value.trim();
+  const arquivo = document.getElementById('c-arquivo').value;
+  const status  = document.getElementById('c-status').value;
+  if (!nome || !arquivo) return alerta('Nome e arquivo de menu são obrigatórios.', 'err');
+  canais.push({ id: Date.now(), nome, icone, desc, arquivo, status });
+  localStorage.setItem('ecochat_canais', JSON.stringify(canais));
+  document.getElementById('c-nome').value = '';
+  document.getElementById('c-icone').value = '';
+  document.getElementById('c-desc').value = '';
+  alerta('✓ Canal cadastrado!', 'ok');
+  renderCanais();
+  sincronizarSelects();
+}
+
+function deletarCanal(id) {
+  if (!confirm('Excluir este canal?')) return;
+  canais = canais.filter(c => c.id !== id);
+  localStorage.setItem('ecochat_canais', JSON.stringify(canais));
+  renderCanais();
+  sincronizarSelects();
+}
+
+function renderCanais() {
+  const corpo = document.getElementById('c-corpo');
+  const cont  = document.getElementById('c-cont');
+  if (!corpo) return;
+  cont.textContent = canais.length + ' canal(is)';
+  if (canais.length === 0) {
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Nenhum canal cadastrado</td></tr>`;
+    return;
+  }
+  corpo.innerHTML = canais.map(c => {
+    const qtd = usuarios.filter(u => u.canal === c.nome.toLowerCase().replace(/\s/g,'-')).length ||
+                usuarios.filter(u => u.canal === c.nome).length;
+    return `<tr>
+      <td>
+        <strong style="font-size:12.5px">${c.icone || ''} ${c.nome}</strong>
+        <div style="font-size:10.5px;color:var(--muted);margin-top:1px">${c.desc || ''}</div>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <code style="font-size:10.5px;background:var(--bg);padding:3px 7px;border-radius:4px;border:1px solid var(--border)">${c.arquivo}</code>
+        </div>
+      </td>
+      <td style="font-size:11.5px">${qtd} atendente(s)</td>
+      <td><span class="badge ${c.status}">${c.status === 'ativo' ? '● Ativo' : '● Inativo'}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn-ico" onclick="abrirMenu('${c.arquivo}')" title="Visualizar questionário do paciente"><i class="fas fa-eye"></i></button>
+        <button class="btn-ico del" onclick="deletarCanal(${c.id})" title="Excluir canal"><i class="fas fa-trash"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── GRADE DE HORÁRIOS (FORM DE TURNO) ───────────────────────
+let turnoDiasForm = {};
+
+function novoTurnoDiasForm() {
+  const d = {};
+  DIAS.forEach(({key}) => { d[key] = [{ ini:'08:00', fim:'17:00' }]; });
+  return d;
+}
+
+function renderDiasForm() {
+  const box = document.getElementById('t-dias-container');
+  if (!box) return;
+  box.innerHTML = DIAS.map(({key,label}) => {
+    const ranges = turnoDiasForm[key] || [];
+    const rangesHtml = ranges.length
+      ? ranges.map((r, i) => `
+          <div class="dia-range">
+            <input type="time" value="${r.ini}" onchange="atualizarRange('${key}',${i},'ini',this.value)">
+            <span class="as">às</span>
+            <input type="time" value="${r.fim}" onchange="atualizarRange('${key}',${i},'fim',this.value)">
+            <button type="button" class="btn-ico del" onclick="removeRange('${key}',${i})" title="Remover"><i class="fas fa-trash"></i></button>
+            ${i === ranges.length - 1 ? `<button type="button" class="btn-ico" onclick="addRange('${key}')" title="Adicionar horário"><i class="fas fa-plus"></i></button>` : ''}
+          </div>`).join('')
+      : `<div class="dia-range"><span class="dia-vazio">Sem atendimento</span><button type="button" class="btn-ico" onclick="addRange('${key}')" title="Adicionar horário"><i class="fas fa-plus"></i></button></div>`;
+    return `<div class="dia-row"><div class="dia-lbl">${label}</div><div class="dia-ranges">${rangesHtml}</div></div>`;
+  }).join('');
+}
+
+function addRange(dia) {
+  if (!turnoDiasForm[dia]) turnoDiasForm[dia] = [];
+  turnoDiasForm[dia].push({ ini:'08:00', fim:'17:00' });
+  renderDiasForm();
+}
+
+function removeRange(dia, idx) {
+  turnoDiasForm[dia].splice(idx, 1);
+  renderDiasForm();
+}
+
+function atualizarRange(dia, idx, campo, val) {
+  turnoDiasForm[dia][idx][campo] = val;
+}
+
+// ─── CRUD: TURNOS ─────────────────────────────────────────────
+function salvarTurno() {
+  const desc = document.getElementById('t-desc').value.trim();
+  const acao = document.getElementById('t-acao').value;
+  const msgAndamento = document.getElementById('t-msg-andamento').value.trim();
+  const msgEncerramento = document.getElementById('t-msg-encerramento').value.trim();
+  const status = document.getElementById('t-status').value;
+  if (!desc) return alerta('Descrição do turno é obrigatória.', 'err');
+  turnos.push({ id: Date.now(), desc, dias: JSON.parse(JSON.stringify(turnoDiasForm)), acao, msgAndamento, msgEncerramento, status });
+  localStorage.setItem('ecochat_turnos', JSON.stringify(turnos));
+  alerta('✓ Turno cadastrado!', 'ok');
+  limparTurno();
+  renderTurnos();
+  sincronizarSelects();
+}
+
+function deletarTurno(id) {
+  if (!confirm('Excluir este turno?')) return;
+  turnos = turnos.filter(t => t.id !== id);
+  localStorage.setItem('ecochat_turnos', JSON.stringify(turnos));
+  renderTurnos();
+  sincronizarSelects();
+}
+
+function limparTurno() {
+  document.getElementById('t-desc').value = '';
+  document.getElementById('t-acao').value = '';
+  document.getElementById('t-msg-andamento').value = '';
+  document.getElementById('t-msg-encerramento').value = '';
+  document.getElementById('t-status').value = 'ativo';
+  turnoDiasForm = novoTurnoDiasForm();
+  renderDiasForm();
+}
+
+function renderTurnos() {
+  const corpo = document.getElementById('t-corpo');
+  const cont  = document.getElementById('t-cont');
+  if (!corpo) return;
+  cont.textContent = turnos.length + ' turno(s)';
+  if (turnos.length === 0) {
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Nenhum turno cadastrado</td></tr>`;
+    return;
+  }
+  corpo.innerHTML = turnos.map(t => {
+    const qtd = usuarios.filter(u => u.turno === t.desc).length;
+    const diasHtml = DIAS.map(({key,label}) => {
+      const ativo = (t.dias && t.dias[key] && t.dias[key].length > 0);
+      return `<span class="pill-dia ${ativo ? 'on' : ''}" title="${label}">${label[0]}</span>`;
+    }).join('');
+    return `<tr>
+      <td><strong style="font-size:12.5px"><i class="fas fa-clock" style="color:var(--yellow-dark);margin-right:5px"></i>${t.desc}</strong></td>
+      <td>${diasHtml}</td>
+      <td style="font-size:11.5px">${qtd} atendente(s)</td>
+      <td><span class="badge ${t.status}">${t.status === 'ativo' ? '● Ativo' : '● Inativo'}</span></td>
+      <td><button class="btn-ico del" onclick="deletarTurno(${t.id})" title="Excluir turno"><i class="fas fa-trash"></i></button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── SINCRONIZAR SELECTS DO FORM DE USUÁRIO ──────────────────
+function sincronizarSelects() {
+  const deptoSel = document.getElementById('deptoField');
+  const canalSel = document.getElementById('canalField');
+  const turnoSel = document.getElementById('turnoField');
+  if (!deptoSel || !canalSel) return;
+
+  const dVal = deptoSel.value;
+  const cVal = canalSel.value;
+  const tVal = turnoSel ? turnoSel.value : '';
+
+  deptoSel.innerHTML = '<option value="">Selecione...</option>' +
+    departamentos.filter(d => d.status === 'ativo')
+      .map(d => `<option value="${d.nome}">${d.nome}</option>`).join('');
+  deptoSel.value = dVal;
+
+  canalSel.innerHTML = '<option value="">Selecione...</option>' +
+    canais.filter(c => c.status === 'ativo')
+      .map(c => `<option value="${c.nome}">${c.icone || ''} ${c.nome}</option>`).join('');
+  canalSel.value = cVal;
+
+  if (turnoSel) {
+    turnoSel.innerHTML = '<option value="">Selecione...</option>' +
+      turnos.filter(t => t.status === 'ativo')
+        .map(t => `<option value="${t.desc}">${t.desc}</option>`).join('');
+    turnoSel.value = tVal;
+  }
+}
+
+// ─── NAVEGAÇÃO ENTRE PÁGINAS ──────────────────────────────────
+const paginas = { usuarios:'page-usuarios', turnos:'page-turnos', departamentos:'page-departamentos', canais:'page-canais' };
+const titulos = {
+  usuarios: '<i class="fas fa-users" style="color:var(--red);margin-right:8px"></i>Cadastro de <span>Usuários</span>',
+  turnos: '<i class="fas fa-clock" style="color:var(--yellow-dark);margin-right:8px"></i>Turnos de <span>Trabalho</span>',
+  departamentos: '<i class="fas fa-building" style="color:var(--blue);margin-right:8px"></i>Cadastro de <span>Departamentos</span>',
+  canais: '<i class="fas fa-project-diagram" style="color:var(--wa);margin-right:8px"></i>Cadastro de <span>Canais</span>',
+};
+
+function goPage(p, el) {
+  document.querySelectorAll('.ni').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+
+  if (paginas[p]) {
+    Object.values(paginas).forEach(id => { const pg = document.getElementById(id); if(pg) pg.style.display='none'; });
+    document.getElementById(paginas[p]).style.display = 'block';
+    document.querySelector('.tb-title').innerHTML = titulos[p] || p;
+    if (p === 'departamentos') renderDeptos();
+    if (p === 'canais') renderCanais();
+    if (p === 'turnos') renderTurnos();
+  } else {
+    alert(`Página "${p}" disponível no Angular.`);
+  }
+}
+
+// ─── INIT ─────────────────────────────────────────────────────
+sincronizarSelects();
+renderTabela();
+renderDeptos();
+renderCanais();
+limparTurno();
+renderTurnos();
+atualizarStats();
+</script>
+</body>
+</html>

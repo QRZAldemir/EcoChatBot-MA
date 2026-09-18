@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 
 export const ADMIN_ROUTES: Routes = [
     { path: 'dashboard', loadComponent: () => import('./dashboard/dashboard.component').then(m => m.DashboardComponent) },
-    { path: 'usuarios', loadComponent: () => import('./usuarios/usuarios.component').then(m => m.UsuariosComponent) },
+    { path: 'usuarios', loadComponent: () => import('./usuarios/usuario.component').then(m => m.UsuariosComponent) },
     { path: 'departamentos', loadComponent: () => import('./departamentos/departamentos.component').then(m => m.DepartamentosComponent) },
     { path: 'canais', loadComponent: () => import('./canais/canais.component').then(m => m.CanaisComponent) },
     { path: 'atendimentos', loadComponent: () => import('./atendimentos/atendimentos.component').then(m => m.AtendimentosComponent) },

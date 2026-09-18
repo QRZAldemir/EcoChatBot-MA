@@ -116,7 +116,7 @@ export const routes: Routes = [
         canActivate: [nivelGuard],
         data: { nivelMinimo: 'supervisor' },
         loadComponent: () =>
-          import('./pages/admin/usuarios/usuarios.component')
+          import('./pages/admin/usuarios/usuario.component')
             .then(m => m.UsuariosComponent),
         title: 'Usuários — EcoChatBotMarcx'
       },

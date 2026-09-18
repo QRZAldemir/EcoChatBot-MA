@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EcoChat — Central de Atendimento Marcx</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+:root {
+  --red:#c8102e; --red-dark:#8a0a1f; --red-light:#e8102e;
+  --red-pale:#fff0f2; --red-glow:rgba(200,16,46,0.15);
+  --green:#22c55e; --green-dark:#15803d; --green-pale:#f0fdf4;
+  --wa:#25D366; --wa-dark:#128C7E;
+  --blue:#2563eb; --blue-dark:#1d4ed8; --blue-pale:#eff6ff;
+  --yellow:#f59e0b; --yellow-pale:#fffbeb; --yellow-dark:#b45309;
+  --purple:#7c3aed; --purple-pale:#f5f3ff; --purple-dark:#5b21b6;
+  --teal:#0891b2; --teal-pale:#ecfeff; --teal-dark:#0e7490;
+  --sb:#0c0004; --sb2:#180008;
+  --bg:#f4f0ed; --card:#ffffff; --border:#e5ddd8;
+  --text:#18181b; --muted:#78716c;
+  --font:'DM Sans',system-ui,sans-serif;
+  --r:13px; --sh:0 2px 10px rgba(0,0,0,0.06); --shl:0 8px 30px rgba(0,0,0,0.12);
+  --sw:248px; --th:56px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;min-height:100vh;overflow-x:hidden;font-size:13.5px;}
+
+/* ━━━ SIDEBAR ━━━ */
+/* Paleta da barra lateral = docs/Barra Menu.png (fundo branco, ícones cinza-azulado,
+   item ativo em azul) — substitui o fundo preto usado antes. */
+.sb{width:var(--sw);background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;inset:0 auto 0 0;z-index:200;overflow:hidden;}
+.sb-brand{padding:15px 14px;background:#fff;border-bottom:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:8px;}
+.sb-logo{flex-shrink:0;}
+.sb-logo img{width:180px;height:auto;object-fit:contain;mix-blend-mode:multiply;}
+.sb-txt strong{color:#18181b;font-size:13px;font-weight:700;display:block;line-height:1.2;}
+.sb-txt small{color:#94a3b8;font-size:9.5px;}
+.icon-btn{width:34px;height:34px;border:1.5px solid var(--border);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#515c66;text-decoration:none;position:relative;transition:all .15s;}
+.icon-btn:hover{border-color:#5c8ad6;color:#5c8ad6;}
+.icon-btn-tip{position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%) translateY(-4px);background:#18181b;color:#fff;font-size:10.5px;font-weight:600;padding:4px 9px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:all .15s;z-index:10;}
+.icon-btn-tip::before{content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-bottom-color:#18181b;}
+.icon-btn:hover .icon-btn-tip{opacity:1;transform:translateX(-50%) translateY(0);}
+.sb-sec{padding:12px 14px 3px;font-size:9px;font-weight:700;letter-spacing:1.5px;color:#94a3b8;text-transform:uppercase;}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 13px;margin:2px 7px;border-radius:8px;cursor:pointer;color:#515c66;font-size:12.5px;font-weight:500;transition:all .15s;position:relative;user-select:none;}
+.ni:hover{background:#f4f6f8;color:#18181b;}
+.ni.active{background:#5c8ad6;color:#fff;box-shadow:0 4px 14px rgba(92,138,214,0.35);}
+.ni i{width:16px;text-align:center;font-size:12.5px;flex-shrink:0;}
+.nb{margin-left:auto;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:20px;min-width:18px;text-align:center;line-height:1.4;}
+.nb.g{background:var(--wa);color:#fff;}
+.nb.r{background:var(--red);color:#fff;}
+.nb.b{background:var(--blue);color:#fff;}
+.nb.y{background:var(--yellow);color:#222;}
+.nb.t{background:var(--teal);color:#fff;}
+.sb-div{height:1px;background:var(--border);margin:6px 14px;}
+.sb-foot{margin-top:auto;border-top:1px solid var(--border);padding:11px;}
+.agent-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f4f6f8;border-radius:8px;}
+.av{width:30px;height:30px;border-radius:50%;background:#5c8ad6;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:11px;flex-shrink:0;position:relative;}
+.dot-status{position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;border:1.5px solid #fff;}
+.dot-status.on{background:var(--green);}
+.dot-status.busy{background:var(--yellow);}
+.dot-status.off{background:#6b7280;}
+.agent-row strong{color:#18181b;font-size:11.5px;display:block;line-height:1.2;}
+.agent-row small{color:#94a3b8;font-size:9.5px;}
+
+/* ━━━ MAIN ━━━ */
+.main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{height:var(--th);background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+.tb-title{font-size:14.5px;font-weight:700;letter-spacing:-.3px;}
+.tb-title span{color:var(--red);}
+.sbox{display:flex;align-items:center;background:var(--bg);border:1.5px solid var(--border);border-radius:20px;padding:5px 13px;gap:7px;width:200px;}
+.sbox input{border:none;background:none;outline:none;font-family:var(--font);font-size:12px;color:var(--text);width:100%;}
+.sbox i{color:var(--muted);font-size:11px;}
+.sp{flex:1;}
+.tb-btns{display:flex;gap:5px;}
+.tb-btn{width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;background:var(--bg);color:var(--muted);font-size:12.5px;display:flex;align-items:center;justify-content:center;position:relative;transition:.14s;}
+.tb-btn:hover{background:var(--red-pale);color:var(--red);}
+.tb-btn.notif::after{content:'';position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--red);border:1.5px solid var(--card);}
+
+/* ━━━ STATUS BAR ━━━ */
+.sbar{display:flex;align-items:center;gap:8px;padding:6px 20px;font-size:11.5px;border-bottom:1px solid var(--border);}
+.sbar.on{background:#f0fdf4;color:var(--green-dark);}
+.sbar.off{background:var(--red-pale);color:var(--red-dark);}
+.sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.sbar.on .sdot{background:var(--green);box-shadow:0 0 5px var(--green);}
+.sbar.off .sdot{background:var(--red);}
+
+/* ━━━ CONTENT ━━━ */
+.content{padding:20px;flex:1;}
+.page{display:none;}.page.active{display:block;}
+
+/* ━━━ STATS ━━━ */
+.stats{display:grid;gap:12px;margin-bottom:18px;}
+.stats.c5{grid-template-columns:repeat(5,1fr);}
+.stats.c4{grid-template-columns:repeat(4,1fr);}
+.stats.c3{grid-template-columns:repeat(3,1fr);}
+.sc{background:var(--card);border-radius:var(--r);padding:14px;border:1px solid var(--border);box-shadow:var(--sh);position:relative;overflow:hidden;transition:transform .14s,box-shadow .14s;}
+.sc:hover{transform:translateY(-2px);box-shadow:var(--shl);}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0;}
+.sc.g::before{background:var(--wa);}
+.sc.b::before{background:var(--blue);}
+.sc.r::before{background:var(--red);}
+.sc.y::before{background:var(--yellow);}
+.sc.p::before{background:var(--purple);}
+.sc.t::before{background:var(--teal);}
+.sc-ico{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;margin-bottom:9px;}
+.sc.g .sc-ico{background:var(--green-pale);color:var(--wa);}
+.sc.b .sc-ico{background:var(--blue-pale);color:var(--blue);}
+.sc.r .sc-ico{background:var(--red-pale);color:var(--red);}
+.sc.y .sc-ico{background:var(--yellow-pale);color:var(--yellow);}
+.sc.p .sc-ico{background:var(--purple-pale);color:var(--purple);}
+.sc.t .sc-ico{background:var(--teal-pale);color:var(--teal);}
+.sc-num{font-size:24px;font-weight:700;line-height:1;}
+.sc-lbl{font-size:11px;color:var(--muted);margin-top:3px;}
+.sc-tr{font-size:10px;margin-top:5px;}
+.sc.g .sc-tr{color:var(--green-dark);}
+.sc.b .sc-tr{color:var(--blue-dark);}
+.sc.r .sc-tr{color:var(--red-dark);}
+.sc.y .sc-tr{color:var(--yellow-dark);}
+.sc.t .sc-tr{color:var(--teal-dark);}
+
+/* ━━━ GRID ━━━ */
+.g2{display:grid;grid-template-columns:1fr 300px;gap:15px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+
+/* ━━━ PANEL ━━━ */
+.panel{background:var(--card);border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden;}
+.ph{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.ph h3{font-size:13px;font-weight:700;flex:1;}
+.ph-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
+.ph-ico.g{background:var(--green-pale);color:var(--wa);}
+.ph-ico.b{background:var(--blue-pale);color:var(--blue);}
+.ph-ico.r{background:var(--red-pale);color:var(--red);}
+.ph-ico.t{background:var(--teal-pale);color:var(--teal);}
+.ph-ico.p{background:var(--purple-pale);color:var(--purple);}
+.ph-ico.y{background:var(--yellow-pale);color:var(--yellow);}
+.pb{padding:14px 16px;}
+
+/* ━━━ SECTION HEADER ━━━ */
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.sh h2{font-size:14px;font-weight:700;display:flex;align-items:center;gap:7px;}
+
+/* ━━━ BUTTONS ━━━ */
+.btn{padding:7px 16px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:600;transition:.14s;display:inline-flex;align-items:center;gap:5px;}
+.btn.p{background:var(--red);color:#fff;}.btn.p:hover{background:var(--red-dark);}
+.btn.g{background:var(--wa);color:#fff;}.btn.g:hover{background:var(--wa-dark);}
+.btn.b{background:var(--blue);color:#fff;}.btn.b:hover{background:var(--blue-dark);}
+.btn.t{background:var(--teal);color:#fff;}.btn.t:hover{background:var(--teal-dark);}
+.btn.s{background:var(--card);color:var(--text);border:1.5px solid var(--border);}.btn.s:hover{border-color:var(--red);color:var(--red);}
+.btn.sm{padding:4px 10px;font-size:11px;}
+
+/* ━━━ TABS ━━━ */
+.ctabs{display:flex;border-bottom:1px solid var(--border);}
+.ct{flex:1;padding:11px 6px;text-align:center;cursor:pointer;font-size:12px;font-weight:500;color:var(--muted);border-bottom:2.5px solid transparent;transition:.14s;display:flex;align-items:center;justify-content:center;gap:5px;}
+.ct:hover{color:var(--text);background:var(--bg);}
+.ct.wa-a{color:var(--wa-dark);border-bottom-color:var(--wa);background:var(--green-pale);}
+.ct.b-a{color:var(--blue-dark);border-bottom-color:var(--blue);background:var(--blue-pale);}
+.ct.t-a{color:var(--teal-dark);border-bottom-color:var(--teal);background:var(--teal-pale);}
+.ct.r-a{color:var(--red);border-bottom-color:var(--red);background:var(--red-pale);}
+.tc{font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;color:#fff;}
+.tc.g{background:var(--wa);}
+.tc.b{background:var(--blue);}
+.tc.t{background:var(--teal);}
+.tc.r{background:var(--red);}
+
+/* ━━━ TOOLBAR ━━━ */
+.qtb{padding:9px 13px;display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.chip{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1.5px solid var(--border);background:var(--card);color:var(--muted);transition:.13s;}
+.chip:hover,.chip.on{border-color:var(--wa);background:var(--green-pale);color:var(--wa-dark);}
+.chip.r:hover,.chip.r.on{border-color:var(--red);background:var(--red-pale);color:var(--red);}
+.chip.b:hover,.chip.b.on{border-color:var(--blue);background:var(--blue-pale);color:var(--blue-dark);}
+.chip.t:hover,.chip.t.on{border-color:var(--teal);background:var(--teal-pale);color:var(--teal-dark);}
+.qs{border:1px solid var(--border);border-radius:7px;padding:3px 7px;font-size:11px;font-family:var(--font);background:var(--card);color:var(--text);outline:none;margin-left:auto;}
+
+/* ━━━ TICKET LIST ━━━ */
+.tlist{max-height:400px;overflow-y:auto;}
+.tlist::-webkit-scrollbar{width:3px;}
+.tlist::-webkit-scrollbar-thumb{background:rgba(200,16,46,0.12);border-radius:2px;}
+.ti{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;cursor:pointer;transition:background .11s;animation:slIn .2s ease both;}
+@keyframes slIn{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
+.ti:hover{background:var(--bg);}
+.ti.sel{background:var(--green-pale);border-left:3px solid var(--wa);}
+.ti.sel.r{background:var(--red-pale);border-left-color:var(--red);}
+.ti.sel.t{background:var(--teal-pale);border-left-color:var(--teal);}
+.tav{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0;position:relative;}
+.tav.wa{background:linear-gradient(135deg,var(--wa-dark),var(--wa));}
+.tav.ph{background:linear-gradient(135deg,var(--teal-dark),var(--teal));}
+.tav.em{background:linear-gradient(135deg,var(--red-dark),var(--red));}
+.tav.in{background:linear-gradient(135deg,var(--blue-dark),var(--blue));}
+.tav-b{position:absolute;bottom:-2px;right:-2px;width:14px;height:14px;border-radius:50%;border:2px solid var(--card);display:flex;align-items:center;justify-content:center;font-size:6px;color:#fff;}
+.tav-b.wa{background:var(--wa);}
+.tav-b.ph{background:var(--teal);}
+.tav-b.em{background:var(--red);}
+.tav-b.in{background:var(--blue);}
+.tb2{flex:1;min-width:0;}
+.th2{display:flex;align-items:center;gap:5px;margin-bottom:2px;}
+.tn{font-weight:600;font-size:12.5px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tt{font-size:10px;color:var(--muted);white-space:nowrap;}
+.tprev{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;}
+.tags{display:flex;gap:3px;flex-wrap:wrap;}
+.tag{font-size:9px;font-weight:600;padding:2px 6px;border-radius:6px;white-space:nowrap;}
+.tag.urg{background:#fee2e2;color:#dc2626;}
+.tag.nor{background:var(--blue-pale);color:var(--blue-dark);}
+.tag.agu{background:var(--yellow-pale);color:var(--yellow-dark);}
+.tag.ate{background:var(--green-pale);color:var(--green-dark);}
+.tag.fin{background:#f4f4f5;color:#71717a;}
+.tag.dep{background:var(--purple-pale);color:var(--purple-dark);}
+.tag.prot{background:#fef3c7;color:#92400e;font-family:monospace;font-size:9px;}
+.tag.lig{background:var(--teal-pale);color:var(--teal-dark);}
+.unread{width:17px;height:17px;border-radius:50%;background:var(--wa);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:3px;}
+
+/* ━━━ CHAT ━━━ */
+.chat-wrap{display:none;flex-direction:column;border-top:1px solid var(--border);}
+.chat-wrap.open{display:flex;}
+.chat-head{padding:9px 13px;display:flex;align-items:center;gap:8px;}
+.chat-head.wa-h{background:var(--wa-dark);}
+.chat-head.ph-h{background:var(--teal-dark);}
+.chat-head.em-h{background:var(--red-dark);}
+.cha{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;flex-shrink:0;}
+.chi strong{font-size:12.5px;color:#fff;display:block;line-height:1.2;}
+.chi small{opacity:.7;font-size:10px;color:#fff;}
+.cha-acts{margin-left:auto;display:flex;gap:5px;}
+.ca-btn{background:rgba(255,255,255,0.14);border:none;cursor:pointer;color:#fff;padding:4px 9px;border-radius:6px;font-size:11px;font-family:var(--font);font-weight:500;transition:.13s;display:flex;align-items:center;gap:4px;}
+.ca-btn:hover{background:rgba(255,255,255,0.26);}
+.ca-btn.fin{background:rgba(34,197,94,0.3);}
+.ca-btn.fin:hover{background:var(--wa);}
+.chat-msgs{height:260px;overflow-y:auto;padding:11px;display:flex;flex-direction:column;gap:6px;background:var(--bg);background-image:url("data:image/svg+xml,%3Csvg width='52' height='52' viewBox='0 0 52 52' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='26' cy='26' r='11' fill='none' stroke='%23c8102e' stroke-width='1' stroke-opacity='0.04'/%3E%3C/svg%3E");}
+.chat-msgs::-webkit-scrollbar{width:3px;}
+.chat-msgs::-webkit-scrollbar-thumb{background:rgba(200,16,46,0.1);border-radius:2px;}
+.cm{display:flex;flex-direction:column;}
+.cm.bot{align-items:flex-start;}
+.cm.user{align-items:flex-end;}
+.cm.int{align-items:flex-start;}
+.cb{max-width:78%;padding:7px 11px 5px;border-radius:8px;font-size:12.5px;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,0.08);}
+.cm.bot .cb{background:#fff;border-top-left-radius:2px;}
+.cm.user .cb{background:#d9f7be;border-top-right-radius:2px;}
+.cm.int .cb{background:#fff0f2;border:1px dashed var(--red);color:var(--red-dark);font-size:11.5px;}
+.cm-meta{font-size:9.5px;color:var(--muted);margin-top:2px;}
+.cm.user .cm-meta{text-align:right;}
+.chat-foot{padding:8px 11px;border-top:1px solid var(--border);display:flex;align-items:flex-end;gap:6px;background:var(--card);}
+.chat-inp{flex:1;border:1.5px solid var(--border);border-radius:18px;padding:6px 13px;font-family:var(--font);font-size:12.5px;outline:none;resize:none;background:var(--bg);transition:border-color .14s;max-height:70px;}
+.chat-inp:focus{border-color:var(--wa);}
+.ico-btn{width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:.13s;background:var(--bg);color:var(--muted);}
+.ico-btn:hover{background:var(--red-pale);color:var(--red);}
+.send{background:var(--wa);color:#fff;}
+.send:hover{background:var(--wa-dark)!important;}
+.msg-acts{padding:7px 11px;border-top:1px solid var(--border);background:var(--card);display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+.ma-btn{padding:3px 9px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);font-size:10.5px;font-weight:500;cursor:pointer;font-family:var(--font);transition:.13s;color:var(--muted);}
+.ma-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-pale);}
+.ma-btn.g{border-color:var(--wa);color:var(--wa-dark);background:var(--green-pale);}
+.ma-btn.b{border-color:var(--blue);color:var(--blue-dark);background:var(--blue-pale);}
+.ma-btn.t{border-color:var(--teal);color:var(--teal-dark);background:var(--teal-pale);}
+
+/* ━━━ AGENTES ━━━ */
+.ac{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;transition:.13s;}
+.ac:hover{background:var(--bg);}
+.ac .av{width:30px;height:30px;font-size:11px;}
+.ac-info{flex:1;min-width:0;}
+.ac-info strong{font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ac-info small{font-size:10px;color:var(--muted);}
+.ac-cnt{font-size:10.5px;font-weight:700;color:var(--red);background:var(--red-pale);padding:2px 7px;border-radius:7px;white-space:nowrap;}
+
+/* ━━━ TELEFONIA TABELA ━━━ */
+.tbl{width:100%;border-collapse:collapse;font-size:11.5px;}
+.tbl th{padding:7px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);background:var(--bg);letter-spacing:.3px;white-space:nowrap;}
+.tbl td{padding:8px 10px;border-top:1px solid var(--border);white-space:nowrap;}
+.tbl tr:hover td{background:var(--bg);}
+.tbl tbody tr{transition:background .1s;}
+.tipo-ent{background:#dcfce7;color:#15803d;padding:2px 7px;border-radius:5px;font-size:9.5px;font-weight:700;}
+.tipo-sai{background:var(--blue-pale);color:var(--blue-dark);padding:2px 7px;border-radius:5px;font-size:9.5px;font-weight:700;}
+.tipo-tra{background:var(--yellow-pale);color:var(--yellow-dark);padding:2px 7px;border-radius:5px;font-size:9.5px;font-weight:700;}
+.tipo-perd{background:var(--red-pale);color:var(--red);padding:2px 7px;border-radius:5px;font-size:9.5px;font-weight:700;}
+.dur-ok{color:var(--green-dark);font-weight:600;}
+.dur-low{color:var(--yellow-dark);}
+.dur-zero{color:var(--red);}
+
+/* ━━━ FILTROS ━━━ */
+.fi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:12px;}
+.fg{display:flex;flex-direction:column;gap:3px;}
+.fg label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.3px;}
+.fg input,.fg select{padding:6px 9px;border:1.5px solid var(--border);border-radius:7px;font-size:11.5px;font-family:var(--font);background:var(--card);color:var(--text);outline:none;transition:border-color .14s;}
+.fg input:focus,.fg select:focus{border-color:var(--red);}
+
+/* ━━━ QUICK BTNS ━━━ */
+.qas{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.qa{padding:8px 7px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);cursor:pointer;font-family:var(--font);font-size:11px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:6px;justify-content:center;transition:.13s;}
+.qa:hover{border-color:var(--red);background:var(--red-pale);color:var(--red);}
+
+/* ━━━ REPORT BAR ━━━ */
+.rbar{background:var(--bg);border-radius:8px;padding:11px;}
+.rbar-lbl{font-size:11px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;}
+.rbar-lbl strong{color:var(--text);}
+.rbar-track{background:var(--border);border-radius:4px;height:6px;overflow:hidden;}
+.rbar-fill{height:100%;border-radius:4px;transition:width .6s ease;}
+.rbar-fill.g{background:var(--wa);}
+.rbar-fill.b{background:var(--blue);}
+.rbar-fill.r{background:var(--red);}
+.rbar-fill.t{background:var(--teal);}
+.rbar-fill.y{background:var(--yellow);}
+
+/* ━━━ MODAL ━━━ */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.52);z-index:500;align-items:center;justify-content:center;}
+.overlay.open{display:flex;}
+.modal{background:var(--card);border-radius:16px;padding:24px;width:100%;max-width:430px;box-shadow:var(--shl);animation:mIn .18s ease both;}
+@keyframes mIn{from{opacity:0;transform:scale(.95) translateY(7px)}to{opacity:1;transform:none}}
+.modal h3{font-size:14px;font-weight:700;margin-bottom:3px;}
+.modal p{font-size:11.5px;color:var(--muted);margin-bottom:16px;}
+.mfg{margin-bottom:12px;}
+.mfg label{font-size:10.5px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;}
+.mfg input,.mfg select,.mfg textarea{width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font);font-size:12px;outline:none;background:var(--bg);color:var(--text);transition:.14s;}
+.mfg input:focus,.mfg select:focus,.mfg textarea:focus{border-color:var(--red);}
+.mfg textarea{resize:vertical;min-height:65px;}
+.m-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+
+/* ━━━ PHONE CARDS ━━━ */
+.ph-card{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;margin-bottom:7px;transition:.13s;}
+.ph-card:hover{background:var(--bg);}
+.ph-card-ico{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.ph-card-ico.ent{background:var(--green-pale);color:var(--green-dark);animation:pulse 2s infinite;}
+.ph-card-ico.agu{background:var(--yellow-pale);color:var(--yellow-dark);}
+.ph-card-ico.perd{background:var(--red-pale);color:var(--red);}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0.35);}50%{box-shadow:0 0 0 7px rgba(34,197,94,0);}}
+.ph-info{flex:1;min-width:0;}
+.ph-info strong{font-size:12px;display:block;}
+.ph-info small{font-size:10.5px;color:var(--muted);}
+
+/* ━━━ DIALER ━━━ */
+.dial-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;}
+.dial-btn{padding:10px 6px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);cursor:pointer;font-family:var(--font);font-size:15px;font-weight:600;transition:.12s;text-align:center;}
+.dial-btn:hover{background:var(--red-pale);border-color:var(--red);color:var(--red);}
+.dial-btn small{display:block;font-size:8px;font-weight:400;color:var(--muted);letter-spacing:.5px;}
+
+/* ━━━ TOAST ━━━ */
+.toast{position:fixed;bottom:20px;right:20px;padding:10px 16px;border-radius:9px;font-size:12px;font-weight:500;box-shadow:var(--shl);z-index:999;display:none;animation:tIn .18s ease both;color:#fff;}
+@keyframes tIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.toast.ok{background:var(--green-dark);}
+.toast.err{background:var(--red-dark);}
+.toast.inf{background:#18181b;}
+
+/* ━━━ PAGINAÇÃO ━━━ */
+.pag{display:flex;align-items:center;gap:6px;padding:10px 14px;border-top:1px solid var(--border);font-size:11.5px;color:var(--muted);}
+.pag-btn{padding:4px 9px;border:1.5px solid var(--border);border-radius:6px;background:var(--card);cursor:pointer;font-size:11px;font-family:var(--font);transition:.12s;}
+.pag-btn:hover:not(:disabled){border-color:var(--red);color:var(--red);}
+.pag-btn:disabled{opacity:.4;cursor:not-allowed;}
+.pag-info{margin:0 auto;}
+
+/* ━━━ CONTEXT BOX ━━━ */
+.ctx-item{display:flex;align-items:center;gap:7px;padding:7px 9px;background:var(--bg);border-radius:7px;margin-bottom:5px;font-size:11.5px;}
+.ctx-key{font-weight:700;color:var(--muted);font-family:monospace;font-size:10.5px;min-width:90px;}
+.ctx-val{color:var(--text);flex:1;word-break:break-all;}
+
+/* ━━━ BADGE LIVE ━━━ */
+.live-badge{display:inline-flex;align-items:center;gap:4px;background:#fee2e2;color:var(--red);font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:10px;}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--red);animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+/* ━━━ USUARIOS ━━━ */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.form-grid.full{grid-template-columns:1fr;}
+.fg{display:flex;flex-direction:column;gap:4px;}
+.fg label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.3px;text-transform:uppercase;}
+.fg input,.fg select,.fg textarea{padding:9px 11px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;font-family:var(--font);background:var(--card);color:var(--text);outline:none;transition:border-color .14s;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--red);background:#fff;}
+.fg-helper{font-size:10px;color:var(--muted);margin-top:2px;}
+.alert{padding:11px 13px;border-radius:8px;border-left:3px solid;margin-bottom:12px;display:flex;gap:8px;align-items:flex-start;}
+.alert.success{background:var(--green-pale);border-color:var(--green);color:var(--green-dark);}
+.alert.error{background:var(--red-pale);border-color:var(--red);color:var(--red-dark);}
+.alert i{margin-top:2px;flex-shrink:0;}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap;}
+.badge.porta{background:#fee2e2;color:#dc2626;}
+.badge.atend{background:#dbeafe;color:#1e40af;}
+.badge.agend{background:#fef3c7;color:#92400e;}
+.badge.exam{background:#d1fae5;color:#065f46;}
+.badge.ouv{background:#f3e8ff;color:#6b21a8;}
+.toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
+.search-box{display:flex;align-items:center;background:var(--bg);border:1.5px solid var(--border);border-radius:20px;padding:5px 13px;gap:7px;flex:1;min-width:200px;}
+.search-box input{border:none;background:none;outline:none;font-family:var(--font);font-size:12px;color:var(--text);width:100%;}
+
+@media(max-width:1200px){.stats.c5{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:1fr}}
+@media(max-width:900px){.stats.c5,.stats.c4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════ SIDEBAR ════════════════════════════════ -->
+<aside class="sb">
+  <div class="sb-brand">
+    <div class="sb-logo"><img src="LogoMarcx.png" alt="Marcx Logo"></div>
+    <!-- docs/icone deixe o label suspenso...png — ícone com label em tooltip
+         (só aparece no hover) que abre o relatório em tempo real. -->
+    <a href="modulo_dashboard.html" target="_blank" class="icon-btn">
+      <i class="fas fa-house"></i>
+      <span class="icon-btn-tip">Dashboard</span>
+    </a>
+  </div>
+
+
+
+  <!-- EXATAMENTE os 11 itens de docs/Barra Menu.png, na mesma ordem, sem
+       seções extras — nomes genéricos porque o projeto se adapta a qualquer
+       modelo de negócio, não só o hospitalar. -->
+  <div class="ni" onclick="nav('dashboard',this)">
+    <i class="fas fa-house"></i> Início
+  </div>
+  <div class="ni" onclick="nav('usuarios',this)">
+    <i class="fas fa-users"></i> Usuários
+  </div>
+  <div class="ni" onclick="nav('contatos',this)">
+    <i class="fas fa-address-card"></i> Contatos
+  </div>
+  <div class="ni" onclick="nav('setor',this)">
+    <i class="fas fa-building"></i> Setor
+  </div>
+  <div class="ni" onclick="nav('atendimentos',this)">
+    <i class="fas fa-comments"></i> Chat
+    <span class="nb b" id="nb-at">20</span>
+  </div>
+  <div class="ni" onclick="nav('email',this)">
+    <i class="fas fa-envelope"></i> E-mail
+    <span class="nb r" id="nb-em">3</span>
+  </div>
+  <div class="ni" onclick="nav('historico',this)">
+    <i class="fas fa-clock-rotate-left"></i> Histórico
+  </div>
+  <div class="ni" onclick="nav('conexoes',this)">
+    <i class="fas fa-wifi"></i> Conexões
+  </div>
+  <div class="ni" onclick="abrirModuloMensagens()">
+    <i class="fas fa-comment-dots"></i> Mensagens
+  </div>
+  <div class="ni" onclick="nav('campanhas',this)">
+    <i class="fas fa-paper-plane"></i> Campanhas
+  </div>
+  <div class="ni" onclick="nav('arquivos',this)">
+    <i class="fas fa-folder-open"></i> Arquivos
+  </div>
+
+  <div class="sb-foot">
+    <div class="agent-row">
+      <div class="av">AS<div class="dot-status on"></div></div>
+      <div>
+        <strong>Ana Supervisora</strong>
+        <small>Supervisor · Online</small>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ════════════════════════════════ MAIN ════════════════════════════════ -->
+<div class="main">
+
+  <div class="topbar">
+    <div class="tb-title">Eco<span>Chat</span></div>
+    <div class="sbox">
+      <i class="fas fa-search"></i>
+      <input type="text" placeholder="Protocolo, ramal, contato...">
+    </div>
+    <div class="sp"></div>
+    <div class="tb-btns">
+      <button class="tb-btn notif" title="Notificações"><i class="fas fa-bell"></i></button>
+      <button class="tb-btn" title="Atualizar" onclick="refreshAll()"><i class="fas fa-sync-alt"></i></button>
+      <button class="tb-btn" title="Configurações" onclick="openModal('cfg')"><i class="fas fa-cog"></i></button>
+    </div>
+  </div>
+
+  <div class="sbar off" id="sbar">
+    <div class="sdot"></div>
+    <span id="sbarTxt">API ChatMarcx não conectada — configure em API ChatMarcx para ativar dados em tempo real</span>
+    <button class="btn p sm" style="margin-left:auto" onclick="openModal('cfg')">Conectar</button>
+  </div>
+
+  <div class="content">
+
+    <!-- ══════════ DASHBOARD ══════════ -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats c5">
+        <div class="sc g"><div class="sc-ico"><i class="fab fa-whatsapp"></i></div><div class="sc-num" id="s-wa">12</div><div class="sc-lbl">WhatsApp — Fila</div><div class="sc-tr">↑ +3 desde 08h</div></div>
+        <div class="sc t"><div class="sc-ico"><i class="fas fa-phone-alt"></i></div><div class="sc-num" id="s-tel">5</div><div class="sc-lbl">Chamadas — Fila</div><div class="sc-tr">2 ativas · 3 aguardando</div></div>
+        <div class="sc r"><div class="sc-ico"><i class="fas fa-envelope"></i></div><div class="sc-num" id="s-em">3</div><div class="sc-lbl">E-mails Pendentes</div><div class="sc-tr">↑ 1 novo</div></div>
+        <div class="sc b"><div class="sc-ico"><i class="fas fa-check-double"></i></div><div class="sc-num" id="s-res">35</div><div class="sc-lbl">Encerrados Hoje</div><div class="sc-tr">95% resolvidos</div></div>
+        <div class="sc y"><div class="sc-ico"><i class="fas fa-clock"></i></div><div class="sc-num">4m</div><div class="sc-lbl">TMA Geral</div><div class="sc-tr">↓ −30s vs ontem</div></div>
+      </div>
+
+      <div class="g2">
+        <div>
+          <div class="sh"><h2>📋 Fila de Atendimento</h2>
+            <div style="display:flex;gap:6px">
+              <button class="btn s sm" onclick="nav('atendimentos',null)">Ver Todos</button>
+              <button class="btn p sm" onclick="openModal('enviar')"><i class="fas fa-paper-plane"></i> Enviar</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="ctabs">
+              <div class="ct wa-a" id="tab-wa" onclick="switchTab('wa',this)"><i class="fab fa-whatsapp"></i> WhatsApp <span class="tc g" id="tc-wa">12</span></div>
+              <div class="ct" id="tab-tel" onclick="switchTab('tel',this)"><i class="fas fa-phone-alt"></i> Telefonia <span class="tc t" id="tc-tel">5</span></div>
+              <div class="ct" id="tab-em" onclick="switchTab('em',this)"><i class="fas fa-envelope"></i> E-mail <span class="tc r" id="tc-em">3</span></div>
+            </div>
+            <div class="qtb">
+              <div class="chip on" onclick="fChip(this)">Todos</div>
+              <div class="chip" onclick="fChip(this)">🔴 Urgente</div>
+              <div class="chip" onclick="fChip(this)">⏳ Aguardando</div>
+              <div class="chip" onclick="fChip(this)">✅ Em Atend.</div>
+              <select class="qs"><option>↕ Chegada</option><option>↕ Prioridade</option></select>
+            </div>
+            <div class="tlist" id="tkList"></div>
+            <!-- CHAT INLINE -->
+            <div class="chat-wrap" id="chatWrap">
+              <div class="chat-head wa-h" id="chatHead">
+                <div class="cha" id="chatAv">--</div>
+                <div class="chi"><strong id="chatName">—</strong><small id="chatInfo">—</small></div>
+                <div class="cha-acts">
+                  <button class="ca-btn" onclick="openModal('transferir')"><i class="fas fa-user-plus"></i> Transferir</button>
+                  <button class="ca-btn" onclick="openModal('context')"><i class="fas fa-tag"></i> Contexto</button>
+                  <button class="ca-btn fin" onclick="openModal('encerrar')"><i class="fas fa-check-circle"></i> Encerrar</button>
+                  <button class="ca-btn" onclick="closeChat()"><i class="fas fa-times"></i></button>
+                </div>
+              </div>
+              <div class="chat-msgs" id="chatMsgs"></div>
+              <div class="msg-acts">
+                <span style="font-size:10px;color:var(--muted)">Ações:</span>
+                <button class="ma-btn g" onclick="openModal('template')"><i class="fas fa-layer-group"></i> Template</button>
+                <button class="ma-btn b" onclick="openModal('menu')"><i class="fas fa-list-ul"></i> Menu</button>
+                <button class="ma-btn" onclick="openModal('arquivo')"><i class="fas fa-paperclip"></i> Arquivo</button>
+                <button class="ma-btn" onclick="toggleInt()"><i class="fas fa-lock" id="intIco"></i> <span id="intTxt">Interno</span></button>
+              </div>
+              <div class="chat-foot">
+                <textarea class="chat-inp" id="chatInp" rows="1" placeholder="Digite sua mensagem..."></textarea>
+                <button class="ico-btn send" onclick="sendMsg()"><i class="fas fa-paper-plane"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:14px">
+            <div class="sh"><h2>📊 Desempenho do Dia</h2><button class="btn s sm" onclick="nav('relatorios',null)">Completo</button></div>
+            <div class="panel"><div class="pb g3" style="gap:9px">
+              <div class="rbar"><div class="rbar-lbl"><span>WhatsApp</span><strong>75%</strong></div><div class="rbar-track"><div class="rbar-fill g" style="width:75%"></div></div></div>
+              <div class="rbar"><div class="rbar-lbl"><span>Telefonia</span><strong>60%</strong></div><div class="rbar-track"><div class="rbar-fill t" style="width:60%"></div></div></div>
+              <div class="rbar"><div class="rbar-lbl"><span>Resolvidos</span><strong>95%</strong></div><div class="rbar-track"><div class="rbar-fill r" style="width:95%"></div></div></div>
+            </div></div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:13px">
+          <div class="panel">
+            <div class="ph"><div class="ph-ico g"><i class="fas fa-users"></i></div><h3>Agentes Online</h3><span style="font-size:11px;color:var(--muted)">4/6</span></div>
+            <div class="pb">
+              <div class="ac"><div class="av">AS<div class="dot-status on"></div></div><div class="ac-info"><strong>Ana Souza</strong><small>WhatsApp · Online</small></div><span class="ac-cnt">3 atend.</span></div>
+              <div class="ac"><div class="av" style="background:var(--teal)">RC<div class="dot-status on"></div></div><div class="ac-info"><strong>Rafael Costa</strong><small>Telefonia · Online</small></div><span class="ac-cnt">2 atend.</span></div>
+              <div class="ac"><div class="av" style="background:var(--blue)">JP<div class="dot-status busy"></div></div><div class="ac-info"><strong>Julia Pires</strong><small>Em ligação</small></div><span class="ac-cnt">1 atend.</span></div>
+              <div class="ac"><div class="av" style="background:#6b7280">ML<div class="dot-status off"></div></div><div class="ac-info"><strong>Marcos Lima</strong><small>Offline</small></div><span class="ac-cnt" style="color:#a1a1aa;background:#f4f4f5">0</span></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="ph"><div class="ph-ico r"><i class="fas fa-bolt"></i></div><h3>Ações Rápidas</h3></div>
+            <div class="pb">
+              <div class="qas">
+                <button class="qa" onclick="openModal('enviar')"><i class="fab fa-whatsapp" style="color:var(--wa)"></i> Nova Conversa</button>
+                <button class="qa" onclick="nav('telefonia',null)"><i class="fas fa-phone" style="color:var(--teal)"></i> Telefonia</button>
+                <button class="qa" onclick="openModal('template')"><i class="fas fa-layer-group" style="color:var(--blue)"></i> Template</button>
+                <button class="qa" onclick="nav('bilhetagem',null)"><i class="fas fa-receipt" style="color:var(--purple)"></i> Bilhetagem</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ WHATSAPP ══════════ -->
+    <div class="page" id="page-whatsapp">
+      <div class="sh"><h2><i class="fab fa-whatsapp" style="color:var(--wa)"></i> WhatsApp — Conversas</h2>
+        <button class="btn g sm" onclick="openModal('enviar')"><i class="fas fa-plus"></i> Nova Conversa</button>
+      </div>
+      <div style="display:grid;grid-template-columns:310px 1fr;gap:15px;height:580px">
+        <div class="panel" style="display:flex;flex-direction:column;overflow:hidden">
+          <div style="padding:9px 11px;border-bottom:1px solid var(--border)">
+            <div class="sbox" style="width:100%"><i class="fas fa-search"></i><input placeholder="Buscar..." oninput="filterWA(this.value)"></div>
+          </div>
+          <div style="display:flex;gap:4px;padding:7px 9px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+            <div class="chip on">Todos</div><div class="chip">Urgente</div><div class="chip">Aguardando</div><div class="chip">Em Atend.</div><div class="chip r">Encerrado</div>
+          </div>
+          <div class="tlist" id="waList" style="flex:1;max-height:none"></div>
+        </div>
+        <div class="panel" style="display:flex;flex-direction:column">
+          <div class="chat-head wa-h"><div class="cha" id="waAv">--</div><div class="chi"><strong id="waName">Selecione uma conversa</strong><small id="waInfo">WhatsApp</small></div>
+            <div class="cha-acts">
+              <button class="ca-btn" onclick="openModal('transferir')"><i class="fas fa-user-plus"></i> Transferir</button>
+              <button class="ca-btn" onclick="openModal('context')"><i class="fas fa-tag"></i> Contexto</button>
+              <button class="ca-btn fin" onclick="openModal('encerrar')"><i class="fas fa-check-circle"></i> Encerrar</button>
+            </div>
+          </div>
+          <div class="chat-msgs" id="waMsgs" style="flex:1;height:auto">
+            <div style="text-align:center;padding:50px 20px;color:var(--muted)"><i class="fab fa-whatsapp" style="font-size:42px;color:var(--wa);opacity:.2;display:block;margin-bottom:9px"></i>Selecione uma conversa para atender</div>
+          </div>
+          <div class="msg-acts">
+            <span style="font-size:10px;color:var(--muted)">Ações:</span>
+            <button class="ma-btn g" onclick="openModal('template')"><i class="fas fa-layer-group"></i> Template</button>
+            <button class="ma-btn b" onclick="openModal('menu')"><i class="fas fa-list-ul"></i> Menu</button>
+            <button class="ma-btn" onclick="openModal('arquivo')"><i class="fas fa-paperclip"></i> Arquivo</button>
+          </div>
+          <div class="chat-foot">
+            <textarea class="chat-inp" id="waInp" rows="1" placeholder="Digite..."></textarea>
+            <button class="ico-btn send" onclick="sendWA()"><i class="fas fa-paper-plane"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ TELEFONIA ══════════ -->
+    <div class="page" id="page-telefonia">
+      <div class="sh"><h2><i class="fas fa-phone-alt" style="color:var(--teal)"></i> Central Telefônica</h2>
+        <div style="display:flex;gap:6px">
+          <button class="btn t sm" onclick="nav('bilhetagem',null)"><i class="fas fa-receipt"></i> Bilhetagem</button>
+          <button class="btn t sm"><i class="fas fa-phone"></i> Nova Chamada</button>
+        </div>
+      </div>
+      <div class="stats c3" style="margin-bottom:14px">
+        <div class="sc t"><div class="sc-ico"><i class="fas fa-phone-volume"></i></div><div class="sc-num">2</div><div class="sc-lbl">Chamadas Ativas</div><div class="sc-tr">Em andamento agora</div></div>
+        <div class="sc y"><div class="sc-ico"><i class="fas fa-pause-circle"></i></div><div class="sc-num">3</div><div class="sc-lbl">Aguardando</div><div class="sc-tr">Tempo médio: 1m40s</div></div>
+        <div class="sc r"><div class="sc-ico"><i class="fas fa-phone-slash"></i></div><div class="sc-num" id="s-perd">4</div><div class="sc-lbl">Perdidas Hoje</div><div class="sc-tr">↑ Requer atenção</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 290px;gap:14px">
+        <div class="panel">
+          <div class="ph"><div class="ph-ico t"><i class="fas fa-list"></i></div><h3>Fila de Chamadas</h3>
+            <span class="live-badge"><div class="live-dot"></div>AO VIVO</span>
+          </div>
+          <div class="pb">
+            <div class="ph-card">
+              <div class="ph-card-ico ent"><i class="fas fa-phone-alt"></i></div>
+              <div class="ph-info"><strong>Carlos Pereira</strong><small>(67) 98811-2233 · Ramal 201 · Aguardando 2m15s</small></div>
+              <span class="tag urg">Urgente</span>
+              <button class="btn t sm"><i class="fas fa-phone"></i> Atender</button>
+            </div>
+            <div class="ph-card">
+              <div class="ph-card-ico agu"><i class="fas fa-clock"></i></div>
+              <div class="ph-info"><strong>Lucas Costa</strong><small>(67) 99955-6677 · Ramal 305 · Aguardando 1m03s</small></div>
+              <span class="tag nor">Normal</span>
+              <button class="btn t sm"><i class="fas fa-phone"></i> Atender</button>
+            </div>
+            <div class="ph-card">
+              <div class="ph-card-ico agu"><i class="fas fa-clock"></i></div>
+              <div class="ph-info"><strong>Fernanda Melo</strong><small>(67) 91234-5678 · Ramal 102 · Aguardando 0m45s</small></div>
+              <span class="tag nor">Normal</span>
+              <button class="btn t sm"><i class="fas fa-phone"></i> Atender</button>
+            </div>
+            <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">
+              <p style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:7px">📵 PERDIDAS — Retornar</p>
+              <div class="ph-card" style="border-color:var(--red)">
+                <div class="ph-card-ico perd"><i class="fas fa-phone-slash"></i></div>
+                <div class="ph-info"><strong>Roberto Alves</strong><small>(67) 98800-1122 · Perdida às 09:14 · Ramal 201</small></div>
+                <button class="btn p sm"><i class="fas fa-phone-alt"></i> Retornar</button>
+              </div>
+              <div class="ph-card" style="border-color:var(--red)">
+                <div class="ph-card-ico perd"><i class="fas fa-phone-slash"></i></div>
+                <div class="ph-info"><strong>(67) 98765-4321</strong><small>Desconhecido · Perdida às 08:52 · Ramal 305</small></div>
+                <button class="btn p sm"><i class="fas fa-phone-alt"></i> Retornar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DISCADOR -->
+        <div class="panel">
+          <div class="ph"><div class="ph-ico t"><i class="fas fa-keyboard"></i></div><h3>Discador</h3></div>
+          <div class="pb">
+            <input type="text" id="dialNum" placeholder="(67) 99999-9999" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-size:16px;text-align:center;outline:none;font-family:var(--font);margin-bottom:9px;transition:.14s;" onfocus="this.style.borderColor='var(--teal)'" onblur="this.style.borderColor='var(--border)'">
+            <div class="dial-grid">
+              <button class="dial-btn" onclick="d('1')">1</button>
+              <button class="dial-btn" onclick="d('2')">2<small>ABC</small></button>
+              <button class="dial-btn" onclick="d('3')">3<small>DEF</small></button>
+              <button class="dial-btn" onclick="d('4')">4<small>GHI</small></button>
+              <button class="dial-btn" onclick="d('5')">5<small>JKL</small></button>
+              <button class="dial-btn" onclick="d('6')">6<small>MNO</small></button>
+              <button class="dial-btn" onclick="d('7')">7<small>PQRS</small></button>
+              <button class="dial-btn" onclick="d('8')">8<small>TUV</small></button>
+              <button class="dial-btn" onclick="d('9')">9<small>WXYZ</small></button>
+              <button class="dial-btn" onclick="d('*')">*</button>
+              <button class="dial-btn" onclick="d('0')">0</button>
+              <button class="dial-btn" onclick="d('#')">#</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:6px">
+              <button class="btn t" style="width:100%;justify-content:center" onclick="dialCall()"><i class="fas fa-phone"></i> Ligar</button>
+              <button class="btn s" onclick="dialBk()"><i class="fas fa-backspace"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ BILHETAGEM ══════════ -->
+    <div class="page" id="page-bilhetagem">
+      <div class="sh">
+        <h2><i class="fas fa-receipt" style="color:var(--purple)"></i> Bilhetagem Telefônica</h2>
+        <div style="display:flex;gap:6px">
+          <button class="btn s sm" onclick="exportCSV()"><i class="fas fa-download"></i> Exportar CSV</button>
+          <button class="btn p sm" onclick="fetchBilhetagem()"><i class="fas fa-sync-alt"></i> Buscar Sistema</button>
+        </div>
+      </div>
+
+      <!-- INFO SISTEMA -->
+      <div class="panel" style="margin-bottom:13px">
+        <div class="ph"><div class="ph-ico t"><i class="fas fa-server"></i></div><h3>Sistema de Bilhetagem</h3>
+          <span id="bil-status" style="font-size:11px;color:var(--muted)">phone-report · 192.168.12.250</span>
+        </div>
+        <div class="pb">
+          <div class="fi-grid">
+            <div class="fg"><label>DATA INÍCIO</label><input type="date" id="bil-di" value="2025-04-13"></div>
+            <div class="fg"><label>DATA FIM</label><input type="date" id="bil-df" value="2025-04-13"></div>
+            <div class="fg"><label>RAMAL</label><input type="text" id="bil-ramal" placeholder="ex: 201"></div>
+            <div class="fg"><label>NÚMERO DISCADO</label><input type="text" id="bil-num" placeholder="ex: (67) 9..."></div>
+            <div class="fg"><label>TIPO</label>
+              <select id="bil-tipo">
+                <option value="">Todos</option>
+                <option value="ENTRADA">Entrada</option>
+                <option value="SAÍDA">Saída</option>
+                <option value="TRANSFERÊNCIA">Transferência</option>
+                <option value="PERDIDA">Perdida</option>
+              </select>
+            </div>
+            <div class="fg"><label>ROTA</label><input type="text" id="bil-rota" placeholder="ex: PSTN"></div>
+            <div class="fg"><label>LINHA</label><input type="text" id="bil-linha" placeholder="ex: 1"></div>
+            <div class="fg"><label>DURAÇÃO MÍN (s)</label><input type="number" id="bil-durmin" placeholder="ex: 10"></div>
+            <div class="fg"><label>REGISTROS POR PÁG.</label>
+              <select id="bil-limit"><option value="50">50</option><option value="100" selected>100</option><option value="200">200</option></select>
+            </div>
+          </div>
+          <div style="display:flex;gap:7px;align-items:center">
+            <button class="btn p" onclick="fetchBilhetagem()"><i class="fas fa-search"></i> Consultar</button>
+            <button class="btn s sm" onclick="clearFilters()"><i class="fas fa-times"></i> Limpar Filtros</button>
+            <span style="font-size:11px;color:var(--muted);margin-left:auto" id="bil-info">Exibindo dados de exemplo</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATS BILHETAGEM -->
+      <div class="stats c4" style="margin-bottom:13px">
+        <div class="sc t"><div class="sc-ico"><i class="fas fa-phone-volume"></i></div><div class="sc-num" id="bil-total">0</div><div class="sc-lbl">Total de Registros</div></div>
+        <div class="sc g"><div class="sc-ico"><i class="fas fa-phone-arrow-down-left"></i></div><div class="sc-num" id="bil-ent">0</div><div class="sc-lbl">Entradas</div></div>
+        <div class="sc b"><div class="sc-ico"><i class="fas fa-phone-arrow-up-right"></i></div><div class="sc-num" id="bil-sai">0</div><div class="sc-lbl">Saídas</div></div>
+        <div class="sc r"><div class="sc-ico"><i class="fas fa-phone-slash"></i></div><div class="sc-num" id="bil-perd">0</div><div class="sc-lbl">Perdidas</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <div class="ph-ico p"><i class="fas fa-table"></i></div>
+          <h3>Registros de Bilhetagem</h3>
+          <span class="live-badge" style="margin-left:auto"><div class="live-dot"></div>TEMPO REAL</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="bilTable">
+            <thead>
+              <tr>
+                <th>RAMAL</th><th>CENTRAL</th><th>PONTO COLETA</th>
+                <th>DATA</th><th>HORA</th><th>DURAÇÃO</th>
+                <th>NÚM. DISCADO</th><th>ROTA</th><th>LINHA</th>
+                <th>TIPO</th><th>TRANSFERÊNCIA</th><th>PROTOCOLO</th>
+              </tr>
+            </thead>
+            <tbody id="bilBody"></tbody>
+          </table>
+        </div>
+        <div class="pag" id="bilPag">
+          <button class="pag-btn" id="pag-ant" onclick="pagAnt()" disabled>‹ Anterior</button>
+          <span class="pag-info" id="pag-info">Página 1</span>
+          <button class="pag-btn" id="pag-prox" onclick="pagProx()">Próxima ›</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ E-MAIL ══════════ -->
+    <div class="page" id="page-email">
+      <div class="sh"><h2><i class="fas fa-envelope" style="color:var(--red)"></i> Caixa de E-mails</h2>
+        <button class="btn p sm"><i class="fas fa-pen"></i> Novo E-mail</button>
+      </div>
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:14px">
+        <div class="panel" style="max-height:520px;overflow-y:auto">
+          <div class="ph"><div class="ph-ico r"><i class="fas fa-inbox"></i></div><h3>Caixa de Entrada</h3><span style="font-size:10.5px;color:var(--red);font-weight:700">3 novos</span></div>
+          <div class="pb" style="padding:10px">
+            <div style="border:1px solid var(--red);border-left-width:3px;background:var(--red-pale);border-radius:8px;padding:10px;margin-bottom:7px;cursor:pointer">
+              <strong style="font-size:12px">Carla Dias</strong>
+              <div style="font-size:11.5px;margin:2px 0">Solicitação de agendamento</div>
+              <div style="font-size:10.5px;color:var(--muted)">Gostaria de agendar uma consulta...</div>
+              <div style="font-size:9.5px;color:var(--red);margin-top:3px;font-weight:700">Novo · 07:50</div>
+            </div>
+            <div style="border:1px solid var(--red);border-left-width:3px;background:var(--red-pale);border-radius:8px;padding:10px;margin-bottom:7px;cursor:pointer">
+              <strong style="font-size:12px">Marcos Rocha</strong>
+              <div style="font-size:11.5px;margin:2px 0">Dúvida sobre exame</div>
+              <div style="font-size:10.5px;color:var(--muted)">Recebi o resultado mas não entendi...</div>
+              <div style="font-size:9.5px;color:var(--red);margin-top:3px;font-weight:700">Novo · 08:15</div>
+            </div>
+            <div style="border:1px solid var(--border);border-radius:8px;padding:10px;cursor:pointer">
+              <strong style="font-size:12px">Lidia Ferreira</strong>
+              <div style="font-size:11.5px;margin:2px 0">Cancelamento de consulta</div>
+              <div style="font-size:10.5px;color:var(--muted)">Preciso cancelar minha consulta...</div>
+              <div style="font-size:9.5px;color:var(--muted);margin-top:3px">06:30</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel" style="display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px">
+          <div style="text-align:center"><i class="fas fa-envelope-open" style="font-size:38px;opacity:.2;display:block;margin-bottom:8px"></i>Selecione um e-mail</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ ATENDIMENTOS ══════════ -->
+    <div class="page" id="page-atendimentos">
+      <div class="sh"><h2><i class="fas fa-headset" style="color:var(--blue)"></i> Fila Geral de Atendimentos</h2>
+        <button class="btn p sm" onclick="fetchAtend()"><i class="fas fa-sync-alt"></i> Atualizar</button>
+      </div>
+      <div class="panel">
+        <div class="ph"><div class="ph-ico b"><i class="fas fa-filter"></i></div><h3>Filtros</h3></div>
+        <div class="pb">
+          <div class="fi-grid">
+            <div class="fg"><label>CANAL</label><select id="f-can"><option value="1">WhatsApp</option><option value="2">Interno</option></select></div>
+            <div class="fg"><label>STATUS</label><select id="f-ati"><option value="S">Ativo</option><option value="N">Inativo</option></select></div>
+            <div class="fg"><label>TIPO</label><select id="f-tip"><option value="1">Automático</option><option value="2">Manual</option></select></div>
+            <div class="fg"><label>DEPARTAMENTO ID</label><input type="number" id="f-dep" placeholder="ex: 2"></div>
+            <div class="fg"><label>ATENDENTE ID</label><input type="number" id="f-ate" placeholder="ex: 3"></div>
+            <div class="fg"><label>PROTOCOLO</label><input type="text" id="f-pro" placeholder="ex: WP-0101"></div>
+          </div>
+          <button class="btn p sm" onclick="fetchAtend()"><i class="fas fa-search"></i> Consultar</button>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:12px">
+        <div style="overflow-x:auto">
+          <table class="tbl" id="atTable">
+            <thead><tr><th>ID</th><th>PROTOCOLO</th><th>CANAL</th><th>NOME</th><th>DEPARTAMENTO</th><th>ATENDENTE</th><th>STATUS</th><th>CHEGADA</th><th>AÇÕES</th></tr></thead>
+            <tbody id="atBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ RELATÓRIOS ══════════ -->
+    <div class="page" id="page-relatorios">
+      <div class="sh"><h2><i class="fas fa-chart-bar" style="color:var(--red)"></i> Relatórios de Atendimento</h2>
+        <button class="btn p sm"><i class="fas fa-download"></i> Exportar</button>
+      </div>
+      <div class="stats c4">
+        <div class="sc g"><div class="sc-ico"><i class="fas fa-comments"></i></div><div class="sc-num">47</div><div class="sc-lbl">Total Atendimentos</div></div>
+        <div class="sc t"><div class="sc-ico"><i class="fas fa-phone"></i></div><div class="sc-num">23</div><div class="sc-lbl">Chamadas Telefônicas</div></div>
+        <div class="sc b"><div class="sc-ico"><i class="fas fa-check-circle"></i></div><div class="sc-num">42</div><div class="sc-lbl">Resolvidos</div></div>
+        <div class="sc r"><div class="sc-ico"><i class="fas fa-exchange-alt"></i></div><div class="sc-num">8</div><div class="sc-lbl">Transferências</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
+        <div class="panel">
+          <div class="ph"><div class="ph-ico g"><i class="fas fa-chart-line"></i></div><h3>Volume por Canal</h3></div>
+          <div class="pb" style="display:flex;flex-direction:column;gap:9px">
+            <div class="rbar"><div class="rbar-lbl"><span>WhatsApp</span><strong>66%</strong></div><div class="rbar-track"><div class="rbar-fill g" style="width:66%"></div></div></div>
+            <div class="rbar"><div class="rbar-lbl"><span>Telefonia</span><strong>34%</strong></div><div class="rbar-track"><div class="rbar-fill t" style="width:34%"></div></div></div>
+            <div class="rbar"><div class="rbar-lbl"><span>E-mail</span><strong>11%</strong></div><div class="rbar-track"><div class="rbar-fill r" style="width:11%"></div></div></div>
+            <div class="rbar"><div class="rbar-lbl"><span>SLA Cumprido</span><strong>92%</strong></div><div class="rbar-track"><div class="rbar-fill b" style="width:92%"></div></div></div>
+            <div class="rbar"><div class="rbar-lbl"><span>Resolvidos 1º Contato</span><strong>78%</strong></div><div class="rbar-track"><div class="rbar-fill y" style="width:78%"></div></div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="ph"><div class="ph-ico t"><i class="fas fa-phone"></i></div><h3>Bilhetagem — Resumo</h3></div>
+          <div class="pb" style="display:flex;flex-direction:column;gap:9px">
+            <div class="rbar"><div class="rbar-lbl"><span>Chamadas Entrada</span><strong>58%</strong></div><div class="rbar-track"><div class="rbar-fill g" style="width:58%"></div></div></div>
+            <div class="rbar"><div class="rbar-lbl"><span>Chamadas Saída</span><strong>29%</strong></div><div class="rbar-track"><div class="rbar-fill b" style="width:29%"></div></div></div>
+            <div class="rbar"><div class="rbar-lbl"><span>Transferências</span><strong>8%</strong></div><div class="rbar-track"><div class="rbar-fill y" style="width:8%"></div></div></div>
+            <div class="rbar"><div class="rbar-lbl"><span>Perdidas</span><strong>5%</strong></div><div class="rbar-track"><div class="rbar-fill r" style="width:5%"></div></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:12px">
+        <div class="ph"><div class="ph-ico b"><i class="fas fa-users"></i></div><h3>Desempenho por Agente</h3></div>
+        <table class="tbl">
+          <thead><tr><th>AGENTE</th><th>CANAL</th><th>ATENDIMENTOS</th><th>ENCERRADOS</th><th>TRANSFERÊNCIAS</th><th>TMA</th><th>NPS</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Ana Souza</strong></td><td><span class="tag ate">WhatsApp</span></td><td>14</td><td>13</td><td>1</td><td>3m40s</td><td>⭐ 4.9</td></tr>
+            <tr><td><strong>Rafael Costa</strong></td><td><span class="tag lig">Telefonia</span></td><td>9</td><td>8</td><td>2</td><td>5m02s</td><td>⭐ 4.6</td></tr>
+            <tr><td><strong>Julia Pires</strong></td><td><span class="tag lig">Telefonia</span></td><td>11</td><td>10</td><td>3</td><td>4m18s</td><td>⭐ 4.7</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══════════ USUÁRIOS ══════════ -->
+    <div class="page" id="page-usuarios">
+      <div class="sh"><h2><i class="fas fa-users" style="color:var(--red)"></i> Cadastro de <span>Usuários</span></h2>
+        <button class="btn p sm" onclick="exportarUsuariosCSV()"><i class="fas fa-download"></i> Exportar</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px">
+        <div class="sc r"><div class="sc-ico"><i class="fas fa-user-check"></i></div><div class="sc-num" id="total-usuarios">0</div><div class="sc-lbl">Usuários Cadastrados</div></div>
+        <div class="sc b"><div class="sc-ico"><i class="fas fa-project-diagram"></i></div><div class="sc-num">5</div><div class="sc-lbl">Canais de Atendimento</div></div>
+        <div class="sc g"><div class="sc-ico"><i class="fas fa-users-cog"></i></div><div class="sc-num" id="media-usuarios">0</div><div class="sc-lbl">Média por Canal</div></div>
+      </div>
+
+      <!-- FORMULÁRIO NOVO USUÁRIO -->
+      <div class="panel">
+        <div class="ph"><div class="ph-ico r"><i class="fas fa-user-plus"></i></div><h3>Cadastrar Novo Usuário</h3></div>
+        <div class="pb">
+          <div id="alertContainer"></div>
+          
+          <div class="form-grid full">
+            <div class="fg">
+              <label>Nome Completo *</label>
+              <input type="text" id="nomeUsuario" placeholder="Ex: João Silva" required>
+              <div class="fg-helper">Digite o nome completo do atendente</div>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="fg">
+              <label>E-mail *</label>
+              <input type="email" id="emailUsuario" placeholder="Ex: joao@marcx.com" required>
+            </div>
+            <div class="fg">
+              <label>Telefone</label>
+              <input type="tel" id="telefoneUsuario" placeholder="Ex: (67) 99999-9999">
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="fg">
+              <label>Senha *</label>
+              <input type="password" id="senhaUsuario" placeholder="Mínimo 6 caracteres" required>
+            </div>
+            <div class="fg">
+              <label>Confirmar Senha *</label>
+              <input type="password" id="senhaConfirm" placeholder="Confirme a senha" required>
+            </div>
+          </div>
+
+          <div class="form-grid full">
+            <div class="fg">
+              <label>Canal de Atendimento *</label>
+              <select id="canalUsuario" required>
+                <option value="">Selecione um canal...</option>
+                <option value="7portaria">🚪 Portaria (7portaria-marcx.html)</option>
+                <option value="1atendimento">📞 Atendimento (1atendimento-marcx.html)</option>
+                <option value="2agendamento">📅 Agendamento (2agendamento-marcx.html)</option>
+                <option value="3exames">🩺 Exames Diagnóstico (3examesdiagnostico-marcx.html)</option>
+                <option value="8ouvidoria">📢 Ouvidoria (8ouvidoria-marcx.html)</option>
+              </select>
+              <div class="fg-helper">Cada usuário tem um único vínculo com um canal</div>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="fg">
+              <label>Tipo/Usuário</label>
+              <select id="cargoUsuario">
+                <option value="">Selecione um tipo...</option>
+                <option value="atendente">Atendente</option>
+                <option value="suporte">Suporte</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="gerente">Gerente</option>
+                <option value="administrador">Administrador</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label>Status</label>
+              <select id="statusUsuario">
+                <option value="ativo">🟢 Ativo</option>
+                <option value="inativo">🔴 Inativo</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:16px">
+            <button class="btn p" onclick="salvarUsuario()"><i class="fas fa-save"></i> Salvar Usuário</button>
+            <button class="btn s" onclick="limparFormulario()"><i class="fas fa-times"></i> Limpar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LISTA DE USUÁRIOS -->
+      <div class="panel">
+        <div class="ph"><div class="ph-ico b"><i class="fas fa-list"></i></div><h3>Usuários Cadastrados</h3>
+          <span id="contUsuarios" style="font-size:11px;color:var(--muted);margin-left:auto">0 usuários</span>
+        </div>
+
+        <!-- TOOLBAR -->
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+          <div class="toolbar">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="filtroNome" placeholder="Pesquisar por nome..." onkeyup="filtrarUsuarios()">
+            </div>
+            <select id="filtroCanal" onchange="filtrarUsuarios()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;font-family:var(--font);background:var(--card);color:var(--text);outline:none;cursor:pointer;">
+              <option value="">Todos os Canais</option>
+              <option value="7portaria">🚪 Portaria</option>
+              <option value="1atendimento">📞 Atendimento</option>
+              <option value="2agendamento">📅 Agendamento</option>
+              <option value="3exames">🩺 Exames</option>
+              <option value="8ouvidoria">📢 Ouvidoria</option>
+            </select>
+            <select id="filtroStatus" onchange="filtrarUsuarios()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;font-family:var(--font);background:var(--card);color:var(--text);outline:none;cursor:pointer;">
+              <option value="">Todos os Status</option>
+              <option value="ativo">🟢 Ativo</option>
+              <option value="inativo">🔴 Inativo</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- TABELA -->
+        <div style="overflow-x:auto">
+          <table class="tbl" id="tabelaUsuarios">
+            <thead>
+              <tr>
+                <th style="width:25%">Nome</th>
+                <th style="width:20%">E-mail</th>
+                <th style="width:20%">Canal</th>
+                <th style="width:12%">Tipo</th>
+                <th style="width:10%">Status</th>
+                <th style="width:13%">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="corpoTabela">
+              <tr style="text-align:center;padding:30px">
+                <td colspan="6" style="color:var(--muted);padding:30px">Nenhum usuário cadastrado</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ CONFIG ══════════ -->
+    <div class="page" id="page-config">
+      <div class="sh"><h2><i class="fas fa-plug" style="color:var(--red)"></i> API ChatMarcx — Configurações</h2></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="panel">
+          <div class="ph"><div class="ph-ico r"><i class="fas fa-server"></i></div><h3>Servidor de Mensagens</h3></div>
+          <div class="pb">
+            <div class="mfg"><label>URL BASE</label><input type="text" id="cfg-url" value="http://localhost:4002/v1"></div>
+            <div class="mfg"><label>TOKEN DE ACESSO</label><input type="password" id="cfg-tok" placeholder="Bearer token"></div>
+            <div class="mfg"><label>CONEXÃO PADRÃO</label><input type="text" id="cfg-conn" placeholder="Nome da conexão WhatsApp"></div>
+            <div class="mfg"><label>WEBHOOK URL</label><input type="text" id="cfg-hook" placeholder="https://seudominio.com/webhook"></div>
+            <div style="display:flex;gap:7px">
+              <button class="btn p" onclick="saveConfig()"><i class="fas fa-save"></i> Salvar</button>
+              <button class="btn s" onclick="testConn()"><i class="fas fa-plug"></i> Testar</button>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="ph"><div class="ph-ico t"><i class="fas fa-phone"></i></div><h3>Sistema de Bilhetagem</h3></div>
+          <div class="pb">
+            <div class="mfg"><label>SERVIDOR (IP)</label><input type="text" id="bil-ip" value="192.168.12.250"></div>
+            <div class="mfg"><label>USUÁRIO</label><input type="text" id="bil-usr" value="tihe"></div>
+            <div class="mfg"><label>SENHA</label><input type="password" id="bil-pwd" placeholder="••••••••"></div>
+            <div class="mfg"><label>URL RELATÓRIO</label><input type="text" id="bil-url" value="http://192.168.12.250/phone-report/bilhetearmazenado/lista"></div>
+            <div class="mfg"><label>REGISTROS POR PÁG.</label>
+              <select id="bil-pg"><option value="50">50</option><option value="100" selected>100</option><option value="200">200</option></select>
+            </div>
+            <div style="display:flex;gap:7px">
+              <button class="btn t" onclick="saveBilConfig()"><i class="fas fa-save"></i> Salvar</button>
+              <button class="btn s" onclick="nav('bilhetagem',null)"><i class="fas fa-receipt"></i> Ver Bilhetagem</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ NOVOS ITENS (docs/botões ação menu Ecochat.png + Barra Menu.png) ══════════
+         Placeholders — conteúdo real depende do que cada negócio precisar. -->
+    <div class="page" id="page-conexoes">
+      <div class="panel"><div class="ph"><div class="ph-ico g"><i class="fas fa-wifi"></i></div><h3>Conexões</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-wifi" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Status de conexão de cada canal (WhatsApp, Telefonia, E-mail) será exibido aqui.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-campanhas">
+      <div class="panel"><div class="ph"><div class="ph-ico g"><i class="fas fa-paper-plane"></i></div><h3>Campanhas</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-paper-plane" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Envio de mensagens em massa para contatos/listas será configurado aqui.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-arquivos">
+      <div class="panel"><div class="ph"><div class="ph-ico y"><i class="fas fa-folder-open"></i></div><h3>Arquivos</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-folder-open" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Documentos e mídias enviados/recebidos nos atendimentos ficarão organizados aqui.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-historico">
+      <div class="panel"><div class="ph"><div class="ph-ico b"><i class="fas fa-clock-rotate-left"></i></div><h3>Histórico</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-clock-rotate-left" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Linha do tempo de atividades e alterações do sistema será exibida aqui.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-chatbot">
+      <div class="panel"><div class="ph"><div class="ph-ico r"><i class="fas fa-robot"></i></div><h3>ChatBot</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-robot" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Os fluxos de atendimento automatizado (mensagens interativas e menus) ficarão aqui.<br>Hoje já podem ser cadastrados em <strong>Configuração → Mensagens</strong>.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-utilidades">
+      <div class="panel"><div class="ph"><div class="ph-ico t"><i class="fas fa-toolbox"></i></div><h3>Utilidades</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-toolbox" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Ferramentas auxiliares (integrações, automações) aparecerão aqui conforme o negócio precisar.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-contatos">
+      <div class="panel"><div class="ph"><div class="ph-ico b"><i class="fas fa-address-card"></i></div><h3>Contatos</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-address-card" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          A lista de contatos que já interagiram pelos canais será exibida aqui.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-grupos-acesso">
+      <div class="panel"><div class="ph"><div class="ph-ico p"><i class="fas fa-user-shield"></i></div><h3>Grupos de Acesso</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-user-shield" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Perfis de permissão por grupo — equivalente aos <strong>Níveis de Acesso</strong> do painel administrativo.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-setor">
+      <div class="panel"><div class="ph"><div class="ph-ico g"><i class="fas fa-sitemap"></i></div><h3>Setor</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-sitemap" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Setores/departamentos da empresa — equivalente ao módulo <strong>Departamentos</strong>.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-contas">
+      <div class="panel"><div class="ph"><div class="ph-ico y"><i class="fas fa-building"></i></div><h3>Contas</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-building" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Contas e integrações da empresa (WhatsApp Business, e-mail, telefonia) serão gerenciadas aqui.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-planos">
+      <div class="panel"><div class="ph"><div class="ph-ico r"><i class="fas fa-layer-group"></i></div><h3>Planos</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-layer-group" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Planos de assinatura e limites de uso serão configurados aqui.
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-personalizar">
+      <div class="panel"><div class="ph"><div class="ph-ico t"><i class="fas fa-palette"></i></div><h3>Personalizar</h3></div>
+        <div class="pb" style="text-align:center;color:var(--muted);padding:40px 20px">
+          <i class="fas fa-palette" style="font-size:40px;margin-bottom:14px;display:block;opacity:0.3"></i>
+          Cores, logotipo e identidade visual do painel — para adaptar o sistema a qualquer negócio.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ══════════════════ MODALS ══════════════════ -->
+
+<div class="overlay" id="m-enviar"><div class="modal">
+  <h3><i class="fas fa-paper-plane" style="color:var(--wa)"></i> Enviar Mensagem</h3>
+  <p>Envio via WhatsApp para o contato selecionado</p>
+  <div class="mfg"><label>TELEFONE (com DDI)</label><input type="text" id="me-tel" placeholder="556799514221"></div>
+  <div class="mfg"><label>NOME DO CONTATO</label><input type="text" id="me-nom" placeholder="Fulano da Silva"></div>
+  <div class="mfg"><label>MENSAGEM</label><textarea id="me-msg" placeholder="Digite a mensagem..."></textarea></div>
+  <div class="mfg"><label>ARQUIVO (URL, opcional)</label><input type="text" id="me-arq" placeholder="https://..."></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+    <div class="mfg"><label>TRANSFERIR AO ENVIAR</label><select id="me-tr"><option value="false">Não</option><option value="true">Sim</option></select></div>
+    <div class="mfg"><label>FINALIZAR AO ENVIAR</label><select id="me-fi"><option value="false">Não</option><option value="true">Sim</option></select></div>
+  </div>
+  <div class="m-acts"><button class="btn s" onclick="closeModal()">Cancelar</button><button class="btn g" onclick="apiEnviar()"><i class="fas fa-paper-plane"></i> Enviar</button></div>
+</div></div>
+
+<div class="overlay" id="m-template"><div class="modal">
+  <h3><i class="fas fa-layer-group" style="color:var(--blue)"></i> Enviar Template</h3>
+  <p>Disparo de template de mensagem para o contato</p>
+  <div class="mfg"><label>NOME DO CONTATO</label><input type="text" id="mt-cn" placeholder="João da Silva"></div>
+  <div class="mfg"><label>TELEFONE</label><input type="text" id="mt-tel" placeholder="556799514221"></div>
+  <div class="mfg"><label>TEMPLATE ID</label><input type="text" id="mt-id" placeholder="ID do template cadastrado"></div>
+  <div class="mfg"><label>PARÂMETRO HEADER</label><input type="text" id="mt-hp" placeholder="ex: nome do paciente"></div>
+  <div class="mfg"><label>PARÂMETRO BODY</label><input type="text" id="mt-bp" placeholder="ex: nome do paciente"></div>
+  <div class="m-acts"><button class="btn s" onclick="closeModal()">Cancelar</button><button class="btn b" onclick="apiTemplate()"><i class="fas fa-paper-plane"></i> Enviar Template</button></div>
+</div></div>
+
+<div class="overlay" id="m-menu"><div class="modal">
+  <h3><i class="fas fa-list-ul" style="color:var(--purple)"></i> Enviar Menu Interativo</h3>
+  <p>Envia um menu de opções para o cliente responder</p>
+  <div class="mfg"><label>MENSAGEM DO MENU</label><input type="text" id="mm-msg" placeholder="Confirmar agendamento?"></div>
+  <div class="mfg"><label>TELEFONE</label><input type="text" id="mm-tel" placeholder="556799887766"></div>
+  <div class="mfg"><label>NOME</label><input type="text" id="mm-nom" placeholder="Fulano da Silva"></div>
+  <div class="mfg"><label>MENU ID</label><input type="text" id="mm-mid" placeholder="ID do menu cadastrado"></div>
+  <div class="m-acts"><button class="btn s" onclick="closeModal()">Cancelar</button><button class="btn" style="background:var(--purple);color:#fff" onclick="apiMenu()"><i class="fas fa-paper-plane"></i> Enviar Menu</button></div>
+</div></div>
+
+<div class="overlay" id="m-transferir"><div class="modal">
+  <h3><i class="fas fa-user-plus" style="color:var(--blue)"></i> Transferir Atendimento</h3>
+  <p>Transfere o atendimento para outro departamento ou agente</p>
+  <div class="mfg"><label>ID DO ATENDIMENTO</label><input type="number" id="mtr-aid"></div>
+  <div class="mfg"><label>DEPARTAMENTO</label><input type="number" id="mtr-dep" placeholder="ID do departamento"></div>
+  <div class="mfg"><label>ATENDENTE (opcional)</label><input type="number" id="mtr-ate" placeholder="ID do atendente (vazio = fila)"></div>
+  <div class="m-acts"><button class="btn s" onclick="closeModal()">Cancelar</button><button class="btn b" onclick="apiTransferir()"><i class="fas fa-exchange-alt"></i> Transferir</button></div>
+</div></div>
+
+<div class="overlay" id="m-encerrar"><div class="modal">
+  <h3><i class="fas fa-check-circle" style="color:var(--green)"></i> Encerrar Atendimento</h3>
+  <p>O atendimento será encerrado e o cliente notificado</p>
+  <div class="mfg"><label>ID DO ATENDIMENTO</label><input type="number" id="men-aid"></div>
+  <div class="mfg"><label>MENSAGEM DE ENCERRAMENTO</label><textarea id="men-msg" placeholder="Obrigado pelo contato! Atendimento encerrado."></textarea></div>
+  <div class="m-acts"><button class="btn s" onclick="closeModal()">Cancelar</button><button class="btn p" onclick="apiEncerrar()"><i class="fas fa-check"></i> Encerrar</button></div>
+</div></div>
+
+<div class="overlay" id="m-context"><div class="modal">
+  <h3><i class="fas fa-tag" style="color:var(--yellow)"></i> Contexto do Atendimento</h3>
+  <p>Armazene dados chave-valor vinculados ao atendimento</p>
+  <div class="mfg"><label>ID DO ATENDIMENTO</label><input type="number" id="mc-aid"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+    <div class="mfg"><label>CHAVE</label><input type="text" id="mc-key" placeholder="ex: cpf_paciente"></div>
+    <div class="mfg"><label>VALOR</label><input type="text" id="mc-val" placeholder="ex: 123.456.789-00"></div>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:12px">
+    <button class="btn g sm" onclick="apiCtxSalvar()"><i class="fas fa-save"></i> Salvar</button>
+    <button class="btn b sm" onclick="apiCtxBuscar()"><i class="fas fa-search"></i> Buscar</button>
+    <button class="btn s sm" style="border-color:var(--red);color:var(--red)" onclick="apiCtxDeletar()"><i class="fas fa-trash"></i> Deletar</button>
+  </div>
+  <div id="mc-res" style="font-size:11px;background:var(--bg);border-radius:7px;padding:9px;min-height:36px;font-family:monospace;word-break:break-all"></div>
+  <div class="m-acts"><button class="btn s" onclick="closeModal()">Fechar</button></div>
+</div></div>
+
+<div class="overlay" id="m-arquivo"><div class="modal">
+  <h3><i class="fas fa-paperclip" style="color:var(--red)"></i> Enviar Arquivo</h3>
+  <p>Envie um arquivo junto com uma mensagem opcional</p>
+  <div class="mfg"><label>URL DO ARQUIVO</label><input type="text" id="maq-url" placeholder="https://intranet-hc.s3.amazonaws.com/..."></div>
+  <div class="mfg"><label>DESCRIÇÃO (Caption)</label><input type="text" id="maq-cap" placeholder="Descrição do arquivo..."></div>
+  <div class="m-acts"><button class="btn s" onclick="closeModal()">Cancelar</button><button class="btn p" onclick="apiArquivo()"><i class="fas fa-paper-plane"></i> Enviar Arquivo</button></div>
+</div></div>
+
+<div class="overlay" id="m-cfg"><div class="modal">
+  <h3><i class="fas fa-plug" style="color:var(--red)"></i> Conectar API ChatMarcx</h3>
+  <p>Configure as credenciais para ativar os dados em tempo real</p>
+  <div class="mfg"><label>URL BASE</label><input type="text" id="mc2-url" value="http://localhost:4002/v1"></div>
+  <div class="mfg"><label>TOKEN DE ACESSO</label><input type="password" id="mc2-tok" placeholder="Seu token de acesso"></div>
+  <div class="mfg"><label>CONEXÃO WHATSAPP</label><input type="text" id="mc2-conn" placeholder="Nome da conexão padrão"></div>
+  <div class="m-acts"><button class="btn s" onclick="closeModal()">Cancelar</button><button class="btn p" onclick="saveConfig()"><i class="fas fa-save"></i> Salvar e Conectar</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ CONFIG ══
+let CFG = { url:'http://localhost:4002/v1', token:'', conn:'', connected:false };
+let BIL = { ip:'192.168.12.250', usr:'tihe', pwd:'', url:'http://192.168.12.250/phone-report/bilhetearmazenado/lista', limit:100 };
+let currentTicket = null;
+let intMode = false;
+let bilPage = 1;
+let bilData = [];
+let bilFiltered = [];
+
+// ══ MOCK DATA ══
+const tickets = [
+  {id:1,prot:'WP-0101',nome:'Maria Silva',tel:'(67) 99123-4567',chegada:'08:30',prio:'urgente',status:'aguardando',setor:'Agendamento',canal:'wa',dep_id:1,ate_id:null,cli_id:101,unread:3,prev:'Preciso de consulta urgente com cardiologista...'},
+  {id:2,prot:'WP-0102',nome:'João Souza',tel:'(67) 98800-1122',chegada:'08:40',prio:'normal',status:'atendimento',setor:'SAC',canal:'wa',dep_id:2,ate_id:1,cli_id:102,unread:0,prev:'Ok, vou aguardar sim.'},
+  {id:3,prot:'WP-0103',nome:'Ana Lima',tel:'(67) 99555-0099',chegada:'08:50',prio:'urgente',status:'aguardando',setor:'Urgência',canal:'wa',dep_id:3,ate_id:null,cli_id:103,unread:2,prev:'Resultado do exame me preocupou!'},
+  {id:4,prot:'WP-0104',nome:'Pedro Alves',tel:'(67) 98811-3344',chegada:'09:00',prio:'normal',status:'aguardando',setor:'Agendamento',canal:'wa',dep_id:1,ate_id:null,cli_id:104,unread:1,prev:'Quero remarcar minha consulta.'},
+  {id:5,prot:'TEL-201',nome:'Carlos Pereira',tel:'(67) 98811-2233',chegada:'09:05',prio:'urgente',status:'aguardando',setor:'Portaria',canal:'tel',dep_id:1,ate_id:null,cli_id:null,unread:0,prev:'Em espera · Ramal 201 · 2m15s'},
+  {id:6,prot:'TEL-305',nome:'Lucas Costa',tel:'(67) 99955-6677',chegada:'09:08',prio:'normal',status:'aguardando',setor:'SAC',canal:'tel',dep_id:2,ate_id:null,cli_id:null,unread:0,prev:'Em espera · Ramal 305 · 1m03s'},
+  {id:7,prot:'EM-0101',nome:'Carla Dias',tel:'carla@email.com',chegada:'07:50',prio:'normal',status:'aguardando',setor:'Agendamento',canal:'em',dep_id:1,ate_id:null,cli_id:105,unread:1,prev:'Gostaria de agendar uma consulta...'},
+];
+
+const chats = {
+  1:[{f:'bot',m:'Olá! Sou a assistente do Hospital Marcx. Como posso ajudá-la?',t:'08:30'},{f:'user',m:'Boa tarde, preciso de consulta urgente com cardiologista.',t:'08:31'},{f:'bot',m:'Entendido! Verificando disponibilidade...',t:'08:31'},{f:'user',m:'Estou com dor no peito desde ontem.',t:'08:32'},{f:'bot',m:'⚠️ Caso urgente identificado. Transferindo agora.',t:'08:32'}],
+  2:[{f:'bot',m:'Olá João! Como posso ajudá-lo?',t:'08:40'},{f:'user',m:'Quero o status do meu exame de sangue.',t:'08:41'},{f:'bot',m:'Seu exame foi processado. Posso detalhar?',t:'08:42'},{f:'user',m:'Ok, vou aguardar sim.',t:'08:43'}],
+};
+
+// MOCK bilhetagem — baseado nas colunas do script.py
+const mockBil = Array.from({length:120},(_, i)=>{
+  const tipos=['ENTRADA','SAÍDA','TRANSFERÊNCIA','PERDIDA'];
+  const rotas=['PSTN','VoIP','SIP','GSM'];
+  const ramais=['101','102','201','202','305','306','401'];
+  const tipo=tipos[Math.floor(Math.random()*tipos.length)];
+  const h=String(8+Math.floor(Math.random()*10)).padStart(2,'0');
+  const m=String(Math.floor(Math.random()*60)).padStart(2,'0');
+  const s=String(Math.floor(Math.random()*60)).padStart(2,'0');
+  const dur=tipo==='PERDIDA'?'00:00:00':`00:${String(Math.floor(Math.random()*10)).padStart(2,'0')}:${String(Math.floor(Math.random()*60)).padStart(2,'0')}`;
+  return {
+    ramal:ramais[Math.floor(Math.random()*ramais.length)],
+    central:'PABX-01',
+    ponto:`Coleta ${Math.floor(Math.random()*3)+1}`,
+    data:'13/04/2025',
+    hora:`${h}:${m}:${s}`,
+    duracao:dur,
+    numero:`(67) 9${String(Math.floor(Math.random()*9000)+1000)}-${String(Math.floor(Math.random()*9000)+1000)}`,
+    rota:rotas[Math.floor(Math.random()*rotas.length)],
+    linha:String(Math.floor(Math.random()*4)+1),
+    tipo,
+    transferencia:Math.random()>.7?'Sim':'Não',
+    protocolo:`BIL-${String(i+1).padStart(4,'0')}`
+  };
+});
+
+function abrirModuloMensagens() {
+  window.open('modulo_mensagens.html#mensagens-interativas', '_blank', 'width=1280,height=800,menubar=no,toolbar=no,location=no,status=no');
+}
+
+// ══ NAV ══
+function nav(page, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  if(el) el.classList.add('active');
+  if(page==='whatsapp') renderWAList(tickets.filter(t=>t.canal==='wa'));
+  if(page==='atendimentos') renderAtTable(tickets);
+  if(page==='bilhetagem') initBilhetagem();
+}
+
+// ══ TABS ══
+function switchTab(tab, el) {
+  document.querySelectorAll('.ct').forEach(t=>t.classList.remove('wa-a','b-a','t-a','r-a'));
+  if(tab==='wa') el.classList.add('wa-a');
+  else if(tab==='tel') el.classList.add('t-a');
+  else el.classList.add('r-a');
+  renderTickets(tab);
+  closeChat();
+}
+
+// ══ RENDER TICKETS ══
+function renderTickets(tab) {
+  const list=document.getElementById('tkList');
+  if(!list) return;
+  list.innerHTML='';
+  tickets.filter(t=>t.canal===tab).forEach((t,i)=>{
+    const div=document.createElement('div');
+    div.className='ti';
+    div.style.animationDelay=(i*.04)+'s';
+    const init=t.nome.split(' ').map(n=>n[0]).join('').slice(0,2);
+    const cico=tab==='wa'?'fa-whatsapp fab':tab==='tel'?'fa-phone fas':'fa-envelope fas';
+    div.innerHTML=`
+      <div class="tav ${t.canal}">${init}<div class="tav-b ${t.canal}"><i class="${cico}"></i></div></div>
+      <div class="tb2">
+        <div class="th2"><div class="tn">${t.nome}</div><div class="tt">${t.chegada}</div></div>
+        <div class="tprev">${t.prev}</div>
+        <div class="tags">
+          <span class="tag ${t.prio==='urgente'?'urg':'nor'}">${t.prio==='urgente'?'🔴 Urgente':'🔵 Normal'}</span>
+          <span class="tag ${t.status==='aguardando'?'agu':t.status==='atendimento'?'ate':'fin'}">${t.status==='aguardando'?'⏳ Aguardando':t.status==='atendimento'?'✅ Atendendo':'✔ Finalizado'}</span>
+          <span class="tag dep">${t.setor}</span>
+          <span class="tag prot">${t.prot}</span>
+        </div>
+      </div>
+      ${t.unread>0?`<div class="unread">${t.unread}</div>`:''}
+    `;
+    div.onclick=()=>openChat(t,div);
+    list.appendChild(div);
+  });
+}
+
+function renderWAList(list) {
+  const el=document.getElementById('waList');
+  if(!el) return;
+  el.innerHTML='';
+  list.forEach((t,i)=>{
+    const div=document.createElement('div');
+    div.className='ti';
+    div.style.animationDelay=(i*.04)+'s';
+    const init=t.nome.split(' ').map(n=>n[0]).join('').slice(0,2);
+    div.innerHTML=`
+      <div class="tav wa">${init}<div class="tav-b wa"><i class="fab fa-whatsapp"></i></div></div>
+      <div class="tb2">
+        <div class="th2"><div class="tn">${t.nome}</div><div class="tt">${t.chegada}</div></div>
+        <div class="tprev">${t.prev}</div>
+        <div class="tags">
+          <span class="tag ${t.prio==='urgente'?'urg':'nor'}">${t.prio==='urgente'?'🔴 Urgente':'🔵 Normal'}</span>
+          <span class="tag ${t.status==='aguardando'?'agu':'ate'}">${t.status==='aguardando'?'⏳ Aguardando':'✅ Atendendo'}</span>
+          <span class="tag prot">${t.prot}</span>
+        </div>
+      </div>
+      ${t.unread>0?`<div class="unread">${t.unread}</div>`:''}
+    `;
+    div.onclick=()=>openWAChat(t,div);
+    el.appendChild(div);
+  });
+}
+
+function filterWA(v){ renderWAList(tickets.filter(t=>t.canal==='wa'&&t.nome.toLowerCase().includes(v.toLowerCase()))); }
+
+function renderAtTable(data) {
+  const body=document.getElementById('atBody');
+  if(!body) return;
+  body.innerHTML='';
+  data.forEach(t=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td>${t.id}</td>
+      <td><span class="tag prot">${t.prot}</span></td>
+      <td>${t.canal==='wa'?'<span class="tag ate">WhatsApp</span>':t.canal==='tel'?'<span class="tag lig">Telefonia</span>':'<span class="tag nor">E-mail</span>'}</td>
+      <td>${t.nome}</td><td>${t.setor}</td>
+      <td>${t.ate_id?'Atend. #'+t.ate_id:'—'}</td>
+      <td><span class="tag ${t.status==='aguardando'?'agu':t.status==='atendimento'?'ate':'fin'}">${t.status}</span></td>
+      <td>${t.chegada}</td>
+      <td style="display:flex;gap:4px">
+        <button class="btn s sm" onclick="openChatFromAt(${t.id})"><i class="fas fa-comment"></i></button>
+        <button class="btn b sm" onclick="document.getElementById('mtr-aid').value=${t.id};openModal('transferir')"><i class="fas fa-exchange-alt"></i></button>
+        <button class="btn p sm" onclick="document.getElementById('men-aid').value=${t.id};openModal('encerrar')"><i class="fas fa-times"></i></button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+// ══ CHAT ══
+function openChat(t, el) {
+  currentTicket=t;
+  document.querySelectorAll('.ti').forEach(x=>x.classList.remove('sel','r','t'));
+  el.classList.add('sel');
+  document.getElementById('chatAv').textContent=t.nome.split(' ').map(n=>n[0]).join('').slice(0,2);
+  document.getElementById('chatName').textContent=t.nome;
+  document.getElementById('chatInfo').textContent=(t.canal==='wa'?'WhatsApp':t.canal==='tel'?'Telefonia':'E-mail')+' · '+t.tel+' · '+t.prot+' · '+t.setor;
+  const hd=document.getElementById('chatHead');
+  hd.className='chat-head '+(t.canal==='wa'?'wa-h':t.canal==='tel'?'ph-h':'em-h');
+  document.getElementById('chatWrap').classList.add('open');
+  loadMsgs(t.id,'chatMsgs');
+}
+
+function openWAChat(t,el) {
+  currentTicket=t;
+  document.querySelectorAll('#waList .ti').forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('waAv').textContent=t.nome.split(' ').map(n=>n[0]).join('').slice(0,2);
+  document.getElementById('waName').textContent=t.nome;
+  document.getElementById('waInfo').textContent='WhatsApp · '+t.tel+' · '+t.prot;
+  loadMsgs(t.id,'waMsgs');
+}
+
+function openChatFromAt(id){ nav('dashboard',null); setTimeout(()=>{ renderTickets('wa'); const t=tickets.find(x=>x.id===id); if(t){ const els=document.querySelectorAll('.ti'); els.forEach(e=>{ if(e.querySelector('.tn')&&e.querySelector('.tn').textContent===t.nome) openChat(t,e); }); } },120); }
+
+function loadMsgs(id, cont) {
+  const el=document.getElementById(cont);
+  el.innerHTML='';
+  (chats[id]||[{f:'bot',m:'Iniciando atendimento.',t:'—'}]).forEach(m=>addMsg(el,m.f,m.m,m.t,false));
+  el.scrollTop=el.scrollHeight;
+}
+
+function addMsg(cont, from, msg, time, isInt) {
+  const div=document.createElement('div');
+  div.className='cm '+(isInt?'int':from);
+  div.innerHTML=`<div class="cb">${isInt?'🔒 '+msg:msg}</div><div class="cm-meta">${time}</div>`;
+  cont.appendChild(div);
+}
+
+function closeChat() { document.getElementById('chatWrap').classList.remove('open'); currentTicket=null; }
+
+function sendMsg() {
+  const inp=document.getElementById('chatInp');
+  const msg=inp.value.trim();
+  if(!msg||!currentTicket) return;
+  addMsg(document.getElementById('chatMsgs'),'bot',msg,now(),intMode);
+  inp.value='';
+  document.getElementById('chatMsgs').scrollTop=9999;
+  // API: POST /mensagem/enviar { mensagens:[{mensagem:msg}], telefone, cliente_id, interna:intMode }
+}
+
+function sendWA() {
+  const inp=document.getElementById('waInp');
+  const msg=inp.value.trim();
+  if(!msg) return;
+  addMsg(document.getElementById('waMsgs'),'bot',msg,now(),false);
+  inp.value='';
+  document.getElementById('waMsgs').scrollTop=9999;
+}
+
+function toggleInt() {
+  intMode=!intMode;
+  document.getElementById('intIco').className=intMode?'fas fa-lock':'fas fa-lock-open';
+  document.getElementById('intTxt').textContent=intMode?'Interno ✓':'Interno';
+  toast(intMode?'Modo mensagem interna ativado 🔒':'Modo público','inf');
+}
+
+// ══ BILHETAGEM ══
+function initBilhetagem() {
+  bilData=[...mockBil];
+  bilFiltered=[...bilData];
+  bilPage=1;
+  updateBilStats();
+  renderBilPage();
+}
+
+function fetchBilhetagem() {
+  // Aqui chamaria o backend que executa o script de bilhetagem
+  // O script Python autentica em http://192.168.12.250/phone-report/bilhetearmazenado/lista
+  // e retorna os dados das colunas: Ramal, Central, Ponto de Coleta, Data, Hora, Duração, Número Discado, Rota, Linha, Tipo, Transferência, Protocolo
+  const ramal=document.getElementById('bil-ramal').value;
+  const num=document.getElementById('bil-num').value;
+  const tipo=document.getElementById('bil-tipo').value;
+  const rota=document.getElementById('bil-rota').value;
+  const linha=document.getElementById('bil-linha').value;
+  const durMin=parseInt(document.getElementById('bil-durmin').value)||0;
+
+  bilFiltered=mockBil.filter(r=>{
+    if(ramal&&!r.ramal.includes(ramal)) return false;
+    if(num&&!r.numero.includes(num)) return false;
+    if(tipo&&r.tipo!==tipo) return false;
+    if(rota&&!r.rota.toLowerCase().includes(rota.toLowerCase())) return false;
+    if(linha&&r.linha!==linha) return false;
+    if(durMin>0){ const [_,m,s]=r.duracao.split(':').map(Number); if((m*60+s)<durMin) return false; }
+    return true;
+  });
+
+  bilPage=1;
+  updateBilStats();
+  renderBilPage();
+  toast(`${bilFiltered.length} registros encontrados`,'ok');
+}
+
+function updateBilStats() {
+  document.getElementById('bil-total').textContent=bilFiltered.length;
+  document.getElementById('bil-ent').textContent=bilFiltered.filter(r=>r.tipo==='ENTRADA').length;
+  document.getElementById('bil-sai').textContent=bilFiltered.filter(r=>r.tipo==='SAÍDA').length;
+  document.getElementById('bil-perd').textContent=bilFiltered.filter(r=>r.tipo==='PERDIDA').length;
+  document.getElementById('bil-info').textContent=`${bilFiltered.length} registros encontrados`;
+}
+
+function renderBilPage() {
+  const limit=parseInt(document.getElementById('bil-limit').value)||100;
+  const start=(bilPage-1)*limit;
+  const slice=bilFiltered.slice(start,start+limit);
+  const body=document.getElementById('bilBody');
+  body.innerHTML='';
+  slice.forEach(r=>{
+    const tr=document.createElement('tr');
+    const durParts=r.duracao.split(':').map(Number);
+    const durSec=durParts[1]*60+durParts[2];
+    const durCls=r.tipo==='PERDIDA'?'dur-zero':durSec<30?'dur-low':'dur-ok';
+    const tipoCls=r.tipo==='ENTRADA'?'tipo-ent':r.tipo==='SAÍDA'?'tipo-sai':r.tipo==='TRANSFERÊNCIA'?'tipo-tra':'tipo-perd';
+    tr.innerHTML=`
+      <td><strong>${r.ramal}</strong></td>
+      <td>${r.central}</td>
+      <td>${r.ponto}</td>
+      <td>${r.data}</td>
+      <td>${r.hora}</td>
+      <td class="${durCls}">${r.duracao}</td>
+      <td>${r.numero}</td>
+      <td>${r.rota}</td>
+      <td>${r.linha}</td>
+      <td><span class="${tipoCls}">${r.tipo}</span></td>
+      <td style="text-align:center">${r.transferencia==='Sim'?'<span class="tag agu">Sim</span>':'—'}</td>
+      <td><span class="tag prot">${r.protocolo}</span></td>
+    `;
+    body.appendChild(tr);
+  });
+  const total=Math.ceil(bilFiltered.length/limit);
+  document.getElementById('pag-info').textContent=`Página ${bilPage} de ${total||1}`;
+  document.getElementById('pag-ant').disabled=bilPage<=1;
+  document.getElementById('pag-prox').disabled=bilPage>=total;
+}
+
+function pagAnt() { if(bilPage>1){ bilPage--; renderBilPage(); } }
+function pagProx() { const limit=parseInt(document.getElementById('bil-limit').value)||100; if(bilPage<Math.ceil(bilFiltered.length/limit)){ bilPage++; renderBilPage(); } }
+
+function clearFilters() {
+  ['bil-ramal','bil-num','bil-rota','bil-linha','bil-durmin'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('bil-tipo').value='';
+  bilFiltered=[...mockBil];
+  bilPage=1;
+  updateBilStats();
+  renderBilPage();
+}
+
+function exportCSV() {
+  const cols=['ramal','central','ponto','data','hora','duracao','numero','rota','linha','tipo','transferencia','protocolo'];
+  const header='Ramal,Central,Ponto de Coleta,Data,Hora,Duração,Número Discado,Rota,Linha,Tipo,Transferência,Protocolo';
+  const rows=bilFiltered.map(r=>cols.map(c=>`"${r[c]}"`).join(','));
+  const csv=[header,...rows].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='bilhetagem_marcx.csv';
+  a.click();
+  toast('CSV exportado com sucesso!','ok');
+}
+
+// ══ API CALLS ══
+async function apiCall(method, path, body=null) {
+  if(!CFG.connected){ toast('Configure a API ChatMarcx primeiro','err'); return null; }
+  try {
+    const opts={method,headers:{'Content-Type':'application/json','Authorization':'Bearer '+CFG.token}};
+    if(body) opts.body=JSON.stringify(body);
+    const res=await fetch(CFG.url+path,opts);
+    return await res.json();
+  } catch(e){ toast('Erro na conexão: '+e.message,'err'); return null; }
+}
+
+function apiEnviar() {
+  const p={mensagens:[{mensagem:document.getElementById('me-msg').value,arquivo:document.getElementById('me-arq').value||undefined}],
+    telefone:document.getElementById('me-tel').value,nome:document.getElementById('me-nom').value,
+    conexao:CFG.conn,transferir:document.getElementById('me-tr').value==='true',
+    finalizarAtendimento:document.getElementById('me-fi').value==='true',verifica_numero:true};
+  apiCall('POST','/mensagem/enviar',p).then(r=>{ toast(r?'Mensagem enviada!':'Simulado — conecte a API','ok'); closeModal(); });
+}
+
+function apiTemplate() {
+  const p={contato_nome:document.getElementById('mt-cn').value,contato_telefone:document.getElementById('mt-tel').value,
+    conexao_nome:CFG.conn,template_id:document.getElementById('mt-id').value,
+    header_parameters:[{type:'text',text:document.getElementById('mt-hp').value}],
+    body_parameters:[{type:'text',text:document.getElementById('mt-bp').value}]};
+  apiCall('POST','/mensagem/template',p).then(r=>{ toast('Template enviado!','ok'); closeModal(); });
+}
+
+function apiMenu() {
+  const p={mensagens:[{mensagem:document.getElementById('mm-msg').value}],
+    telefone:document.getElementById('mm-tel').value,nome:document.getElementById('mm-nom').value,
+    conexao:CFG.conn,menu_id:document.getElementById('mm-mid').value};
+  apiCall('POST','/mensagem/menuEnviar',p).then(r=>{ toast('Menu enviado!','ok'); closeModal(); });
+}
+
+function apiArquivo() {
+  if(!currentTicket) return toast('Selecione um atendimento','err');
+  const p={mensagens:[{mensagem:document.getElementById('maq-cap').value,arquivo:document.getElementById('maq-url').value}],
+    telefone:currentTicket.tel,nome:currentTicket.nome,conexao:CFG.conn};
+  apiCall('POST','/mensagem/enviar',p).then(r=>{ toast('Arquivo enviado!','ok'); closeModal(); });
+}
+
+function apiTransferir() {
+  const p={atendimento_id:parseInt(document.getElementById('mtr-aid').value),
+    departamento_id:parseInt(document.getElementById('mtr-dep').value)||undefined,
+    atendente_usuario_id:parseInt(document.getElementById('mtr-ate').value)||undefined};
+  apiCall('POST','/atendimento/transferir',p).then(r=>{ toast('Atendimento transferido!','ok'); closeModal(); });
+}
+
+function apiEncerrar() {
+  const p={atendimento_id:parseInt(document.getElementById('men-aid').value),
+    mensagem:document.getElementById('men-msg').value||'Atendimento encerrado. Obrigado!'};
+  apiCall('POST','/atendimento/encerrar',p).then(r=>{ toast('Atendimento encerrado!','ok'); closeModal(); });
+}
+
+function apiCtxSalvar() {
+  const p={atendimento_id:parseInt(document.getElementById('mc-aid').value),
+    context_key:document.getElementById('mc-key').value,value:document.getElementById('mc-val').value};
+  apiCall('POST','/atendimento/criarAlteraContext',p).then(r=>{
+    document.getElementById('mc-res').textContent=r?JSON.stringify(r,null,2):'Contexto salvo (simulado)';
+    toast('Contexto salvo!','ok');
+  });
+}
+
+function apiCtxBuscar() {
+  const id=document.getElementById('mc-aid').value;
+  const key=document.getElementById('mc-key').value;
+  if(!id||!key) return toast('Informe ID e chave','err');
+  apiCall('GET',`/atendimento/context/${id}/${key}`).then(r=>{
+    document.getElementById('mc-res').textContent=r?JSON.stringify(r,null,2):'GET /atendimento/context/'+id+'/'+key;
+  });
+}
+
+function apiCtxDeletar() {
+  const p={atendimento_id:parseInt(document.getElementById('mc-aid').value),context_key:document.getElementById('mc-key').value};
+  apiCall('POST','/atendimento/deletarContext',p).then(r=>toast('Contexto deletado!','ok'));
+}
+
+function fetchAtend() { renderAtTable(tickets); toast('Dados atualizados','ok'); }
+function refreshAll() { toast('Atualizando...','inf'); }
+
+// ══ CONFIG ══
+function saveConfig() {
+  CFG.url=(document.getElementById('mc2-url')||document.getElementById('cfg-url')).value;
+  CFG.token=(document.getElementById('mc2-tok')||document.getElementById('cfg-tok')).value;
+  CFG.conn=(document.getElementById('mc2-conn')||document.getElementById('cfg-conn')).value;
+  CFG.connected=!!CFG.token;
+  const bar=document.getElementById('sbar');
+  const txt=document.getElementById('sbarTxt');
+  if(CFG.connected){ bar.className='sbar on'; txt.textContent='API ChatMarcx conectada — '+CFG.url+' · dados em tempo real ativos'; document.getElementById('nb-api').style.display='none'; toast('API conectada com sucesso!','ok'); }
+  closeModal();
+}
+
+function saveBilConfig() {
+  BIL.ip=document.getElementById('bil-ip').value;
+  BIL.usr=document.getElementById('bil-usr').value;
+  BIL.pwd=document.getElementById('bil-pwd').value;
+  BIL.url=document.getElementById('bil-url').value;
+  toast('Configurações de bilhetagem salvas!','ok');
+}
+
+function testConn() { toast('Testando: GET '+CFG.url+'/status ...','inf'); }
+
+// ══ DIALER ══
+function d(k){ const el=document.getElementById('dialNum'); if(el) el.value+=k; }
+function dialBk(){ const el=document.getElementById('dialNum'); if(el) el.value=el.value.slice(0,-1); }
+function dialCall(){ const n=document.getElementById('dialNum')?.value; if(n) toast('Chamando: '+n,'inf'); }
+
+// ══ CHIP ══
+function fChip(el){ el.closest('.qtb').querySelectorAll('.chip').forEach(c=>c.classList.remove('on')); el.classList.add('on'); }
+
+// ══ MODAL ══
+function openModal(id) {
+  document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('open'));
+  const el=document.getElementById('m-'+id);
+  if(!el) return;
+  el.classList.add('open');
+  if(currentTicket){
+    if(id==='encerrar') document.getElementById('men-aid').value=currentTicket.id||'';
+    if(id==='transferir') document.getElementById('mtr-aid').value=currentTicket.id||'';
+    if(id==='context') document.getElementById('mc-aid').value=currentTicket.id||'';
+  }
+}
+function closeModal(){ document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('open')); }
+document.addEventListener('click',e=>{ if(e.target.classList.contains('overlay')) closeModal(); });
+
+// ══ TOAST ══
+function toast(msg,type='inf'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.className='toast '+(type==='ok'?'ok':type==='err'?'err':'inf');
+  el.style.display='block';
+  clearTimeout(window._tt);
+  window._tt=setTimeout(()=>el.style.display='none',3000);
+}
+
+function now(){ const d=new Date(); return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); }
+
+// ══ INIT ══
+window.onload=()=>{
+  renderTickets('wa');
+  renderAtTable(tickets);
+  initBilhetagem();
+  carregarUsuarios();
+};
+
+// ━━━ MÓDULO USUÁRIOS ━━━
+const canaisMap = {
+  '7portaria':{ nome:'🚪 Portaria', arquivo:'7portaria-marcx.html', cor:'#c8102e' },
+  '1atendimento':{ nome:'📞 Atendimento', arquivo:'1atendimento-marcx.html', cor:'#2563eb' },
+  '2agendamento':{ nome:'📅 Agendamento', arquivo:'2agendamento-marcx.html', cor:'#f59e0b' },
+  '3exames':{ nome:'🩺 Exames Diagnóstico', arquivo:'3examesdiagnostico-marcx.html', cor:'#10b981' },
+  '8ouvidoria':{ nome:'📢 Ouvidoria', arquivo:'8ouvidoria-marcx.html', cor:'#8b5cf6' }
+};
+
+let usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+
+function carregarUsuarios() {
+  usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+  atualizarStats();
+  atualizarTabela();
+}
+
+function salvarUsuario() {
+  if(!validarCadastro()) return;
+  
+  const nome = document.getElementById('nomeUsuario').value.trim();
+  const email = document.getElementById('emailUsuario').value.trim();
+  const telefone = document.getElementById('telefoneUsuario').value.trim();
+  const senha = document.getElementById('senhaUsuario').value;
+  const canal = document.getElementById('canalUsuario').value;
+  const cargo = document.getElementById('cargoUsuario').value;
+  const status = document.getElementById('statusUsuario').value;
+
+  // Verificar email duplicado
+  if(usuarios.some(u => u.email === email)) {
+    mostrarAlert('Este e-mail já está cadastrado!', 'error');
+    return;
+  }
+
+  // Verificar se canal já está em uso (exclusividade)
+  if(usuarios.some(u => u.canal === canal)) {
+    mostrarAlert('Este canal já está atribuído a outro usuário!', 'error');
+    return;
+  }
+
+  const novoUsuario = {
+    id: Date.now(),
+    nome,
+    email,
+    telefone,
+    senha: btoa(senha), // Simples encoding (não é seguro em produção)
+    canal,
+    cargo,
+    status,
+    dataCadastro: new Date().toLocaleDateString('pt-BR')
+  };
+
+  usuarios.push(novoUsuario);
+  localStorage.setItem('usuarios', JSON.stringify(usuarios));
+  
+  mostrarAlert('Usuário cadastrado com sucesso!', 'success');
+  limparFormulario();
+  atualizarStats();
+  atualizarTabela();
+}
+
+function validarCadastro() {
+  const nome = document.getElementById('nomeUsuario').value.trim();
+  const email = document.getElementById('emailUsuario').value.trim();
+  const senha = document.getElementById('senhaUsuario').value;
+  const senhaConfirm = document.getElementById('senhaConfirm').value;
+  const canal = document.getElementById('canalUsuario').value;
+
+  if(!nome) {
+    mostrarAlert('Nome é obrigatório!', 'error');
+    return false;
+  }
+
+  if(!validarEmail(email)) {
+    mostrarAlert('Digite um e-mail válido!', 'error');
+    return false;
+  }
+
+  if(senha.length < 6) {
+    mostrarAlert('Senha deve ter no mínimo 6 caracteres!', 'error');
+    return false;
+  }
+
+  if(senha !== senhaConfirm) {
+    mostrarAlert('As senhas não conferem!', 'error');
+    return false;
+  }
+
+  if(!canal) {
+    mostrarAlert('Selecione um canal de atendimento!', 'error');
+    return false;
+  }
+
+  return true;
+}
+
+function validarEmail(email) {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+}
+
+function limparFormulario() {
+  document.getElementById('nomeUsuario').value = '';
+  document.getElementById('emailUsuario').value = '';
+  document.getElementById('telefoneUsuario').value = '';
+  document.getElementById('senhaUsuario').value = '';
+  document.getElementById('senhaConfirm').value = '';
+  document.getElementById('canalUsuario').value = '';
+  document.getElementById('cargoUsuario').value = '';
+  document.getElementById('statusUsuario').value = 'ativo';
+  document.getElementById('alertContainer').innerHTML = '';
+}
+
+function filtrarUsuarios() {
+  const nome = document.getElementById('filtroNome')?.value.toLowerCase() || '';
+  const canal = document.getElementById('filtroCanal')?.value || '';
+  const status = document.getElementById('filtroStatus')?.value || '';
+
+  const filtrados = usuarios.filter(u => {
+    const matchNome = u.nome.toLowerCase().includes(nome);
+    const matchCanal = !canal || u.canal === canal;
+    const matchStatus = !status || u.status === status;
+    return matchNome && matchCanal && matchStatus;
+  });
+
+  atualizarTabela(filtrados);
+}
+
+function atualizarTabela(dados = usuarios) {
+  const body = document.getElementById('corpoTabela');
+  const cont = document.getElementById('contUsuarios');
+
+  if(dados.length === 0) {
+    body.innerHTML = '<tr style="text-align:center;padding:30px"><td colspan="6" style="color:var(--muted);padding:30px">Nenhum usuário encontrado</td></tr>';
+    cont.textContent = '0 usuários';
+    return;
+  }
+
+  body.innerHTML = '';
+  dados.forEach(u => {
+    const tr = document.createElement('tr');
+    const canalInfo = canaisMap[u.canal];
+    const statusClass = u.status === 'ativo' ? 'success' : 'error';
+    const statusText = u.status === 'ativo' ? '🟢 Ativo' : '🔴 Inativo';
+    const badgeClass = u.canal.replace(/\d/g, '').substring(0, 4);
+    
+    tr.innerHTML = `
+      <td><strong>${u.nome}</strong></td>
+      <td><small>${u.email}</small></td>
+      <td><span class="badge ${badgeClass}">${canalInfo.nome}</span></td>
+      <td><small>${u.cargo || '—'}</small></td>
+      <td><span class="tag ${statusClass}">${statusText}</span></td>
+      <td style="display:flex;gap:4px;font-size:11px">
+        <button class="btn b sm" onclick="editarUsuario(${u.id})" title="Editar"><i class="fas fa-edit"></i></button>
+        <button class="btn p sm" onclick="deletarUsuario(${u.id})" title="Deletar"><i class="fas fa-trash"></i></button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+
+  cont.textContent = dados.length + ' usuário' + (dados.length !== 1 ? 's' : '');
+}
+
+function editarUsuario(id) {
+  const u = usuarios.find(x => x.id === id);
+  if(!u) return;
+
+  document.getElementById('nomeUsuario').value = u.nome;
+  document.getElementById('emailUsuario').value = u.email;
+  document.getElementById('telefoneUsuario').value = u.telefone;
+  document.getElementById('canalUsuario').value = u.canal;
+  document.getElementById('cargoUsuario').value = u.cargo;
+  document.getElementById('statusUsuario').value = u.status;
+  
+  // Marcar para edição
+  document.getElementById('nomeUsuario').dataset.editId = id;
+  document.getElementById('nomeUsuario').style.borderColor = 'var(--red)';
+  
+  mostrarAlert('Editando usuário. Guarde o ID: ' + id, 'success');
+  window.scrollTo(0, document.getElementById('nomeUsuario').offsetTop - 100);
+}
+
+function salvarEdicao() {
+  const id = parseInt(document.getElementById('nomeUsuario').dataset.editId);
+  if(!id || !usuarios.find(x => x.id === id)) {
+    mostrarAlert('Selecione um usuário para editar!', 'error');
+    return;
+  }
+
+  if(!validarCadastro()) return;
+
+  const idx = usuarios.findIndex(x => x.id === id);
+  usuários[idx].nome = document.getElementById('nomeUsuario').value.trim();
+  usuarios[idx].email = document.getElementById('emailUsuario').value.trim();
+  usuarios[idx].telefone = document.getElementById('telefoneUsuario').value.trim();
+  usuarios[idx].cargo = document.getElementById('cargoUsuario').value;
+  usuarios[idx].status = document.getElementById('statusUsuario').value;
+
+  localStorage.setItem('usuarios', JSON.stringify(usuarios));
+  mostrarAlert('Usuário atualizado com sucesso!', 'success');
+  limparFormulario();
+  atualizarTabela();
+  atualizarStats();
+}
+
+function deletarUsuario(id) {
+  if(!confirm('Tem certeza que deseja deletar este usuário?')) return;
+  
+  usuarios = usuarios.filter(u => u.id !== id);
+  localStorage.setItem('usuarios', JSON.stringify(usuarios));
+  
+  mostrarAlert('Usuário deletado com sucesso!', 'success');
+  atualizarTabela();
+  atualizarStats();
+}
+
+function atualizarStats() {
+  const total = usuarios.length;
+  const canais = 5;
+  const media = total > 0 ? Math.floor(total / canais) : 0;
+
+  document.getElementById('total-usuarios').textContent = total;
+  document.getElementById('media-usuarios').textContent = media;
+
+  // Atualizar contadores por canal
+  const contadores = {};
+  usuarios.forEach(u => {
+    contadores[u.canal] = (contadores[u.canal] || 0) + 1;
+  });
+}
+
+function mostrarAlert(mensagem, tipo) {
+  const container = document.getElementById('alertContainer');
+  const alertDiv = document.createElement('div');
+  alertDiv.className = `alert ${tipo}`;
+  alertDiv.innerHTML = `
+    <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+    <span>${mensagem}</span>
+  `;
+  container.innerHTML = '';
+  container.appendChild(alertDiv);
+  
+  setTimeout(() => {
+    alertDiv.remove();
+  }, 4000);
+}
+
+function exportarUsuariosCSV() {
+  if(usuarios.length === 0) {
+    mostrarAlert('Nenhum usuário para exportar!', 'error');
+    return;
+  }
+
+  const header = 'Nome,E-mail,Telefone,Canal,Tipo,Status,Data Cadastro';
+  const rows = usuarios.map(u => 
+    `"${u.nome}","${u.email}","${u.telefone}","${canaisMap[u.canal].nome}","${u.cargo}","${u.status}","${u.dataCadastro}"`
+  );
+  const csv = [header, ...rows].join('\n');
+  
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'usuarios_marcx_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+  
+  mostrarAlert('CSV exportado com sucesso!', 'success');
+}
+</script>
+</body>
+</html>
