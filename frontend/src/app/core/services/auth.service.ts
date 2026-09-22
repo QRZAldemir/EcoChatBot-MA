@@ -4,7 +4,7 @@ import { Observable, map, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { LoginResponse, UsuarioLogado } from '../models/auth.model';
 import { NivelAcesso } from '../models/nivel-usuario.model';
-import { temNivelMinimo } from '../auth/niveis';
+import { temNivelMinimo } from '../auth/niveis.auth';
 
 const CHAVE_TOKEN = 'ecochat_token';
 const CHAVE_USUARIO = 'ecochat_usuario';

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { NivelAcesso } from '../../../core/models/nivel-usuario.model';
-import { temNivelMinimo } from '../../../core/auth/niveis';
+import { temNivelMinimo } from '../../../core/auth/niveis.auth';
 
 interface NavItem {
   rota: string;
