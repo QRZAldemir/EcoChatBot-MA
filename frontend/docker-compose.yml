@@ -1,0 +1,74 @@
+version: '3.9'
+
+# ═══════════════════════════════════════════════════════════════════════════
+# EcoChatBot-Marcx · Infraestrutura de Desenvolvimento
+# Codinome: EcoChatBot-MA
+# ───────────────────────────────────────────────────────────────────────────
+# Sobe MongoDB + Redis para desenvolvimento local.
+#
+# USO:
+#   npm run db:up         → sobe os 2 containers
+#   npm run db:down       → para os containers
+#   npm run db:logs       → mostra os logs
+#   npm run db:mongo      → abre shell do MongoDB
+#   npm run db:redis      → abre shell do Redis
+#
+# VARIÁVEIS DE AMBIENTE:
+#   Copie `.env.example` para `.env` e ajuste as senhas.
+# ═══════════════════════════════════════════════════════════════════════════
+
+services:
+
+  # ─── MongoDB (banco principal) ─────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: ecochat-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-admin123}
+      MONGO_INITDB_DATABASE:      ${MONGO_DATABASE:-ecochat}
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - ecochat-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis (cache / sessões / filas) ──────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ecochat-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - redis_data:/data
+    networks:
+      - ecochat-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# ─── Volumes persistentes ─────────────────────────────────────────────────
+volumes:
+  mongo_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ─── Rede compartilhada ───────────────────────────────────────────────────
+networks:
+  ecochat-network:
+    driver: bridge
