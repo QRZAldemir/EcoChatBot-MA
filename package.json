@@ -1,35 +1,30 @@
 {
   "name": "ecochatbot-ma",
   "version": "1.0.0",
-  "description": "---",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "description": "EcoChatBot-Marcx — Sistema de Atendimento Digital Configurável (Monorepo)",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
-    "start:backend": "cd backend && npm start",
-    "start:frontend": "cd frontend && npm start"
+    "start":          "concurrently -n BACKEND,FRONTEND -c blue,green \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend":  "cd backend && npm start",
+    "start:frontend": "cd frontend && npm start",
+    "build":          "npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build:prod",
+    "install:all":    "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "codegen":        "cd frontend && npm run generate:api",
+    "test":           "echo \"Use: cd frontend && npm test  ou  cd backend && npm test\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/QRZAldemir/EcoChatBot-MA.git"
+    "url":  "git+https://github.com/QRZAldemir/EcoChatBot-MA.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["chatbot", "atendimento", "saas", "multi-tenant", "acessibilidade"],
+  "author": "Aldemir Queiroz",
   "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/QRZAldemir/EcoChatBot-MA/issues"
   },
   "homepage": "https://github.com/QRZAldemir/EcoChatBot-MA#readme",
   "devDependencies": {
     "concurrently": "^10.0.5"
-  },
-  "dependencies": {
-  "@angular/animations": "^17.0.0",
-    "tesseract.js": "^5.1.0"
-}
   }
-
+}
