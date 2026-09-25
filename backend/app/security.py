@@ -17,209 +17,295 @@
 #     JWT_EXPIRE_MINUTES  Validade do token em minutos (padrão: 480 = 8h)
 # ==============================================================================
 
+# ==============================================================================
+# app/security.py
+# Central de Segurança: Hash, JWT, Blacklist (Redis) e RBAC
+# ==============================================================================
+"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-Marcx · Security (JWT + RBAC)
+Codinome: EcoChatBot-MA
+───────────────────────────────────────────────────────────────────────────
+@file     security.py
+@module   Backend / App / Security
+@author   Aldemir Queiroz
+@since    2026
+@version  1.0.0
+───────────────────────────────────────────────────────────────────────────
+
+FUNCIONALIDADE
+──────────────
+Centraliza TODA a lógica de SEGURANÇA do EcoChatBot-Marcx:
+
+    1. Hash de senha (bcrypt)
+    2. Verificação de senha
+    3. Geração de JWT (access token)
+    4. Decodificação e validação de JWT
+    5. Hierarquia de níveis de acesso (RBAC)
+    6. Blacklist de tokens revogados (via Redis)
+
+RESPONSABILIDADES
+─────────────────
+    • `hash_senha()`              → hash bcrypt de senha
+    • `verificar_senha()`         → valida senha contra hash
+    • `criar_access_token()`      → gera JWT
+    • `decodificar_token()`       → valida e decodifica JWT
+    • `revogar_token()`           → adiciona JWT à blacklist
+    • `token_esta_revogado()`     → verifica se JWT está na blacklist
+    • `tem_nivel_minimo()`        → compara níveis (RBAC)
+    • `ordem_nivel()`             → retorna índice do nível
+
+HIERARQUIA DE NÍVEIS (RBAC)
+───────────────────────────
+    atendente (0) < supervisor (1) < gerente (2) < administrador (3)
+
+RELACIONAMENTO COM OUTROS OBJETOS DO PROJETO
+────────────────────────────────────────────
+    security.py (este arquivo)
+        │
+        ├──► app/deps.py
+        │      • `get_current_user()` usa `decodificar_token()`
+        │      • `require_nivel()` usa `tem_nivel_minimo()`
+        │
+        ├──► app/services/auth_service.py
+        │      • Login: `verificar_senha()` + `criar_access_token()`
+        │      • Logout: `revogar_token()`
+        │
+        ├──► app/services/usuario_service.py
+        │      • Criar usuário: `hash_senha()`
+        │      • Trocar senha: `hash_senha()` + `verificar_senha()`
+        │
+        ├──► app/routers/*.py
+        │      • `Depends(require_admin)` usa `tem_nivel_minimo()`
+        │
+        ├──► app/redis_client.py
+        │      • Blacklist de JWT armazenada no Redis
+        │
+        ├──► app/exceptions/auth_exceptions.py
+        │      • `TokenExpiradoException`, `TokenInvalidoException`
+        │      • `TokenRevogadoException`, `NivelInsuficienteException`
+        │
+        └──► app/config.py
+               • `jwt_secret`, `jwt_algorithm`, `jwt_expires_in`
+
+⚠️ ESCOPO MULTI-CANAL E MULTI-SEGMENTO
+──────────────────────────────────────
+Agnóstico de canal e segmento.
+
+USO
+───
+    from app.security import hash_senha, verificar_senha, criar_access_token
+
+    # Criar senha
+    hash = hash_senha('MinhaSenha123')
+
+    # Login
+    if verificar_senha('MinhaSenha123', user.senha_hash):
+        token = criar_access_token(user_id=user.id, empresa_id=user.empresa_id)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
 import logging
-import os
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import Annotated, Any, Optional
 
-from fastapi import Depends, HTTPException
+import anyio
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from sqlalchemy.orm import Session, joinedload
+from passlib.context import CryptContext
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from app.database import get_db
-from app.models import TokenRevogado, Usuario
+from app.config import settings  # Assume-se o uso de pydantic-settings
+from app.database import get_async_session
+from app.redis_client import redis_client
+from app.models import Usuario, Nivel
+from app.exceptions import (
+    NaoAutenticadoException,
+    TokenExpiradoException,
+    TokenInvalidoException,
+    TokenRevogadoException,
+    NivelInsuficienteException,
+)
 
 logger = logging.getLogger(__name__)
 
-# Hierarquia de acesso (menor → maior). `exigir_nivel_minimo("gerente")`
-# aceita gerente e administrador; `exigir_nivel("administrador")` é exato.
-NIVEIS_HIERARQUIA = ("atendente", "supervisor", "gerente", "administrador")
+# ═══════════════════════════════════════════════════════════════════════════
+# 1. CONFIGURAÇÕES E CONTEXTOS
+# ═══════════════════════════════════════════════════════════════════════════
 
-SECRET_KEY = os.getenv("SECRET_KEY", "")
-if not SECRET_KEY:
-    raise RuntimeError(
-        "ERRO CRÍTICO: SECRET_KEY não definida. "
-        "Copie .env.example para .env e defina uma chave forte antes de iniciar."
-    )
+# HTTPBearer é preferível ao OAuth2PasswordBearer para APIs REST modernas
+_bearer_scheme = HTTPBearer(auto_error=False)
 
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "480"))
+# Contexto de Hash (bcrypt é CPU-intensivo, será executado em thread separada)
+_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-_bearer = HTTPBearer(auto_error=False)
-
-_ERRO_NAO_AUTENTICADO = HTTPException(
-    status_code=401, detail="Não autenticado.", headers={"WWW-Authenticate": "Bearer"}
-)
+# Hierarquia de Acesso (Índice maior = maior privilégio)
+NIVEIS_HIERARQUIA: list[str] = ["atendente", "supervisor", "gerente", "administrador"]
 
 
-# ==============================================================================
-# EMISSÃO DE TOKEN
-# ==============================================================================
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. HASH DE SENHAS (NÃO-BLOQUEANTE)
+# ═══════════════════════════════════════════════════════════════════════════
 
-def criar_token(usuario: Usuario) -> str:
+async def hash_senha(senha: str) -> str:
+    """Gera hash bcrypt sem bloquear a event loop do FastAPI."""
+    return await anyio.to_thread.run_sync(_pwd_context.hash, senha)
+
+async def verificar_senha(senha: str, hash_senha: str) -> bool:
+    """Valida senha contra hash sem bloquear a event loop."""
+    try:
+        return await anyio.to_thread.run_sync(_pwd_context.verify, senha, hash_senha)
+    except Exception:
+        return False
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. JWT: EMISSÃO E DECODIFICAÇÃO
+# ═══════════════════════════════════════════════════════════════════════════
+
+def criar_access_token(user_id: int, empresa_id: int, nivel: str) -> str:
     """
-    Gera um JWT assinado para o usuário autenticado.
-    
-    O payload inclui:
-    - sub: ID do usuário (padrão RFC 7519)
-    - jti: Identificador único do token (permite revogação no /logout)
-    - nome, email, nivel: Dados do usuário (evitam consultas extras no frontend)
-    - iat/exp: Timestamps de emissão e expiração
+    Gera um JWT assinado.
+    Retorna o token string. O JTI (ID do token) é gerado para permitir revogação.
     """
-    # CORREÇÃO: datetime.now(timezone.utc) em vez de datetime.utcnow() (depreciado)
     agora = datetime.now(timezone.utc)
+    expiracao = agora + settings.jwt_expire_timedelta  # Ex: timedelta(hours=8)
     
     payload = {
-        "sub": str(usuario.id),
-        "jti": uuid.uuid4().hex,
-        "nome": usuario.nome,
-        "email": usuario.email,
-        "nivel": usuario.nivel.nome if usuario.nivel else None,
+        "sub": str(user_id),
+        "jti": uuid.uuid4().hex,  # Identificador único para Blacklist
+        "empresa_id": empresa_id, # Multi-tenant
+        "nivel": nivel,
         "iat": agora,
-        "exp": agora + timedelta(minutes=JWT_EXPIRE_MINUTES),
+        "exp": expiracao,
+        "iss": "ecochatbot-marcx",
+        "aud": "ecochatbot-frontend",
     }
     
-    token = jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
-    
-    logger.debug(
-        "security | Token emitido | user_id=%s | jti=%s | expira_em=%s",
-        usuario.id, payload["jti"], payload["exp"].isoformat()
-    )
-    
-    return token
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-# ==============================================================================
-# DECODIFICAÇÃO DE TOKEN
-# ==============================================================================
-
-def decodificar_token(token: str) -> dict:
-    """
-    Valida assinatura e expiração (jose confere "exp" automaticamente).
-    Levanta HTTP 401 se o token for inválido, expirado ou malformado.
-    """
+def decodificar_token(token: str) -> dict[str, Any]:
+    """Valida assinatura, expiração e claims (aud/iss)."""
     try:
-        return jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        return jwt.decode(
+            token,
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm],
+            audience="ecochatbot-frontend",
+            issuer="ecochatbot-marcx",
+        )
     except JWTError as e:
-        # Log de auditoria: ajuda a detectar tentativas de uso de tokens adulterados
-        logger.warning("security | Falha na decodificação do JWT: %s", str(e))
-        raise _ERRO_NAO_AUTENTICADO
+        logger.warning(f"security | Falha na decodificação JWT: {str(e)}")
+        if "expired" in str(e).lower():
+            raise TokenExpiradoException()
+        raise TokenInvalidoException(str(e))
 
 
-# ==============================================================================
-# DEPENDÊNCIA: OBTER USUÁRIO ATUAL (GUARDIÃO DAS ROTAS PROTEGIDAS)
-# ==============================================================================
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. BLACKLIST DE TOKENS (REDIS)
+# ═══════════════════════════════════════════════════════════════════════════
 
-def obter_usuario_atual(
-    credenciais: HTTPAuthorizationCredentials = Depends(_bearer),
-    db: Session = Depends(get_db),
+async def revogar_token(jti: str, exp_timestamp: int) -> None:
+    """
+    Adiciona o token à blacklist no Redis.
+    O TTL é calculado para que a chave seja apagada automaticamente 
+    quando o token expirar naturalmente, evitando inchaço do Redis.
+    """
+    ttl = exp_timestamp - int(datetime.now(timezone.utc).timestamp())
+    if ttl > 0:
+        await redis_client.setex(f"revoked_token:{jti}", ttl, "1")
+
+async def token_esta_revogado(jti: str) -> bool:
+    """Verifica em O(1) se o token foi invalidado (logout)."""
+    return bool(await redis_client.exists(f"revoked_token:{jti}"))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. FASTAPI DEPENDENCIES (GUARDIÕES)
+# ═══════════════════════════════════════════════════════════════════════════
+
+async def obter_usuario_atual(
+    credenciais: Annotated[Optional[HTTPAuthorizationCredentials], Depends(_bearer_scheme)],
+    db: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Usuario:
     """
-    Dependency que protege rotas administrativas.
-    
-    Fluxo de validação:
-    1. Verifica se o header Authorization está presente.
-    2. Decodifica e valida o JWT (assinatura + expiração).
-    3. Consulta a blacklist (TokenRevogado) para verificar se o token foi revogado.
-    4. Busca o usuário no banco de dados (com eager loading do nível).
-    5. Verifica se o usuário existe e está ativo.
-    
-    Retorna o objeto Usuario para injeção nas rotas protegidas.
+    Dependency principal: Valida Token -> Checa Blacklist -> Busca Usuário Ativo.
     """
     if not credenciais:
-        raise _ERRO_NAO_AUTENTICADO
+        raise NaoAutenticadoException()
 
+    # 1. Validação criptográfica e de expiração
     payload = decodificar_token(credenciais.credentials)
-
-    # ── Verificação de revogação (blacklist) ──
     jti = payload.get("jti")
-    if jti and db.query(TokenRevogado).filter(TokenRevogado.jti == jti).first():
-        # Log de auditoria: token revogado tentando acessar o sistema
-        logger.info("security | Token revogado tentou acessar o sistema | jti=%s", jti)
-        raise _ERRO_NAO_AUTENTICADO
-
     usuario_id = payload.get("sub")
-    if usuario_id is None:
-        raise _ERRO_NAO_AUTENTICADO
 
-    # ── Busca do usuário com eager loading do relacionamento 'nivel' ──
-    # joinedload evita o problema "N+1 queries" ao acessar usuario.nivel.nome
-    usuario = (
-        db.query(Usuario)
-        .options(joinedload(Usuario.nivel))
-        .filter(Usuario.id == int(usuario_id))
-        .first()
+    if not jti or not usuario_id:
+        raise TokenInvalidoException("Payload do token malformado.")
+
+    # 2. Verificação de Revogação (Logout) via Redis
+    if await token_esta_revogado(jti):
+        logger.info(f"security | Token revogado tentou acesso | jti={jti}")
+        raise TokenRevogadoException()
+
+    # 3. Busca do Usuário no Banco (Assíncrono)
+    query = (
+        select(Usuario)
+        .options(selectinload(Usuario.nivel))
+        .where(Usuario.id == int(usuario_id))
     )
-    
+    result = await db.execute(query)
+    usuario = result.scalar_one_or_none()
+
     if not usuario or not usuario.ativo:
-        # Log de auditoria: usuário inativo ou inexistente tentando acessar
-        logger.warning(
-            "security | Acesso negado | user_id=%s | motivo=%s",
-            usuario_id, "inativo" if usuario else "inexistente"
-        )
-        raise _ERRO_NAO_AUTENTICADO
+        logger.warning(f"security | Acesso negado | user_id={usuario_id} | motivo=inativo/inexistente")
+        raise NaoAutenticadoException()
 
     return usuario
 
 
-# ==============================================================================
-# CONTROLE DE ACESSO BASEADO EM NÍVEL (RBAC)
-# ==============================================================================
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. RBAC (CONTROLE DE ACESSO BASEADO EM PAPÉIS)
+# ═══════════════════════════════════════════════════════════════════════════
 
-def _nome_nivel(usuario: Usuario) -> str:
-    """Extrai o nome do nível do usuário, normalizado (lowercase, sem espaços)."""
-    nome = usuario.nivel.nome if usuario.nivel else ""
-    return (nome or "").strip().lower()
+def ordem_nivel(nivel: Optional[str]) -> int:
+    """Retorna o índice hierárquico do nível (-1 se desconhecido)."""
+    if not nivel:
+        return -1
+    try:
+        return NIVEIS_HIERARQUIA.index(nivel.strip().lower())
+    except ValueError:
+        return -1
 
+def tem_nivel_minimo(nivel_usuario: Optional[str], nivel_minimo: str) -> bool:
+    """Verifica se o nível do usuário atende ao mínimo exigido."""
+    return ordem_nivel(nivel_usuario) >= ordem_nivel(nivel_minimo)
 
-def exigir_nivel(*niveis: str):
+def exigir_nivel(*niveis_permitidos: str):
     """
-    Dependency: o usuário autenticado precisa ter um dos níveis (nome exato).
-    
-    Uso:
-        @router.get("/admin", dependencies=[Depends(exigir_nivel("administrador"))])
-        def rota_admin():
-            ...
-    
-    Ou com injeção do usuário:
-        @router.get("/gerencial")
-        def rota_gerencial(usuario: Usuario = Depends(exigir_nivel("gerente", "administrador"))):
-            ...
+    Dependency para validação exata de níveis.
+    Uso: @router.get("/", dependencies=[Depends(exigir_nivel("gerente", "administrador"))])
     """
-    if not niveis:
-        raise ValueError("exigir_nivel() precisa de ao menos um nível")
-    permitidos = {n.strip().lower() for n in niveis}
-
-    def _verificador(usuario: Usuario = Depends(obter_usuario_atual)) -> Usuario:
-        nivel_usuario = _nome_nivel(usuario)
-        if nivel_usuario not in permitidos:
-            # Log de auditoria: tentativa de acesso com privilégio insuficiente
-            logger.warning(
-                "security | Privilégio insuficiente | user_id=%s | nivel_atual=%s | niveis_exigidos=%s",
-                usuario.id, nivel_usuario, list(permitidos)
-            )
-            raise HTTPException(status_code=403, detail="Privilégio insuficiente.")
+    async def _verificador(usuario: Usuario = Depends(obter_usuario_atual)) -> Usuario:
+        if usuario.nivel and usuario.nivel.nome.lower() not in [n.lower() for n in niveis_permitidos]:
+            raise NivelInsuficienteException()
         return usuario
-
     return _verificador
 
+def exigir_nivel_minimo(nivel_minimo: str):
+    """
+    Dependency para validação hierárquica (ex: 'gerente' aceita 'administrador').
+    Uso: @router.get("/", dependencies=[Depends(exigir_nivel_minimo("supervisor"))])
+    """
+    if nivel_minimo.lower() not in NIVEIS_HIERARQUIA:
+        raise ValueError(f"Nível de acesso desconhecido: {nivel_minimo}")
 
-def exigir_nivel_minimo(nivel: str):
-    """
-    Dependency: o nível informado ou qualquer um acima na hierarquia.
-    
-    Hierarquia: atendente < supervisor < gerente < administrador
-    
-    Exemplo:
-        @router.get("/relatorios", dependencies=[Depends(exigir_nivel_minimo("gerente"))])
-        def relatorios():
-            # Acessível por gerente e administrador
-            ...
-    """
-    chave = nivel.strip().lower()
-    try:
-        idx = NIVEIS_HIERARQUIA.index(chave)
-    except ValueError as exc:
-        raise ValueError(f"Nível desconhecido: {nivel}") from exc
-    return exigir_nivel(*NIVEIS_HIERARQUIA[idx:])
+    async def _verificador(usuario: Usuario = Depends(obter_usuario_atual)) -> Usuario:
+        if not tem_nivel_minimo(usuario.nivel.nome if usuario.nivel else "", nivel_minimo):
+            raise NivelInsuficienteException()
+        return usuario
+    return _verificador

@@ -1,175 +1,174 @@
 """
-================================================================================
-MÓDULO: app/deps.py
-AUTOR: Aldemir Queiroz da Silva
-VERSÃO: 1.0.0
-DATA: 03 de Julho de 2026
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-Marcx · FastAPI Dependencies
+Codinome: EcoChatBot-MA
+───────────────────────────────────────────────────────────────────────────
+@file     deps.py
+@module   Backend / App / Deps
+@author   Aldemir Queiroz
+@since    2026
+@version  1.1.0 (Refatorado para eliminar imports circulares e redundâncias)
+───────────────────────────────────────────────────────────────────────────
 
-FINALIDADE:
-    Centraliza as dependências de segurança e isolamento de tenant (empresa)
-    para injeção automática nas rotas do FastAPI.
+FUNCIONALIDADE
+──────────────
+Centraliza as DEPENDÊNCIAS (injeção) usadas nos routers FastAPI, atuando
+como uma fachada limpa e tipada sobre as camadas de banco de dados e segurança.
 
-RESPONSABILIDADES:
-    1. Configurar o esquema OAuth2 para extração do token JWT do header
-       Authorization (Bearer).
-    2. Decodificar e validar o token JWT, extraindo as claims de identidade
-       (user_id) e de tenant (empresa_id).
-    3. Prover a dependência `get_current_user_tenant` que:
-       a) Autentica o usuário (token válido e não expirado).
-       b) Autoriza o acesso com base no vínculo empresarial (multi-tenancy).
-       c) Retorna um objeto tipado com o contexto de segurança da requisição.
+    1. `get_db`             → Sessão assíncrona SQLAlchemy (PostgreSQL)
+    2. `get_mongo`          → Instância do banco MongoDB (Motor)
+    3. `get_redis_client`   → Instância do cliente Redis assíncrono
+    4. `get_token_payload`  → Extrai e valida o JWT (sem buscar no DB)
+    5. `get_current_user`   → Retorna o objeto `Usuario` validado (com DB)
+    6. `require_nivel`      → Factory de guards RBAC (nível exato)
+    7. `require_nivel_minimo` → Factory de guards RBAC (hierárquico)
+    8. Atalhos RBAC         → `require_admin`, `require_gerente`, etc.
 
-CONCEITO CHAVE — MULTI-TENANCY:
-    Cada empresa (tenant) possui seus próprios dados isolados. A dependência
-    `get_current_user_tenant` garante que um usuário da Empresa A jamais
-    consiga acessar dados da Empresa B, pois o `empresa_id` extraído do JWT
-    é injetado automaticamente em todas as queries subsequentes.
+RELACIONAMENTO COM OUTROS OBJETOS DO PROJETO
+────────────────────────────────────────────
+    deps.py (este arquivo)
+        │
+        ├──► app/database.py       • Re-exporta a sessão assíncrona
+        ├──► app/mongodb.py        • Re-exporta a instância do DB
+        ├──► app/redis_client.py   • Re-exporta o cliente Redis
+        ├──► app/security.py       • Delega toda a lógica de JWT, Blacklist e RBAC
+        └──► app/routers/*.py      • Fornece as dependências tipadas via `Annotated`
 
-DEPENDÊNCIAS:
-    - app.database.get_db (sessão de banco de dados)
-    - app.services.auth_service.decode_jwt_token (decodificação JWT)
-================================================================================
+⚠️ ESCOPO MULTI-CANAL E MULTI-SEGMENTO
+──────────────────────────────────────
+Agnóstico de canal e segmento. O `empresa_id` é validado no payload do JWT.
+
+USO
+───
+    from fastapi import APIRouter
+    from app.deps import DBSession, CurrentUser, require_admin
+
+    router = APIRouter()
+
+    @router.get('/usuarios')
+    async def listar_usuarios(
+        db: DBSession,
+        user: CurrentUser,
+    ):
+        # user é um objeto Usuario tipado, já validado e com 'nivel' carregado
+        ...
+
+    @router.delete('/usuarios/{id}')
+    async def deletar_usuario(
+        id: int,
+        db: DBSession,
+        _: None = Depends(require_admin), # Bloqueia se não for admin
+    ):
+        ...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from __future__ import annotations
 
-from app.database import get_db
+from typing import Annotated, Any, Callable
 
-# Importação do serviço de autenticação JWT.
-# NOTA PARA DESENVOLVEDORES: Este módulo (app/services/auth_service.py) deve
-# implementar a função `decode_jwt_token(token: str) -> dict | None`, que:
-#   - Retorna um dict com as claims do JWT se o token for válido.
-#   - Retorna None ou levanta exceção se o token for inválido/expirado.
-from app.services.auth_service import decode_jwt_token
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
+
+# 1. Importações das camadas inferiores (Banco de Dados)
+from app.database import get_async_session as _get_db
+from app.mongodb import get_mongo_db as _get_mongo
+from app.redis_client import get_redis as _get_redis
+
+# 2. Importações da camada de Segurança (Lógica pesada delegada aqui)
+from app.security import (
+    decodificar_token,
+    obter_usuario_atual,
+    exigir_nivel,
+    exigir_nivel_minimo,
+)
+from app.models import Usuario
+
+# Esquema padrão para extração do header "Authorization: Bearer <token>"
+_bearer_scheme = HTTPBearer(auto_error=True)
 
 
-# ==============================================================================
-# 1. MODELO DE DADOS DO CONTEXTO DE SEGURANÇA
-# ==============================================================================
-# CORREÇÃO APLICADA: Substituído o retorno em `dict` por um modelo Pydantic.
-#
-# POR QUE ISSO IMPORTA?
-# - Tipagem estática: IDEs (VS Code, PyCharm) oferecem autocompletar ao acessar
-#   `current_user.empresa_id` em qualquer rota.
-# - Documentação automática: O FastAPI exibe este modelo no Swagger/OpenAPI.
-# - Imutabilidade: Com `frozen=True`, impede que alguma rota modifique
-#   acidentalmente o contexto de segurança durante a requisição.
-class TenantContext(BaseModel):
+# ═══════════════════════════════════════════════════════════════════════════
+# 1. DEPENDÊNCIAS DE BANCO DE DADOS
+# ═══════════════════════════════════════════════════════════════════════════
+
+async def get_db() -> AsyncSession:
+    """Dependência: Yield de sessão PostgreSQL assíncrona com gerenciamento de transação."""
+    async for session in _get_db():
+        yield session
+
+
+def get_mongo() -> AsyncIOMotorDatabase:
+    """Dependência: Retorna a instância do banco MongoDB (Singleton gerenciado pelo lifespan)."""
+    return _get_mongo()
+
+
+def get_redis_client() -> Redis:
+    """Dependência: Retorna a instância do cliente Redis (Singleton gerenciado pelo lifespan)."""
+    return _get_redis()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. DEPENDÊNCIAS DE AUTENTICAÇÃO (JWT)
+# ═══════════════════════════════════════════════════════════════════════════
+
+async def get_token_payload(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(_bearer_scheme)]
+) -> dict[str, Any]:
     """
-    Contexto de segurança e isolamento de tenant extraído do JWT.
-    Injetado automaticamente nas rotas que requerem autenticação.
-    """
-    user_id: int
-    empresa_id: int | None
-    is_super_admin: bool
-
-    model_config = {"frozen": True}
-
-
-# ==============================================================================
-# 2. ESQUEMA OAUTH2 (EXTRAÇÃO DO TOKEN)
-# ==============================================================================
-# O OAuth2PasswordBearer instrui o FastAPI a:
-# 1. Exigir o header `Authorization: Bearer <token>` nas rotas protegidas.
-# 2. Exibir o botão "Authorize" no Swagger UI apontando para a URL de login.
-#
-# ATENÇÃO: O `tokenUrl` deve corresponder exatamente à rota de login da API.
-# Se a rota mudar (ex: de "/api/usuarios/login" para "/api/v2/auth/login"),
-# este valor DEVE ser atualizado, caso contrário a documentação Swagger quebrará.
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/usuarios/login")
-
-
-# ==============================================================================
-# 3. DEPENDÊNCIA PRINCIPAL: AUTENTICAÇÃO + ISOLAMENTO DE TENANT
-# ==============================================================================
-def get_current_user_tenant(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
-) -> TenantContext:
-    """
-    Dependência FastAPI que autentica o usuário via JWT e extrai o contexto
-    de tenant (empresa) para isolamento de dados.
-
-    Fluxo de Execução:
-    1. O FastAPI extrai o token do header Authorization (via oauth2_scheme).
-    2. O token é decodificado e validado (assinatura, expiração).
-    3. As claims `sub` (user_id), `empresa_id` e `nivel` são extraídas.
-    4. Valida-se que o usuário possui vínculo empresarial ou é super_admin.
-    5. Retorna um TenantContext imutável para uso na rota.
-
+    Extrai e decodifica o JWT do header. 
+    NÃO consulta o banco de dados. Ideal para rotas que só precisam validar a assinatura.
+    
     Raises:
-        HTTPException 401: Token ausente, inválido ou expirado.
-        HTTPException 403: Usuário autenticado, mas sem empresa associada.
-
-    Exemplo de uso em uma rota:
-        @router.get("/pacientes")
-        def listar_pacientes(
-            current_user: TenantContext = Depends(get_current_user_tenant),
-            db: Session = Depends(get_db),
-        ):
-            # current_user.empresa_id contém o ID da empresa do usuário logado
-            return db.query(Paciente).filter(
-                Paciente.empresa_id == current_user.empresa_id
-            ).all()
+        TokenInvalidoException / TokenExpiradoException (vindos de security.py)
     """
+    return decodificar_token(credentials.credentials)
 
-    # ── Passo 1: Decodificação e Validação do JWT ──────────────────────────
-    # CORREÇÃO APLICADA: Envolve a chamada em try/except para tratar tokens
-    # inválidos, expirados ou malformados. Sem isso, uma exceção não tratada
-    # no decode_jwt_token resultaria em HTTP 500 (Internal Server Error),
-    # expondo detalhes internos da aplicação ao cliente.
-    try:
-        payload = decode_jwt_token(token)
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Token inválido ou expirado: {exc}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
 
-    # CORREÇÃO APLICADA: Verifica se o payload não é None.
-    # Se decode_jwt_token retornar None (token inválido sem exceção),
-    # a chamada payload.get() abaixo levantaria AttributeError.
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido: payload vazio.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+# Re-exportação da dependência robusta de usuário.
+# Isso evita importação circular com `usuario_service` e centraliza a query com `selectinload`.
+get_current_user = obter_usuario_atual
 
-    # ── Passo 2: Extração das Claims ───────────────────────────────────────
-    # Convenção JWT:
-    #   - "sub" (subject): identificador único do usuário (user_id)
-    #   - "empresa_id": claim customizada para multi-tenancy
-    #   - "nivel": claim customizada para controle de permissão
-    user_id = payload.get("sub")
-    empresa_id = payload.get("empresa_id")
-    nivel = payload.get("nivel", "")
-    is_super_admin = nivel == "super_admin"
 
-    # Validação: o campo "sub" é obrigatório em qualquer JWT válido
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido: identificador de usuário (sub) ausente.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. DEPENDÊNCIAS DE AUTORIZAÇÃO (RBAC)
+# ═══════════════════════════════════════════════════════════════════════════
 
-    # ── Passo 3: Validação de Autorização (Tenant) ─────────────────────────
-    # Regra de Negócio: Todo usuário deve pertencer a uma empresa, EXCETO
-    # super_admins que possuem acesso transversal a todos os tenants.
-    if not empresa_id and not is_super_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso negado: usuário sem empresa associada.",
-        )
+def require_nivel(*niveis: str) -> Callable:
+    """
+    Factory: Exige que o usuário tenha um dos níveis exatos informados.
+    Uso: dependencies=[Depends(require_nivel("gerente", "administrador"))]
+    """
+    return exigir_nivel(*niveis)
 
-    # ── Passo 4: Retorno do Contexto Tipado ────────────────────────────────
-    return TenantContext(
-        user_id=int(user_id),
-        empresa_id=int(empresa_id) if empresa_id else None,
-        is_super_admin=is_super_admin,
-    )
+
+def require_nivel_minimo(nivel: str) -> Callable:
+    """
+    Factory: Exige que o usuário tenha o nível informado ou superior na hierarquia.
+    Hierarquia: atendente < supervisor < gerente < administrador
+    Uso: dependencies=[Depends(require_nivel_minimo("gerente"))]
+    """
+    return exigir_nivel_minimo(nivel)
+
+
+# ── Atalhos Práticos para Routers ──
+require_admin = require_nivel_minimo("administrador")
+require_gerente = require_nivel_minimo("gerente")
+require_supervisor = require_nivel_minimo("supervisor")
+require_atendente_ou_superior = require_nivel_minimo("atendente")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. ALIASES TIPOS (Type Aliases) para Routers Limpos
+# ═══════════════════════════════════════════════════════════════════════════
+# O uso de Annotated aqui permite que os routers fiquem extremamente legíveis,
+# sem poluir a assinatura das funções com `Depends(...)`.
+
+DBSession = Annotated[AsyncSession, Depends(get_db)]
+MongoDB = Annotated[AsyncIOMotorDatabase, Depends(get_mongo)]
+RedisClient = Annotated[Redis, Depends(get_redis_client)]
+TokenPayload = Annotated[dict[str, Any], Depends(get_token_payload)]
+CurrentUser = Annotated[Usuario, Depends(get_current_user)]
