@@ -1,123 +1,185 @@
 """
-================================================================================
-MÓDULO: app/database.py
-AUTOR: Aldemir Queiroz da Silva
-VERSÃO: 1.2.0
-DATA: 03 de Julho de 2026
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-Marcx · Database Connection (PostgreSQL)
+Codinome: EcoChatBot-MA
+───────────────────────────────────────────────────────────────────────────
+@file     database.py
+@module   Backend / App / Config
+@author   Aldemir Queiroz
+@since    2026
+@version  1.0.0
+───────────────────────────────────────────────────────────────────────────
 
-FINALIDADE:
-    Camada de abstração de infraestrutura entre a aplicação Python e o SGBD.
-    Centraliza e gerencia o ciclo de vida das conexões com o banco de dados.
+FUNCIONALIDADE
+──────────────
+Configuração da conexão assíncrona com PostgreSQL usando SQLAlchemy 2.0
+e asyncpg.
 
-RESPONSABILIDADES:
-    1. Carregar a string de conexão (DATABASE_URL) via variáveis de ambiente.
-    2. Instanciar a Engine do SQLAlchemy com pool de conexões resiliente.
-    3. Definir a fábrica de sessões (SessionLocal) para controle transacional.
-    4. Prover a classe base (Base) para declaração dos modelos ORM.
-    5. Expor o gerador de dependência (get_db) para injeção nas rotas FastAPI.
+Este módulo é a BASE para todos os models SQLAlchemy. Ele fornece:
 
-DEPENDÊNCIAS EXTERNAS:
-    - sqlalchemy >= 2.0
-    - python-dotenv
-    - psycopg2-binary (driver PostgreSQL)
-================================================================================
+  1. `Base`         → classe base declarativa dos models
+  2. `engine`       → engine assíncrona do PostgreSQL
+  3. `AsyncSessionLocal` → fábrica de sessões assíncronas
+  4. `get_db()`     → dependência FastAPI que fornece uma sessão
+  5. `init_db()`    → cria todas as tabelas (para dev)
+  6. `close_db()`   → fecha a conexão (shutdown)
+
+ARQUITETURA DE DADOS — 3 BANCOS
+───────────────────────────────
+  ⚡ Redis       → cache quente (sessões, rate limit, filas)
+  🍃 MongoDB     → persistência principal (conversas, contatos)
+  🐘 PostgreSQL  → backup frio + dados relacionais (usuários, empresas)
+
+⚠️ ESCOPO MULTI-CANAL E MULTI-SEGMENTO
+──────────────────────────────────────
+Este módulo é agnóstico de canal e segmento. Funciona igualmente em
+WhatsApp, Telegram, Discord, Facebook, Instagram, PABX e em qualquer
+segmento de negócio.
+
+QUEM GERA
+─────────
+Arquivo CUSTOM (não é gerado automaticamente).
+
+QUEM CONSOME
+────────────
+  • app/main.py         → inicializa a conexão
+  • app/models/*        → importam `Base`
+  • app/repositories/*  → recebem `AsyncSession` via DI
+  • app/services/*      → usam repositórios
+
+DEPENDÊNCIAS
+────────────
+  • sqlalchemy[asyncio]==2.0.30
+  • asyncpg==0.29.0
+  • pydantic-settings==2.2.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
-import os
-from typing import Generator
+from __future__ import annotations
 
-from dotenv import load_dotenv
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
+from typing import AsyncGenerator
 
-# ==============================================================================
-# 1. CARREGAMENTO E VALIDAÇÃO DE CREDENCIAIS
-# ==============================================================================
-# O load_dotenv() lê o arquivo .env na raiz do projeto.
-# A validação explícita (fail-fast) impede que a aplicação inicie com um banco
-# incorreto ou vazio, o que é crucial para evitar corrupção de dados em produção.
-load_dotenv()
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError(
-        "ERRO CRÍTICO: DATABASE_URL não definida. "
-        "Copie .env.example para .env e preencha a string de conexão antes de iniciar."
-    )
-
-# ==============================================================================
-# 2. CRIAÇÃO DA ENGINE E POOL DE CONEXÕES
-# ==============================================================================
-# A Engine é o motor que gerencia as conexões com o SGBD.
-#
-# PARÂMETROS DE RESILIÊNCIA:
-# - pool_pre_ping=True:
-#   Antes de entregar uma conexão ao código, o SQLAlchemy envia um comando
-#   leve (ex: SELECT 1) para verificar se a conexão ainda está viva. Se o
-#   banco caiu e reiniciou, a conexão morta é descartada e uma nova é criada.
-#   Isso evita erros como "Connection refused" ou "Server has gone away".
-#
-# - pool_recycle=3600:
-#   Recicla (fecha e reabre) conexões a cada 1 hora. Previne que o SGBD ou
-#   firewalls intermediários derrubem conexões ociosas por timeout de rede.
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    pool_recycle=3600,
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
 )
+from sqlalchemy.orm import DeclarativeBase
 
-# ==============================================================================
-# 3. FÁBRICA DE SESSÕES (SESSIONLOCAL)
-# ==============================================================================
-# O SessionLocal é uma fábrica (callable) que cria sessões de banco de dados.
-#
-# - autocommit=False:
-#   O commit deve ser explícito (db.commit()), garantindo controle total
-#   sobre quando a transação é persistida.
-#
-# - autoflush=False:
-#   As alterações nos objetos ORM não são enviadas automaticamente ao banco
-#   antes de executar uma query. O desenvolvedor controla o momento exato
-#   do flush, evitando escritas prematuras ou inesperadas.
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from app.config import settings
 
 
-# ==============================================================================
-# 4. BASE DECLARATIVA (ORM)
-# ==============================================================================
-# CORREÇÃO APLICADA (v1.2.0):
-# A função `declarative_base()` foi descontinuada (deprecated) no SQLAlchemy 2.0.
-# A forma moderna e recomendada é criar uma classe que herda de `DeclarativeBase`.
-# Isso é compatível com tipagem estática (mypy/pyright) e com os novos recursos
-# do SQLAlchemy 2.x, como mapped_column().
-#
-# Todos os modelos do sistema (Empresa, Usuario, InstanciaChatbot, etc.)
-# devem herdar desta classe Base.
+# ═══════════════════════════════════════════════════════════════════════════
+# CLASSE BASE DECLARATIVA
+# ═══════════════════════════════════════════════════════════════════════════
+# Todos os models SQLAlchemy herdam desta classe.
+# Usa o padrão `DeclarativeBase` do SQLAlchemy 2.0 (moderno).
+
+
 class Base(DeclarativeBase):
-    """Classe base para todos os modelos ORM do sistema."""
+    """
+    Classe base declarativa para todos os models SQLAlchemy do projeto.
+
+    Uso nos models:
+        from app.database import Base
+
+        class Usuario(Base):
+            __tablename__ = 'usuarios'
+            id = Column(Integer, primary_key=True)
+            ...
+
+    Vantagens do DeclarativeBase (SQLAlchemy 2.0):
+      • Tipagem estática melhor (mypy, pyright)
+      • Sintaxe mais limpa (sem metaclass)
+      • Compatível com `Mapped[]` e `mapped_column()`
+    """
     pass
 
 
-# ==============================================================================
-# 5. INJEÇÃO DE DEPENDÊNCIA PARA O FASTAPI (GET_DB)
-# ==============================================================================
-# Esta função é um gerador (yield) utilizado como dependência nas rotas do
-# FastAPI. Exemplo de uso:
-#
-#   @router.get("/usuarios")
-#   def listar_usuarios(db: Session = Depends(get_db)):
-#       return db.query(Usuario).all()
-#
-# O padrão try/finally garante que, mesmo que ocorra uma exceção durante a
-# requisição, a conexão (db.close()) será devolvida ao pool, evitando
-# vazamento de memória e esgotamento de conexões no SGBD.
-def get_db() -> Generator[Session, None, None]:
+# ═══════════════════════════════════════════════════════════════════════════
+# ENGINE ASSÍNCRONA
+# ═══════════════════════════════════════════════════════════════════════════
+# A engine gerencia o pool de conexões com o PostgreSQL.
+# Configurada para produção (pool_pre_ping, pool_recycle).
+
+
+engine = create_async_engine(
+    settings.database_url,
+    echo=settings.debug,              # loga SQL em desenvolvimento
+    future=True,                      # compatível com SQLAlchemy 2.0
+    pool_pre_ping=True,               # testa conexão antes de usar
+    pool_size=10,                     # conexões no pool
+    max_overflow=20,                  # conexões extras além do pool
+    pool_recycle=3600,                # recicla conexões após 1h
+)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FÁBRICA DE SESSÕES
+# ═══════════════════════════════════════════════════════════════════════════
+# `async_sessionmaker` cria sessões assíncronas vinculadas à engine.
+# `expire_on_commit=False` evita lazy loads após commit.
+
+
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,           # objetos ficam válidos após commit
+    autoflush=False,                  # controle manual do flush
+)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DEPENDÊNCIA FASTAPI — get_db()
+# ═══════════════════════════════════════════════════════════════════════════
+# Fornece uma sessão de banco por requisição HTTP, garantindo
+# fechamento automático ao final.
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
-    Gerador que fornece uma sessão de banco de dados por requisição HTTP.
-    Garante o fechamento automático da conexão ao final do ciclo de vida da request.
+    Dependência FastAPI que fornece uma `AsyncSession` por requisição.
+
+    Uso em routers:
+        from fastapi import Depends
+        from app.database import get_db
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        @router.get('/usuarios')
+        async def listar(db: AsyncSession = Depends(get_db)):
+            ...
     """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# INICIALIZAÇÃO E SHUTDOWN
+# ═══════════════════════════════════════════════════════════════════════════
+# Chamados no startup/shutdown do FastAPI.
+
+
+async def init_db() -> None:
+    """
+    Cria todas as tabelas definidas nos models.
+
+    ⚠️ Só use em desenvolvimento. Em produção, use Alembic:
+        alembic upgrade head
+    """
+    # Importa todos os models para que o `Base.metadata` os conheça
+    from app.models import models  # noqa: F401
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+async def close_db() -> None:
+    """Fecha a engine e libera o pool de conexões."""
+    await engine.dispose()
