@@ -1,85 +1,162 @@
-"""
-================================================================================
-PROJETO: EcoChatBotMarcx - Omnichannel SaaS
-MÓDULO: usuario_repository.py
-AUTOR: Aldemir Queiroz
-CONTATO: [Inserir E-mail] | [Inserir LinkedIn] | [Inserir GitHub]
-DATA: 2024-05-20
-================================================================================
-PROPÓSITO:
-Centralizar o acesso a dados da entidade `Usuario`, aplicando rigorosamente 
-o isolamento multi-tenant (filtro por `cliente_id`). Contém a lógica de 
-negócio complexa para paginação, filtros avançados (nível, status, busca textual) 
-e soft-delete, adaptada para o paradigma assíncrono do SQLAlchemy 2.0.
+# ==============================================================================
+# ARQUIVO.....: app/repositories/usuario_repository.py
+# AUTOR.......: Aldemir Queiroz
+# EMAIL.......: queiroz@almarcx.com.br
+# PROJETO.....: EcoChatBotMarcx - Sistema Multi-Tenant de Atendimento
+# MÓDULO......: Repository do Objeto Usuario (Unit of Work)
+# VERSÃO......: 3.0.0
+# CRIADO EM...: 2024-01-15
+# ATUALIZADO..: 2026-09-19
+# LINGUAGEM...: Python 3.12+
+# FRAMEWORK...: SQLAlchemy 2.0
+# ==============================================================================
+# DESCRIÇÃO...:
+# Camada de acesso a dados especializada em Usuario. Implementa o padrão
+# Unit of Work: métodos de escrita fazem apenas flush() — o commit() é
+# responsabilidade do Service, garantindo atomicidade em operações
+# compostas (ex.: criar usuário + vincular conexões).
+#
+# FUNCIONALIDADES:
+# 1. Query base com filtro automático de tenant (_base)
+# 2. Eager loading de relacionamentos com selectinload (evita N+1)
+# 3. Busca por email dentro do tenant
+# 4. Busca por login (usuario) dentro do tenant
+# 5. Listagem paginada com filtros dinâmicos
+# 6. Métodos add/delete que fazem flush sem commit
+#
+# REGRAS DE NEGÓCIO:
+# - Toda query é filtrada por empresa_id (isolamento multi-tenant)
+# - Nenhum método faz commit — controle transacional é do Service
+#
+# DEPENDÊNCIAS:
+# - app.models.usuario.Usuario
+# - sqlalchemy.orm.Session
+#
+# USADO POR:
+# - app.services.usuario_service.UsuarioService
+# ==============================================================================
 
-ARQUITETURA E INTEGRAÇÃO:
-Esta classe herda de `BaseRepository[Usuario]`. 
-CONEXÃO: Ela é injetada e utilizada exclusivamente pelo `UsuarioService` (Camada de Serviço). 
-O `UsuarioService` valida as regras de negócio e chama os métodos deste repositório. 
-Para o Frontend, os dados processados pelo Service são expostos via `UsuarioRouter` 
-(endpoints REST), sendo consumidos pelo componente Angular `usuarios.component.ts`.
-================================================================================
-"""
-from typing import Dict, Optional
-from sqlalchemy import select, func, or_
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Dict, List, Optional, Tuple
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Session, selectinload
+from app.models.usuario import Usuario
 
-from app.models import NivelUsuario, Usuario
-from app.repositories.base_repository import BaseRepository
 
-class UsuarioRepository(BaseRepository[Usuario]):
-    """Acesso a dados de Usuario com isolamento por cliente (tenant) e filtros avançados."""
+class UsuarioRepository:
+    """Repository de Usuario com isolamento multi-tenant."""
 
-    def __init__(self, db: AsyncSession, cliente_id: Optional[int] = None):
-        super().__init__(Usuario, db)
-        self.cliente_id = cliente_id
+    def __init__(self, db: Session, empresa_id: int) -> None:
+        self.db = db
+        self.empresa_id = empresa_id
 
-    def _base_query(self):
-        """Query base (select) já filtrada pelo tenant (cliente_id)."""
-        stmt = select(Usuario)
-        if self.cliente_id is not None:
-            stmt = stmt.where(Usuario.cliente_id == self.cliente_id)
-        return stmt
+    # --------------------------------------------------------------------------
+    # QUERY BASE
+    # --------------------------------------------------------------------------
+    def _base(self):
+        """Query base com filtro obrigatório de tenant (anti-IDOR)."""
+        return self.db.query(Usuario).filter(
+            Usuario.empresa_id == self.empresa_id
+        )
 
-    async def get_by_email(self, email: str) -> Optional[Usuario]:
-        """Obtém um usuário por email (escopo global, sem filtro de tenant)."""
-        stmt = select(Usuario).where(Usuario.email == email)
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+    # --------------------------------------------------------------------------
+    # LEITURA
+    # --------------------------------------------------------------------------
+    def get_by_id(self, usuario_id: int) -> Optional[Usuario]:
+        """Busca usuário por ID dentro do tenant."""
+        return self._base().filter(Usuario.id == usuario_id).first()
 
-    async def list_all(self, page: int = 1, limit: int = 50, filtros: Optional[Dict] = None) -> Dict:
-        """Lista usuários do tenant com paginação e filtros complexos."""
+    def get_by_id_com_relacoes(self, usuario_id: int) -> Optional[Usuario]:
+        """
+        Busca usuário por ID com todos os relacionamentos carregados
+        via selectinload (evita N+1 em serialização).
+        """
+        return (
+            self._base()
+            .filter(Usuario.id == usuario_id)
+            .options(
+                selectinload(Usuario.conexoes),
+                selectinload(Usuario.conexao_padrao),
+                selectinload(Usuario.nivel),
+                selectinload(Usuario.departamento),
+                selectinload(Usuario.canal),
+                selectinload(Usuario.turno),
+                selectinload(Usuario.empresa),
+            )
+            .first()
+        )
+
+    def get_by_email_in_tenant(self, email: str) -> Optional[Usuario]:
+        """Busca por email dentro do tenant (validação de unicidade)."""
+        return (
+            self._base()
+            .filter(func.lower(Usuario.email) == email.strip().lower())
+            .first()
+        )
+
+    def get_by_login_in_tenant(self, usuario: str) -> Optional[Usuario]:
+        """Busca por login (usuario) dentro do tenant."""
+        return (
+            self._base()
+            .filter(func.lower(Usuario.usuario) == usuario.strip().lower())
+            .first()
+        )
+
+    def listar(
+        self,
+        page: int = 1,
+        limit: int = 20,
+        filtros: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[int, List[Usuario]]:
+        """
+        Lista usuários paginados com filtros.
+        Filtros aceitos:
+            - nome: busca textual (nome, email, usuario)
+            - departamento_id: filtro exato
+            - status: 'ativo' | 'inativo' | 'pendente'
+        """
+        q = self._base()
         filtros = filtros or {}
-        stmt = self._base_query()
 
-        if filtros.get("nivel"):
-            stmt = stmt.join(NivelUsuario).where(NivelUsuario.nome == filtros["nivel"])
-        if filtros.get("nivel_lista"):
-            stmt = stmt.join(NivelUsuario).where(NivelUsuario.nome.in_(filtros["nivel_lista"]))
-        if filtros.get("status"):
-            stmt = stmt.where(Usuario.status == filtros["status"])
-        if filtros.get("ativo") is not None:
-            stmt = stmt.where(Usuario.ativo == filtros["ativo"])
-        if filtros.get("search"):
-            termo = f"%{filtros['search']}%"
-            stmt = stmt.where(or_(Usuario.nome.ilike(termo), Usuario.email.ilike(termo)))
+        if nome := filtros.get("nome"):
+            termo = f"%{nome}%"
+            q = q.filter(or_(
+                Usuario.nome.ilike(termo),
+                Usuario.email.ilike(termo),
+                Usuario.usuario.ilike(termo),
+            ))
 
-        count_stmt = select(func.count()).select_from(stmt.subquery())
-        total_result = await self.db.execute(count_stmt)
-        total = total_result.scalar_one()
+        if dep_id := filtros.get("departamento_id"):
+            q = q.filter(Usuario.departamento_id == dep_id)
 
-        stmt = stmt.order_by(Usuario.nome.asc()).offset((page - 1) * limit).limit(limit)
-        result = await self.db.execute(stmt)
-        registros = result.scalars().all()
+        if status := filtros.get("status"):
+            q = q.filter(Usuario.status == status)
 
-        return {"total": total, "page": page, "limit": limit, "data": registros}
+        total = q.count()
+        items = (
+            q.order_by(Usuario.nome)
+            .offset((page - 1) * limit)
+            .limit(limit)
+            .options(
+                selectinload(Usuario.conexoes),
+                selectinload(Usuario.nivel),
+                selectinload(Usuario.departamento),
+                selectinload(Usuario.canal),
+                selectinload(Usuario.turno),
+            )
+            .all()
+        )
+        return total, items
 
-    async def delete(self, usuario_id: int) -> bool:
-        """Soft delete: desativa o usuário do tenant (sem commit direto)."""
-        usuario = await self.get_by_id(usuario_id, self.cliente_id)
-        if not usuario:
-            return False
-        usuario.ativo = False
-        usuario.status = "inativo"
-        await self.db.flush()
-        return True
+    # --------------------------------------------------------------------------
+    # ESCRITA (sem commit — Unit of Work)
+    # --------------------------------------------------------------------------
+    def add(self, usuario: Usuario) -> Usuario:
+        """Adiciona usuário à sessão e flush (sem commit)."""
+        self.db.add(usuario)
+        self.db.flush()
+        return usuario
+
+    def delete(self, usuario: Usuario) -> None:
+        """Remove usuário da sessão e flush (sem commit)."""
+        self.db.delete(usuario)
+        self.db.flush()

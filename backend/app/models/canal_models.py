@@ -1,184 +1,122 @@
 """
-================================================================================
-MÓDULO: app/models/canal.py
-AUTOR: Aldemir Queiroz
-DATA: 2026-09-16
-VERSÃO: 2.1.0 (Integração Cross-Channel PABX/IPVoIP)
-OBJETIVO: Define o modelo de dados para canais de comunicação omnichannel.
-          Suporta múltiplos canais por tenant (WhatsApp, Telegram, Instagram,
-          Discord, VoIP, Email, etc.) com configurações específicas e 
-          rastreamento de bilhetagem (CDR) para canais de telefonia.
-PASTA: backend/app/models/
-================================================================================
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-Marcx · Canal Contratado
+Codinome: EcoChatBot-MA
+───────────────────────────────────────────────────────────────────────────
+@file     canal_contratado_models.py
+@module   Backend / App / Models / Canal Contratado
+@author   Aldemir Queiroz
+@since    2026
+@version  2.0.0
+───────────────────────────────────────────────────────────────────────────
+
+FUNCIONALIDADE
+──────────────
+Representa um ITEM DO CONTRATO da Empresa. Cada registro aqui significa:
+"esta Empresa PAGA para receber mensagens por este canal".
+
+EXEMPLO PRÁTICO
+───────────────
+    Empresa: Aldemir Ltda
+    ├── CanalContratado(tipo="whatsapp", ativo=True)   ✅
+    ├── CanalContratado(tipo="telegram", ativo=True)   ✅
+    └── (não existe registro de facebook → não aceita)
+
+    Se chegar webhook do Facebook → sistema REJEITA com 403.
+
+RELACIONAMENTO
+──────────────
+    Empresa (1) ── (N) CanalContratado
+                       │
+                       ├── (N) Conexao        (status/histórico do socket)
+                       ├── (N) Atendimento    (mensagens recebidas)
+                       └── (N) Menu           (menu específico do canal)
+
+REGRAS DE NEGÓCIO
+─────────────────
+    • Unicidade: 1 tipo por Empresa (não pode ter 2 WhatsApp na mesma empresa)
+    • `credenciais` guarda tokens/IDs em JSON (criptografar em produção)
+    • `webhook_token` valida a origem do webhook recebido
+    • Soft delete: desativar contrato NÃO apaga histórico de mensagens
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
-from typing import Optional
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text, CheckConstraint
-from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
-from app.database import Base
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, List
+
+from sqlalchemy import Boolean, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models.base import Base
+from app.models.enums import TipoCanalMensageria
+from app.models.mixins import SoftDeleteMixin, TenantMixin, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.atendimento_models import Atendimento
+    from app.models.conexao_models import Conexao
+    from app.models.empresa_models import Empresa
+    from app.models.menu_models import Menu
 
 
-class Canal(Base):
+class CanalContratado(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     """
-    Representa um canal de comunicação vinculado a um tenant (empresa).
-    
-    Cada empresa pode ter múltiplos canais de diferentes tipos:
-    - WhatsApp (via Evolution API ou Meta Cloud API)
-    - Telegram (via Bot API)
-    - Instagram (via Meta Graph API)
-    - Facebook Messenger
-    - Discord (via Bot API)
-    - VoIP/Telefonia (Integração Agnóstica com PABX/IPVoIP existente)
-    - Email (via SMTP)
+    Item do contrato: a Empresa paga para receber mensagens por este canal.
+
+    Corresponde ao "quanto de canal" a empresa contratou. Se contratou
+    apenas WhatsApp, só existe 1 registro aqui.
     """
-    __tablename__ = "canais"
 
-    # ======================================================================
-    # Colunas Principais e Identificação
-    # ======================================================================
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # Isolamento multi-tenant (obrigatório)
-    cliente_id = Column(
-        Integer, 
-        ForeignKey("clientes.id", ondelete="CASCADE"), 
-        nullable=False, 
-        index=True,
-        comment="ID da empresa/tenant proprietária deste canal"
-    )
-    
-    nome = Column(
-        String(100), 
-        nullable=False, 
-        comment="Nome amigável do canal (ex: PABX Materno, WhatsApp Vendas)"
-    )
-    descricao = Column(
-        String(300), 
-        nullable=True, 
-        comment="Descrição detalhada do canal"
-    )
-    
-    # Tipo e identificador técnico
-    tipo = Column(
-        String(30), 
-        nullable=False, 
-        comment="Tipo do canal: whatsapp, telegram, instagram, facebook, discord, voip_telefonia, email, chat_web"
-    )
-    identificador = Column(
-        String(255), 
-        nullable=False, 
-        comment="Identificador técnico: token do bot, número E.164, SIP URI, ramal, page_id, etc."
-    )
-    
-    # Configurações específicas (JSON)
-    # Para VoIP: Armazena pabx_type, api_base_url, api_user, api_secret, trunk_outbound, context_ura
-    configuracao = Column(
-        Text, 
-        nullable=True, 
-        comment="JSON com configurações específicas (WABA_ID, credenciais PABX, etc.)"
-    )
-    
-    # ======================================================================
-    # Webhook e Integração
-    # ======================================================================
-    webhook_url = Column(
-        String(500), 
-        nullable=True, 
-        comment="URL para a qual o PABX/API externa deve enviar eventos"
-    )
-    webhook_verify_token = Column(
-        String(255), 
-        nullable=True, 
-        comment="Token de segurança (X-PABX-TOKEN) para autenticação do PABX do cliente"
-    )
-    departamento_id = Column(
-        Integer, 
-        ForeignKey("departamentos.id", ondelete="SET NULL"), 
-        nullable=True,
-        comment="Departamento responsável por atender este canal"
-    )
-    
-    # ======================================================================
-    # Status e Timestamps
-    # ======================================================================
-    ativo = Column(
-        Boolean, 
-        default=True, 
-        nullable=False,
-        comment="Indica se o canal está ativo para recebimento de mensagens"
-    )
-    
-    # Status de conexão para o Dashboard (Healthcheck do PABX)
-    status_conexao = Column(
-        String(30), 
-        default="ativo", 
-        nullable=False,
-        comment="Status da conexão: ativo, inativo, pendente_configuracao, erro_conexao"
-    )
-
-    criado_em = Column(
-        DateTime, 
-        default=lambda: datetime.now(timezone.utc),
-        comment="Data e hora de criação do canal"
-    )
-    atualizado_em = Column(
-        DateTime, 
-        default=lambda: datetime.now(timezone.utc), 
-        onupdate=lambda: datetime.now(timezone.utc),
-        comment="Data e hora da última atualização"
-    )
-    ultimo_sync = Column(
-        DateTime, 
-        nullable=True,
-        comment="Data do último sync/heartbeat com a API externa ou PABX"
-    )
-
-    # ======================================================================
-    # Relacionamentos
-    # ======================================================================
-    cliente = relationship("Cliente", back_populates="canais")
-    departamento = relationship("Departamento", back_populates="canais")
-    menus = relationship("Menu", back_populates="canal", cascade="all, delete-orphan")
-    usuarios = relationship("Usuario", back_populates="canal")
-    atendimentos = relationship("Atendimento", back_populates="canal")
-    
-    # Bilhetagem e Rastreamento de Chamadas PABX (CDR)
-    chamadas_pabx = relationship(
-        "ChamadaPabx", 
-        back_populates="canal", 
-        cascade="all, delete-orphan"
-    )
-    
-    # ======================================================================
-    # Constraints e Métodos Auxiliares
-    # ======================================================================
+    __tablename__ = "canais_contratados"
     __table_args__ = (
-        CheckConstraint(
-            "tipo IN ('whatsapp', 'telegram', 'instagram', 'facebook', "
-            "'discord', 'voip_telefonia', 'email', 'chat_web')",
-            name="chk_canal_tipo_valido"
+        UniqueConstraint(
+            "empresa_id", "tipo",
+            name="uq_canais_contratados_empresa_tipo",
         ),
     )
 
-    def __repr__(self):
-        """Representação string do objeto Canal."""
-        return f"<Canal(id={self.id}, nome='{self.nome}', tipo='{self.tipo}', cliente_id={self.cliente_id})>"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    empresa_id: Mapped[int] = mapped_column(
+        ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
-    @property
-    def configuracao_json(self) -> dict:
-        """
-        Retorna a configuração como dicionário Python.
-        Essencial para ler as credenciais do PABX (trunk_outbound, context_ura, etc.)
-        """
-        import json
-        if self.configuracao:
-            try:
-                return json.loads(self.configuracao)
-            except (json.JSONDecodeError, TypeError):
-                return {}
-        return {}
+    # ─── Tipo do canal ────────────────────────────────────────────────────
+    tipo: Mapped[str] = mapped_column(
+        String(20), nullable=False, index=True
+    )   # whatsapp | telegram | instagram | facebook | pabx | discord | email
 
-    @property
-    def pode_receber_mensagens(self) -> bool:
-        """Verifica se o canal está configurado para receber mensagens/webhooks."""
-        return self.ativo and bool(self.webhook_url)
+    # ─── Identificação amigável ───────────────────────────────────────────
+    apelido: Mapped[str | None] = mapped_column(String(80))
+    # ex.: "WhatsApp Comercial", "Telegram Suporte"
+
+    # ─── Credenciais (JSON criptografado em produção) ─────────────────────
+    credenciais: Mapped[str | None] = mapped_column(Text)
+    # ex.: {"phone_id": "...", "token": "..."} para WhatsApp
+    #      {"bot_token": "..."}                  para Telegram
+
+    # ─── Webhook ──────────────────────────────────────────────────────────
+    webhook_token: Mapped[str | None] = mapped_column(String(120), index=True)
+    webhook_url: Mapped[str | None] = mapped_column(String(300))
+
+    # ─── Expediente do canal (opcional — sobrepõe o do departamento) ──────
+    horario_inicio: Mapped[str | None] = mapped_column(String(5))   # "08:00"
+    horario_fim: Mapped[str | None] = mapped_column(String(5))      # "18:00"
+    dias_semana: Mapped[str | None] = mapped_column(String(20))     # "1,2,3,4,5"
+
+    # ─── Controle ─────────────────────────────────────────────────────────
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # ─── Relacionamentos ──────────────────────────────────────────────────
+    empresa: Mapped["Empresa"] = relationship(back_populates="canais_contratados")
+    conexoes: Mapped[List["Conexao"]] = relationship(
+        back_populates="canal_contratado", cascade="all, delete-orphan"
+    )
+    menus: Mapped[List["Menu"]] = relationship(
+        back_populates="canal_contratado", cascade="all, delete-orphan"
+    )
+    atendimentos: Mapped[List["Atendimento"]] = relationship(
+        back_populates="canal_contratado"
+    )
+
+
+__all__ = ["CanalContratado"]

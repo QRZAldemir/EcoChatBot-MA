@@ -2,12 +2,12 @@ EcoChatBot-MA/
 │
 ├── .env                                🔒 Variáveis (não commitar)
 ├── .env.example                        📋 Template
-├── .gitignore                          🚫
-├── README.md                           📖
-├── package.json                        📦 Orquestrador
-├── docker-compose.yml                  🐳 APENAS AQUI (mongo + redis + postgres)
+├── .gitignore                          🚫 Ignorar arquivos
+├── README.md                           📖 Documentação Principal
+├── package.json                        📦 Orquestrador (Root)
+├── docker-compose.yml                  🐳 Orquestração (mongo + redis + postgres)
 │
-├── docs/
+├── docs/                               📚 Documentação Detalhada
 │   ├── ESTRUTURA.md
 │   ├── ARQUITETURA.md
 │   ├── API.md
@@ -15,178 +15,176 @@ EcoChatBot-MA/
 │   ├── ACESSIBILIDADE.md
 │   └── CANAIS.md
 │
-├── scripts/
+├── scripts/                            🛠️ Scripts Globais
 │   ├── setup.sh
 │   ├── dev.sh
 │   └── backup.sh
 │
-├── backend/
-│   ├── package.json                    📦 Node helpers
-│   ├── requirements.txt                🐍 Python prod
-│   ├── requirements-dev.txt            🐍 Python dev
-│   ├── main.py                         🚀 FastAPI entry
-│   ├── export_openapi.py               📤 OpenAPI
-│   ├── alembic.ini                     🐘 Migrations
+├── backend/                            🐍 Backend (Python/FastAPI)
+│   ├── package.json                    📦 Node helpers (se houver)
+│   ├── requirements.txt                📦 Dependências de Produção
+│   ├── requirements-dev.txt            📦 Dependências de Dev/Teste
+│   ├── main.py                         🚀 Entry Point FastAPI
+│   ├── export_openapi.py               📤 Exportador OpenAPI
+│   ├── alembic.ini                     🐘 Config Alembic
 │   │
-│   ├── alembic/
+│   ├── alembic/                        🐘 Migrações de Banco
 │   │   ├── env.py
 │   │   └── versions/
 │   │
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── database.py                 🐘 PostgreSQL           Implementado 25/09/2026 Ultima Versão
-│   │   ├── mongodb.py                  🍃 MongoDB              Implementado 25/09/2026 Ultima Versão
-│   │   ├── redis_client.py             ⚡ Redis                Implementado 25/09/2026 Ultima Versão
-│   │   ├── deps.py                     🔗 Dependencies         Implementado 25/09/2026 Ultima Versão
-│   │   ├── exceptions.py               🚨 Base + canal + repo  Implementado 24/05/2026 Ultima Versão
-│   │   ├── security.py                 🔐 JWT + RBAC❌ FALTA   Implementado 24/05/2026 Ultima Versão
-│   │   ├── config.py                   Implementado 24/05/2026 Ultima Versão
-│   │   │
-│   │   ├── exceptions/
-│   │   │   ├── __init__.py                 🎯 Implementado 25/09/2026 Ultima Versão
-│   │   │   └── atendimento_exceptions.py   🎯 Implementado 25/09/2026 Ultima Versao
-│   │   │   └── auth_exceptions.py          🎯 Implementado 25/09/2026 Ultima Versao.
-│   │   │   └── base_exceptions.py          🎯 Implementado 25/09/2026 Ultima Versao
-│   │   │   └── canal_exceptions.py         🎯 Implementado 16/09/2026 Ultima Versao
-│   │   │   └── ia_exceptions.py            🎯 Implementado 25/09/2026 Ultima Versao
-│   │   │   └── integracao_exceptions.py    🎯 Implementado 25/09/2026 Ultima Versao
-│   │   │   └── tenant_exceptions.py        🎯 Implementado 25/09/2026 Ultima Versao
-│   │   │   └── usuario_exceptions.py       🎯 Implementado 25/09/2026 Ultima Versao
-│   │   │   └── webhook_exceptions.py       🎯 Implementado 25/09/2026 Ultima Versao
-│   │   │
-│   │   ├── models/
-│   │   │   ├── __init__.py             🎯 APENAS imports  esta implementado❌ FALTA
-│   │   │   ├── cliente_models.py       🏢 Cliente (tenant) Não implmentado❌ FALTA
-│   │   │   ├── usuario_models.py       👤 Usuario + NivelUsuario não implmentado❌ FALTA
-│   │   │   ├── departamento_models.py  🏛️ Departamento falta implementar o script❌ FALTA
-│   │   │   ├── canal_models.py         📡 Canal implementado OK
-│   │   │   ├── atendimento_models.py   🎧 Atendimento implementado OK
-│   │   │   ├── atendimento_context_models.py  📝 Context Implementado OK
-│   │   │   ├── menu_models.py          🍔 Menu + MenuOpcao ❌ FALTANão Implementado 
-│   │   │   ├── models.py               ❌ FALTAfalta implementar models.py  esse arquivo esta implementado e trata-se de  Define as tabelas e relacionamentos do banco de dados utilizando o ORM  SQLAlchemy. Este arquivo atua como a "fonte da verdade" para a estrutura  de dados da aplicação, garantindo integridade referencial através de     Foreign Keys e facilitando as consultas via objetos Python.nao conssegui entender para que serve refaça e com base da analise sugerir um nome
-│   │   │   ├── modelo_mensagem_models.py  📝 Template falta implementar❌ FALTA
-│   │   │   ├── conexao_models.py       🔌 WABA  Falta implementar.❌ FALTA
-│   │   │   ├── contato_models.py       📇 Contato falta implementar❌ FALTA
-│   │   │   ├── email_models.py         📧 Email falta implementar.❌ FALTA
-│   │   │   ├── campanha_models.py      📢 Campanha falta implementar❌ FALTA
-│   │   │   ├── arquivo_models.py       📎 Arquivo fala implementar❌ FALTA
-│   │   │   ├── pedido_models.py        🛒 Pedido falta implementar❌ FALTA
-│   │   │   ├── token_revogado_models.py 🚫 JWT Blacklist  aqui falta implementar.❌ FALTA
-│   │   │   ├── empresa_models.py       🏢 Empresa (SaaS) aqui uma atenção falta implementar e nesse objeto que vai diferencia os clientes seus usuarios e modelo de negocio falta implementar
-│   │   │   ├── instancia_chatbot_models.py  🤖 Evolution API aqui tambem falta atualizar.. ❌ FALTA
-│   │   │   └── chamada_pabx_models.py  ☎️ CDR PABX falta implementar ❌ FALTA
-│   │   │
-│   │   ├── schemas/
-│   │   │   ├── __init__.py            🎯implementado mas revisar
-│   │   │   ├── auth_schemas.py        🎯implementado
-│   │   │   ├── atendimento_schemas.py 🎯implementado mas revisar
-│   │   │   ├── canal_schemas.py       🎯implementado mas revisar
-│   │   │   ├── usuario_schemas.py     🎯implementado mas revisar
-│   │   │   └── ...
-│   │   │
-│   │   ├── repositories/
-│   │   │   ├── __init__.py
-│   │   │   ├── base_repository.py
-│   │   │   ├── usuario_repository.py         🎯implementado mas revisar  
-│   │   │   ├── canal_repository.py           ❌ FALTA
-│   │   │   ├── atendimento_repository.py     ❌ FALTA
-│   │   │   ├── departamento_repository.py    ❌ FALTA
-│   │   │   └── chamada_repository.py         🎯implementado mas revisar
-│   │   │
-│   │   ├── services/
-│   │   │   ├── __init__.py                 🎯implementado mas revisar
-│   │   │   ├── auth_service.py             🔐 JWT 🎯implementado mas revisar Centraliza toda a lógica de segurança, autenticação e manipulação de tokens     JWT (JSON Web Tokens)
-│   │   │   ├── usuario_service.py          ❌ FALTA
-│   │   │   ├── departamento_service.py     🎯implementado.Mas revisar
-│   │   │   ├── canal_service.py            🎯implementado.Mas revisar   
-│   │   │   ├── atendimento_service.py      🎯implementado.Mas revisar
-│   │   │   ├── menu_service.py             🎯implementado.Mas revisar
-│   │   │   ├── modelo_mensagem_service.py  🎯implementado.Mas revisar 
-│   │   │   ├── contato_service.py          🎯implementado.Mas revisar
-│   │   │   ├── campanha_service.py         🎯implementado.Mas revisar
-│   │   │   ├── email_service.py            🎯implementado.Mas revisar
-│   │   │   ├── audio_service.py            🎯implementado.Mas revisar
-│   │   │   ├── evolution_service.py        🎯implementado.Mas revisar
-│   │   │   ├── conexao_service.py          🎯implementado.Mas revisar     
-│   │   │   ├── tenant_service.py           🎯implementado.Mas revisar 
-│   │   │   ├── deepseek_service.py         ❌ FALTA
-│   │   │   ├── pabx_service.py             🎯implementado.Mas revisar
-│   │   │   ├── aps_service.py              🎯implementado.Mas revisar
-│   │   │   ├── webhook_service.py          🎯implementado.Mas revisar mas nao tinha nessa arvore
-│   │   │   ├── bot_service.py              🎯implementado.Mas revisar mas nao tinha nessa arvore
-│   │   │   ├── arquivo_service.py          🎯implementado.Mas revisar mas nao tinha nessa arvore
-│   │   │   │
-│   │   │   └── bot_handlers/
-│   │   │       ├── __init__.py         🎯implementado mas revisar
-│   │   │       ├── core.py             (absorve base_handler.py)🎯implementado mas revisar
-│   │   │       ├── validators.py       🎯implementado
-│   │   │       ├── utils.py            🎯implementado
-│   │   │       ├── privacy.py            🎯implementado
-│   │   │       ├── evolution_client.py 🎯implementado
-│   │   │       ├── atendimento_handler.py  🎯implementado
-│   │   │       ├── agendamento_handler.py   🎯implementado
-│   │   │       ├── pedidos_handler.py    🎯implementado
-│   │   │       ├── dynamic_flow.py   🎯implementado
-│   │   │       ├── tenant_handler.py 🎯implementado
-│   │   │       ├── handler_factory.py  🎯implementado
-│   │   │       └── bot_machine.py    🎯implementado
-│   │   │
-│   │   ├── routers/
-│   │   │   ├── __init__.py    🎯implementado mas revisar
-│   │   │   ├── auth_routers.py  🎯implementado mas revisar
-│   │   │   ├── usuario_routers.py  🎯implementado mas revisar
-│   │   │   ├── departamentos_routers.py 🎯implementado mas revisar
-│   │   │   ├── canais_routers.py 🎯implementado mas revisar
-│   │   │   ├── atendimento_routers.py  🎯implementado mas revisar
-│   │   │   ├── menus_routers.py    🎯implementado mas revisar
-│   │   │   ├── modelos_mensagem_routers.py  🎯implementado mas revisar
-│   │   │   ├── contatos_routers.py   🎯implementado mas revisar
-│   │   │   ├── campanhas_routers.py  🎯implementado mas revisar
-│   │   │   ├── emails_routers.py     🎯implementado mas revisar
-│   │   │   ├── conexoes_routers.py    🎯implementado mas revisar
-│   │   │   ├── empresas_routers.py   🎯implementado mas revisar
-│   │   │   ├── dashboard_routers.py  🎯implementado mas revisar
-│   │   │   ├── ias_routers.py  🎯implementado mas revisar
-│   │   │   ├── mensagens_routers.py 🎯implementado mas revisar
-│   │   │   ├── audio_routers.py   🎯implementado mas revisar
-│   │   │   ├── webhook_routers.py  🎯implementado mas revisar
-│   │   │   └── tenant/
-│   │   │       ├── __init__.py 🎯implementado mas revisar
-│   │   │       ├── atendimentos.py 🎯implementado mas revisar
-│   │   │       └── usuario.py🎯implementado mas revisar
-│   │   │
-│   │   ├── jobs/                       ⏰ Celery (backup MongoDB→PG)   ❌ FALTA  gerar script implementar
-│   │   │   ├── __init__.py  ❌ FALTA  gerar script implementar
-│   │   │   ├── backup.py  ❌ FALTA  gerar script implementar
-│   │   │   └── celery_app.py   ❌ FALTA  gerar script implementar
-│   │   │
-│   │   ├── integrations/ 🔌 Canais   
-│   │   │   ├── __init__.py           🎯implementado
-│   │   │   ├── base.py               🎯implementado mas revisar
-│   │   │   ├── whatsapp_integration.py  🎯implementado
-│   │   │   ├── telegram_integration.py 🎯implementado
-│   │   │   ├── discord_integration.py 🎯implementado
-│   │   │   ├── instagram_integration.py 🎯implementado
-│   │   │   ├── facebook_integration.py 🎯implementado
-│   │   │   ├── microsip_integration.py 🎯implementado
-│   │   │   ├── ocr_integration.py 🎯implementado
-│   │   │   └── tts_integration.py 🎯implementado
-│   │   │
-│   │   └── tests/
-│   │       ├── __init__.py❌ FALTA
-│   │       ├── conftest.py❌ FALTA
-│   │       ├── test_atendimento_router.py❌ FALTA
-│   │       ├── test_atendimento_service.py❌ FALTA
-│   │       ├── test_base_repository.py  ❌ FALTA     
-│   │       ├── test_indicadores.py❌ FALTA
-│   │       └── test_repositories_subclasses.py ❌ FALTA
-│   │
-│   └── scripts/
-│       ├── ping-mongo.js❌ FALTA  gerar script implementar
-│       ├── ping-redis.js❌ FALTA  gerar script implementar
-│       └── ping-postgres.js ❌ FALTA  gerar script implementar
+│   └── app/                            📦 Pacote Principal da Aplicação
+│       ├── __init__.py
+│       ├── config.py                   ⚙️ Configurações (Pydantic Settings)
+│       ├── database.py                 🐘 Engine, Session e Base (SQLAlchemy)
+│       ├── mongodb.py                  🍃 Conexão MongoDB
+│       ├── redis_client.py             ⚡ Conexão Redis
+│       ├── deps.py                     🔗 Injeção de Dependências FastAPI
+│       ├── security.py                 🔐 JWT + Hashing + RBAC
+│       │
+│       ├── exceptions/                 🚨 Tratamento de Erros (Consolidado)
+│       │   ├── __init__.py
+│       │   ├── base_exceptions.py
+│       │   ├── auth_exceptions.py
+│       │   ├── canal_exceptions.py
+│       │   ├── ia_exceptions.py
+│       │   ├── integracao_exceptions.py
+│       │   ├── tenant_exceptions.py
+│       │   ├── usuario_exceptions.py
+│       │   ├── webhook_exceptions.py
+│       │   └── atendimento_exceptions.py
+│       │
+│       ├── models/                     🗄️ Camada de Domínio (ORM)
+│       │   ├── __init__.py             🎯 Exporta modelos
+│       │   ├── enums.py                🆕 Enumerações (Status, Perfis, Tipos)
+│       │   ├── mixins.py               🆕 Classes base (Timestamps, SoftDelete)
+│       │   │
+│       │   ├── empresa_models.py       🏢 Empresa, Usuario, InstanciaChatbot
+│       │   ├── cliente_models.py       🏢 Cliente (Tenant)
+│       │   ├── contato_models.py       📇 Contatos
+│       │   ├── departamento_models.py  🏛️ Departamentos
+│       │   │
+│       │   ├── atendimento_models.py   🎧 Atendimentos
+│       │   ├── atendimento_context_models.py 📝 Contexto/Variáveis do Bot
+│       │   ├── chamada_pabx_models.py  📞 Registro de Chamadas
+│       │   ├── canal_models.py         📡 Canais (WhatsApp, Telegram, etc)
+│       │   ├── conexao_models.py       🔗 Status de Conexões
+│       │   │
+│       │   ├── instancia_chatbot_models.py 🤖 Configurações de Bot
+│       │   ├── menu_models.py          🍔 Menus e Fluxos
+│       │   ├── modelo_mensagem_models.py 📝 Templates de Mensagem
+│       │   │
+│       │   ├── campanha_models.py      📢 Campanhas de Marketing
+│       │   ├── pedido_models.py        🛒 Pedidos/E-commerce
+│       │   ├── email_models.py         📧 Templates e Logs de E-mail
+│       │   └── token_revogado_models.py 🚫 Blacklist de JWT
+│       │
+│       ├── schemas/                    📐 Validação (Pydantic)
+│       │   ├── __init__.py             ⚠️ Revisar
+│       │   ├── auth_schemas.py         ✅ Implementado
+│       │   ├── atendimento_schemas.py  ⚠️ Revisar
+│       │   ├── canal_schemas.py        ⚠️ Revisar
+│       │   ├── usuario_schemas.py      ⚠️ Revisar
+│       │   └── ...                     ❌ Faltam schemas para Contato, Campanha, etc.
+│       │
+│       ├── repositories/               💾 Acesso a Dados (DAL)
+│       │   ├── __init__.py
+│       │   ├── base_repository.py      ✅ Implementado
+│       │   ├── usuario_repository.py   ⚠️ Revisar
+│       │   ├── chamada_repository.py   ⚠️ Revisar
+│       │   ├── canal_repository.py     ❌ FALTA
+│       │   ├── atendimento_repository.py ❌ FALTA
+│       │   ├── departamento_repository.py ❌ FALTA
+│       │   └── ...                     ❌ Faltam repos para as outras entidades
+│       │
+│       ├── services/                   💼 Regras de Negócio
+│       │   ├── __init__.py             ⚠️ Revisar
+│       │   ├── auth_service.py         ⚠️ Revisar
+│       │   ├── departamento_service.py ⚠️ Revisar
+│       │   ├── canal_service.py        ⚠️ Revisar
+│       │   ├── atendimento_service.py  ⚠️ Revisar
+│       │   ├── menu_service.py         ⚠️ Revisar
+│       │   ├── contato_service.py      ⚠️ Revisar
+│       │   ├── campanha_service.py     ⚠️ Revisar
+│       │   ├── email_service.py        ⚠️ Revisar
+│       │   ├── audio_service.py        ⚠️ Revisar
+│       │   ├── evolution_service.py    ⚠️ Revisar
+│       │   ├── conexao_service.py      ⚠️ Revisar
+│       │   ├── tenant_service.py       ⚠️ Revisar
+│       │   ├── pabx_service.py         ⚠️ Revisar
+│       │   ├── aps_service.py          ⚠️ Revisar
+│       │   ├── webhook_service.py      ⚠️ Revisar
+│       │   ├── bot_service.py          ⚠️ Revisar
+│       │   ├── arquivo_service.py      ⚠️ Revisar
+│       │   ├── modelo_mensagem_service.py ⚠️ Revisar
+│       │   ├── usuario_service.py      ❌ FALTA
+│       │   ├── deepseek_service.py     ❌ FALTA
+│       │   │
+│       │   └── bot_handlers/           🤖 Lógica de Fluxo do Bot
+│       │       ├── __init__.py         ⚠️ Revisar
+│       │       ├── core.py             ⚠️ Revisar (absorve base_handler.py)
+│       │       ├── validators.py       ✅ Implementado
+│       │       ├── utils.py            ✅ Implementado
+│       │       ├── privacy.py          ✅ Implementado
+│       │       ├── evolution_client.py ✅ Implementado
+│       │       ├── atendimento_handler.py ✅ Implementado
+│       │       ├── agendamento_handler.py ✅ Implementado
+│       │       ├── pedidos_handler.py  ✅ Implementado
+│       │       ├── dynamic_flow.py     ✅ Implementado
+│       │       ├── tenant_handler.py   ✅ Implementado
+│       │       ├── handler_factory.py  ✅ Implementado
+│       │       └── bot_machine.py      ✅ Implementado
+│       │
+│       ├── routers/                    🌐 Endpoints (API)
+│       │   ├── __init__.py             ⚠️ Revisar
+│       │   ├── auth_router.py          ⚠️ Revisar (Padronizado p/ singular)
+│       │   ├── usuario_router.py       ⚠️ Revisar
+│       │   ├── departamento_router.py  ⚠️ Revisar
+│       │   ├── canal_router.py         ⚠️ Revisar
+│       │   ├── atendimento_router.py   ⚠️ Revisar
+│       │   ├── menu_router.py          ⚠️ Revisar
+│       │   ├── contato_router.py       ⚠️ Revisar
+│       │   ├── campanha_router.py      ⚠️ Revisar
+│       │   ├── email_router.py         ⚠️ Revisar
+│       │   ├── conexao_router.py       ⚠️ Revisar
+│       │   ├── empresa_router.py       ⚠️ Revisar
+│       │   ├── dashboard_router.py     ⚠️ Revisar
+│       │   ├── ia_router.py            ⚠️ Revisar
+│       │   ├── mensagem_router.py      ⚠️ Revisar
+│       │   ├── audio_router.py         ⚠️ Revisar
+│       │   ├── webhook_router.py       ⚠️ Revisar
+│       │   │
+│       │   └── tenant/                 🏢 Rotas específicas por Tenant
+│       │       ├── __init__.py         ⚠️ Revisar
+│       │       ├── atendimentos.py     ⚠️ Revisar
+│       │       └── usuario.py          ⚠️ Revisar
+│       │
+│       ├── jobs/                       ⏰ Tarefas Assíncronas (Celery)
+│       │   ├── __init__.py             ❌ FALTA
+│       │   ├── celery_app.py           ❌ FALTA
+│       │   └── backup.py               ❌ FALTA (Backup MongoDB→PG)
+│       │
+│       ├── integrations/               🔌 APIs Externas e Canais
+│       │   ├── __init__.py             ✅ Implementado
+│       │   ├── base.py                 ⚠️ Revisar
+│       │   ├── whatsapp_integration.py ✅ Implementado
+│       │   ├── telegram_integration.py ✅ Implementado
+│       │   ├── discord_integration.py  ✅ Implementado
+│       │   ├── instagram_integration.py ✅ Implementado
+│       │   ├── facebook_integration.py ✅ Implementado
+│       │   ├── microsip_integration.py ✅ Implementado
+│       │   ├── ocr_integration.py      ✅ Implementado
+│       │   └── tts_integration.py      ✅ Implementado
+│       │
+│       └── tests/                      🧪 Testes Automatizados
+│           ├── __init__.py             ❌ FALTA
+│           ├── conftest.py             ❌ FALTA (Fixtures)
+│           ├── test_atendimento_router.py ❌ FALTA
+│           ├── test_atendimento_service.py ❌ FALTA
+│           ├── test_base_repository.py ❌ FALTA
+│           ├── test_indicadores.py     ❌ FALTA
+│           └── test_repositories_subclasses.py ❌ FALTA
 │
-└── frontend/
+└── frontend/                           🅰️ Frontend (Angular)
     ├── package.json
     ├── angular.json
     ├── tsconfig.json
