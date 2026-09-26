@@ -4,14 +4,13 @@ Escopo de tenant: todo menu é filtrado por `empresa_id`, derivado do token do
 usuário via `get_current_empresa`. Sem isso, um tenant que adivinhasse um
 `menu_id` conseguiria ler, alterar e apagar o menu de outro.
 
-ATENÇÃO — defeito conhecido, ainda não corrigido: as rotas e o
-`menu_service` usam a API síncrona (`db: Session`, `db.query`) enquanto
-`get_db` entrega `AsyncSession`. Importam sem erro e falham em tempo de
-execução. Conversão para async está na fila, junto com os demais serviços.
+Convertido para async (frente C): as 8 rotas e o `menu_service` agora usam
+`AsyncSession` e `await`. Antes importavam sem erro e falhavam em tempo de
+execução, porque `get_db` já entregava `AsyncSession`.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from app.database import get_db
 from app.deps import get_current_empresa
@@ -29,13 +28,13 @@ router = APIRouter()
 # ── Menus ────────────────────────────────────────────────────
 
 @router.get("/", response_model=List[MenuResponse])
-def listar_menus(
+async def listar_menus(
     canal_contratado_id: Optional[int] = Query(None),
     apenas_ativos: bool = Query(False),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa),
 ):
-    return MenuService.listar_menus(
+    return await MenuService.listar_menus(
         db,
         empresa_id=empresa.id,
         canal_contratado_id=canal_contratado_id,
@@ -44,34 +43,34 @@ def listar_menus(
 
 
 @router.get("/{menu_id}", response_model=MenuResponse)
-def buscar_menu(
+async def buscar_menu(
     menu_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa),
 ):
-    menu = MenuService.buscar_por_id(db, empresa_id=empresa.id, menu_id=menu_id)
+    menu = await MenuService.buscar_por_id(db, empresa_id=empresa.id, menu_id=menu_id)
     if not menu:
         raise HTTPException(status_code=404, detail="Menu não encontrado")
     return menu
 
 
 @router.post("/", response_model=MenuResponse, status_code=201, dependencies=[Depends(exigir_nivel_minimo("gerente"))])
-def criar_menu(
+async def criar_menu(
     menu: MenuCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa),
 ):
-    return MenuService.criar_menu(db, empresa_id=empresa.id, menu=menu)
+    return await MenuService.criar_menu(db, empresa_id=empresa.id, menu=menu)
 
 
 @router.put("/{menu_id}", response_model=MenuResponse, dependencies=[Depends(exigir_nivel_minimo("gerente"))])
-def atualizar_menu(
+async def atualizar_menu(
     menu_id: int,
     menu: MenuUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa),
 ):
-    atualizado = MenuService.atualizar_menu(
+    atualizado = await MenuService.atualizar_menu(
         db, empresa_id=empresa.id, menu_id=menu_id, menu=menu
     )
     if not atualizado:
@@ -80,25 +79,25 @@ def atualizar_menu(
 
 
 @router.delete("/{menu_id}", status_code=204, dependencies=[Depends(exigir_nivel("administrador"))])
-def deletar_menu(
+async def deletar_menu(
     menu_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa),
 ):
-    if not MenuService.deletar_menu(db, empresa_id=empresa.id, menu_id=menu_id):
+    if not await MenuService.deletar_menu(db, empresa_id=empresa.id, menu_id=menu_id):
         raise HTTPException(status_code=404, detail="Menu não encontrado")
 
 
 # ── Itens do menu ────────────────────────────────────────────
 
 @router.post("/{menu_id}/itens", response_model=MenuItemResponse, status_code=201, dependencies=[Depends(exigir_nivel_minimo("gerente"))])
-def adicionar_item(
+async def adicionar_item(
     menu_id: int,
     item: MenuItemCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa),
 ):
-    criado = MenuService.adicionar_item(
+    criado = await MenuService.adicionar_item(
         db, empresa_id=empresa.id, menu_id=menu_id, item=item
     )
     if not criado:
@@ -107,13 +106,13 @@ def adicionar_item(
 
 
 @router.put("/itens/{item_id}", response_model=MenuItemResponse, dependencies=[Depends(exigir_nivel_minimo("gerente"))])
-def atualizar_item(
+async def atualizar_item(
     item_id: int,
     item: MenuItemUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa),
 ):
-    atualizado = MenuService.atualizar_item(
+    atualizado = await MenuService.atualizar_item(
         db, empresa_id=empresa.id, item_id=item_id, item=item
     )
     if not atualizado:
@@ -122,10 +121,10 @@ def atualizar_item(
 
 
 @router.delete("/itens/{item_id}", status_code=204, dependencies=[Depends(exigir_nivel("administrador"))])
-def deletar_item(
+async def deletar_item(
     item_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa),
 ):
-    if not MenuService.deletar_item(db, empresa_id=empresa.id, item_id=item_id):
+    if not await MenuService.deletar_item(db, empresa_id=empresa.id, item_id=item_id):
         raise HTTPException(status_code=404, detail="Item não encontrado")

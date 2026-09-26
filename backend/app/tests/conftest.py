@@ -257,3 +257,30 @@ def pytest_report_header(config):
         f"sao executados: {', '.join(arquivos)}\n"
         f"         Testam modulos ainda sincronos (frente C). Ver _quarentena/README.md"
     )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DEPARTAMENTO
+# ══════════════════════════════════════════════════════════════════════════════
+
+@pytest_asyncio.fixture
+async def departamento(db_session: AsyncSession, empresa: Empresa):
+    """`MenuItem.departamento_id` é obrigatório e ON DELETE RESTRICT."""
+    from app.models import Departamento
+
+    d = Departamento(nome="Financeiro", empresa_id=empresa.id, ativo=True)
+    db_session.add(d)
+    await db_session.commit()
+    await db_session.refresh(d)
+    return d
+
+
+@pytest_asyncio.fixture
+async def departamento_outra_empresa(db_session: AsyncSession, outra_empresa: Empresa):
+    from app.models import Departamento
+
+    d = Departamento(nome="Juridico", empresa_id=outra_empresa.id, ativo=True)
+    db_session.add(d)
+    await db_session.commit()
+    await db_session.refresh(d)
+    return d
