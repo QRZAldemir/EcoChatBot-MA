@@ -39,6 +39,8 @@ from fastapi import HTTPException, status
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
+from app.config import settings
+
 # Carrega variáveis de ambiente
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -50,11 +52,24 @@ logger = logging.getLogger(__name__)
 # SECRET_KEY: Chave secreta usada para assinar o token. 
 # CRÍTICO: Em produção, esta chave DEVE ser uma string longa, aleatória e 
 # gerada criptograficamente (ex: openssl rand -hex 32). Nunca use "segredo123".
-SECRET_KEY = os.getenv("SECRET_KEY", "")
+# Fonte única de verdade: app.config.Settings (alias JWT_SECRET no .env da raiz).
+# A validação de força fica em Settings.check_secret_key_strength, que só aborta
+# em produção. Aqui resta apenas o corte de chave vazia/vazia-padrão.
+SECRET_KEY = settings.secret_key
 if not SECRET_KEY or SECRET_KEY == "changeme":
     raise RuntimeError(
-        "ERRO CRÍTICO DE SEGURANÇA: SECRET_KEY não definida ou é o valor padrão. "
-        "Gere uma chave segura e defina-a no arquivo .env antes de iniciar a aplicação."
+        "ERRO CRÍTICO DE SEGURANÇA: JWT_SECRET não definida ou é o valor padrão. "
+        "Gere uma chave segura (ex: openssl rand -hex 32) e defina-a no .env "
+        "antes de iniciar a aplicação."
+    )
+
+# Aviso explícito: o .env de desenvolvimento ainda traz a chave de exemplo.
+# Não bloqueia o ambiente de desenvolvimento, mas é obrigatório rotacionar
+# antes de qualquer deploy.
+CHAVES_DE_EXEMPLO = {"troque-por-uma-chave-secreta-de-64-caracteres"}
+if SECRET_KEY in CHAVES_DE_EXEMPLO:
+    logger.warning(
+        "JWT_SECRET em modo de exemplo: rotacione a chave antes de qualquer deploy."
     )
 
 # ALGORITHM: Algoritmo de assinatura. HS256 (HMAC com SHA-256) é simétrico e 

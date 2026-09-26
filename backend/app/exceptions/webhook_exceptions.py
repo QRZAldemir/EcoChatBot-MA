@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Webhook Exceptions
+EcoChatBot-MA · Webhook Exceptions
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     webhook_exceptions.py
@@ -12,7 +12,7 @@ Codinome: EcoChatBot-MA
 
 FUNCIONALIDADE
 ──────────────
-Define as exceções específicas do DOMÍNIO "WEBHOOK" do EcoChatBot-Marcx.
+Define as exceções específicas do DOMÍNIO "WEBHOOK" do EcoChatBot-MA.
 
 Um "webhook" é um endpoint HTTP que RECEBE notificações em tempo real
 de plataformas externas (WhatsApp, Telegram, Discord, etc.). É o

@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · FastAPI Dependencies
+EcoChatBot-MA · FastAPI Dependencies
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     deps.py

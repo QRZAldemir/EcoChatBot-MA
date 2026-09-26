@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# EcoChatBot-Marcx — Dependências Python (PRODUÇÃO)
+# EcoChatBot-MA — Dependências Python (PRODUÇÃO)
 # Codinome: EcoChatBot-MA
 # Autor: Aldemir Queiroz
 # ─────────────────────────────────────────────────────────────────────────────

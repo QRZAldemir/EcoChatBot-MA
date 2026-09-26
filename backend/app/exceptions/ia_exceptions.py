@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · IA Exceptions
+EcoChatBot-MA · IA Exceptions
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     ia_exceptions.py
@@ -13,11 +13,11 @@ Codinome: EcoChatBot-MA
 FUNCIONALIDADE
 ──────────────
 Define as exceções específicas do DOMÍNIO "IA" (Inteligência Artificial)
-e "ACESSIBILIDADE" (OCR + TTS) do EcoChatBot-Marcx.
+e "ACESSIBILIDADE" (OCR + TTS) do EcoChatBot-MA.
 
 DOMÍNIO "IA"
 ────────────
-A IA do EcoChatBot-Marcx usa:
+A IA do EcoChatBot-MA usa:
     • DeepSeek     → LLM (conversas)
     • OCR          → Tesseract (imagem → texto) — acessibilidade
     • TTS          → gTTS / Edge-TTS (texto → voz) — acessibilidade

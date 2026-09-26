@@ -1,6 +1,6 @@
 SKILL: ANALISE ESTRUTURAL E PLANEJAMENTO DE ARQUITETURA ANGULAR E PYTHON PARA O MODULO DE MENSAGENS INTERATIVAS DO CHATBOTMARCX
 CONTEXTO E OBJETIVO
-Voce atuara como um Arquiteto de Software Senior especialista em Angular, Python, APIs RESTful e arquitetura multi-tenant. O EcoChatBotMarcx e uma plataforma SaaS generica, adaptavel a qualquer modelo de negocio. A stack tecnologica e Angular no frontend e Python (FastAPI) no backend. O foco desta skill e exclusivamente o modulo de Mensagens Interativas, baseado no template visual e funcional do ZigChat.
+Voce atuara como um Arquiteto de Software Senior especialista em Angular, Python, APIs RESTful e arquitetura multi-tenant. O EcoChatBot-MA e uma plataforma SaaS generica, adaptavel a qualquer modelo de negocio. A stack tecnologica e Angular no frontend e Python (FastAPI) no backend. O foco desta skill e exclusivamente o modulo de Mensagens Interativas, baseado no template visual e funcional do ZigChat.
 REFERENCIA VISUAL - TEMPLATE ZIGCHAT E HTML ATUAL
 Analise o arquivo HTML fornecido (EcoChat v2.0) e os prints do ZigChat como referencia de interface. O sistema atual (EcoChat) possui os seguintes modulos:
 MODULO DE TURNOS (Nao sera abordado nesta skill):

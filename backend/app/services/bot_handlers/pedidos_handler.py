@@ -20,7 +20,8 @@ CORREÇÕES APLICADAS (CodeRabbit):
 """
 
 from sqlalchemy.orm import Session
-from app.models import Atendimento, Mensagem, Pedido
+from app.models import Atendimento, Pedido
+from app.services.bot_handlers.mensagem_payload import MensagemPayload
 from .base_handler import DepartamentoHandler
 import json
 import logging
@@ -133,7 +134,7 @@ class PedidosHandler(DepartamentoHandler):
     # HELPER: EXTRAÇÃO DE DADOS DA MENSAGEM
     # ══════════════════════════════════════════════════════════════
     
-    def _extrair_dados_mensagem(self, mensagem: Mensagem) -> Dict[str, Any]:
+    def _extrair_dados_mensagem(self, mensagem: MensagemPayload) -> Dict[str, Any]:
         """Extrai dados REAIS da mensagem usando helper da classe base"""
         return super()._extrair_dados_mensagem(mensagem)
     
@@ -145,7 +146,7 @@ class PedidosHandler(DepartamentoHandler):
         self,
         atendimento: Atendimento,
         step: str,
-        mensagem: Mensagem,
+        mensagem: MensagemPayload,
     ) -> None:
         """
         POLIMORFISMO: Implementação específica para Pedidos

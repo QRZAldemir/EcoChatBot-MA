@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Usuário Exceptions
+EcoChatBot-MA · Usuário Exceptions
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     usuario_exceptions.py
@@ -12,7 +12,7 @@ Codinome: EcoChatBot-MA
 
 FUNCIONALIDADE
 ──────────────
-Define as exceções específicas do DOMÍNIO "USUÁRIO" do EcoChatBot-Marcx.
+Define as exceções específicas do DOMÍNIO "USUÁRIO" do EcoChatBot-MA.
 
 Todas as classes herdam de `UsuarioException`, que por sua vez herda de
 `EcoChatBotException`, garantindo:

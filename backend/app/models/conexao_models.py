@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Conexão
+EcoChatBot-MA · Conexão
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     conexao_models.py
@@ -46,18 +46,20 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 from app.models.enums import StatusConexao
-from app.models.mixins import TenantMixin, TimestampMixin
+from app.models.mixins import SoftDeleteMixin, TenantMixin, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.canal_contratado_models import CanalContratado
+    from app.models.canal_models import CanalContratado
 
 
-class Conexao(TimestampMixin, TenantMixin, Base):
+class Conexao(TimestampMixin, TenantMixin, SoftDeleteMixin, Base):
     """
     Registro de uma sessão de conexão do canal com o provedor externo.
 
-    Não herda SoftDeleteMixin: conexões antigas devem permanecer para
-    auditoria — se necessário, uma rotina de expurgo as remove fisicamente.
+    HERDA SoftDeleteMixin: conexão antiga é histórico de auditoria. Sem o
+    mixin, um `db.delete()` em qualquer serviço apagaria o rastro de quando o
+    canal caiu e voltou. O expurgo físico, se um dia existir, tem de ser uma
+    decisão explícita — não efeito colateral de uma rotina de limpeza.
     """
 
     __tablename__ = "conexoes"

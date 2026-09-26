@@ -1,6 +1,6 @@
 """
 ================================================================================
-PROJETO.......: EcoChatBotMarcx — Sistema de Atendimento Digital Configurável
+PROJETO.......: EcoChatBot-MA — Sistema de Atendimento Digital Configurável
 ARQUIVO.......: bot_handlers/bot_machine.py
 AUTOR.........: Aldemir Queiroz
 DATA..........: 08/09/2026
@@ -31,7 +31,8 @@ from typing import Optional, Dict, Any, Tuple
 
 from sqlalchemy.orm import Session
 
-from app.models import Atendimento, AtendimentoContext, Mensagem
+from app.models import Atendimento, AtendimentoContext
+from app.services.bot_handlers.mensagem_payload import MensagemPayload
 from .core import DepartamentoHandler
 from .evolution_client import EvolutionApiClient
 
@@ -162,7 +163,7 @@ class BotMaquinaEstados:
         handler = self._handlers.get(prefixo)
 
         if handler:
-            msg_obj = Mensagem(tipo=msg_type, conteudo=content)
+            msg_obj = MensagemPayload(tipo=msg_type, conteudo=content)
             await handler.processar(atendimento, estado, msg_obj)
         else:
             logger.warning("Handler não encontrado para o prefixo: %s. Retornando ao Hub.", prefixo)

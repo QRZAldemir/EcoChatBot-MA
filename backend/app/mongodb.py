@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · MongoDB Connection
+EcoChatBot-MA · MongoDB Connection
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     mongodb.py
@@ -230,3 +230,10 @@ async def close_mongodb() -> None:
         _client = None
         _database = None
         logger.info('🔌 Conexão MongoDB fechada')
+
+
+# ─── Alias de nome ────────────────────────────────────────────────────────────
+# app/deps.py e app/routers/conexoes_routers.py importam `get_mongo_db`, mas a
+# função deste módulo se chama `get_database`. É a mesma dependência: só o
+# nome divergia.
+get_mongo_db = get_database

@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Pedido
+EcoChatBot-MA · Pedido
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     pedido_models.py
@@ -44,8 +44,6 @@ from app.models.base import Base
 from app.models.enums import StatusPedido
 from app.models.mixins import SoftDeleteMixin, TenantMixin, TimestampMixin
 
-if TYPE_CHECKING:
-    from app.models.cliente_models import Cliente
 
 
 class Pedido(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
@@ -54,9 +52,6 @@ class Pedido(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     __tablename__ = "pedidos"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    empresa_id: Mapped[int] = mapped_column(
-        ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False, index=True
-    )
     atendimento_id: Mapped[int | None] = mapped_column(
         ForeignKey("atendimentos.id", ondelete="SET NULL"), index=True
     )
@@ -80,7 +75,6 @@ class Pedido(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     )
 
     # ─── Relacionamentos ──────────────────────────────────────────────────
-    cliente: Mapped["Cliente"] = relationship(back_populates="pedidos")
     itens: Mapped[List["PedidoItem"]] = relationship(
         back_populates="pedido", cascade="all, delete-orphan"
     )

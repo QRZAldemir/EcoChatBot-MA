@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Exceptions Package
+EcoChatBot-MA · Exceptions Package
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     __init__.py
@@ -13,7 +13,7 @@ Codinome: EcoChatBot-MA
 FUNCIONALIDADE
 ──────────────
 Barrel file do pacote `app.exceptions`. Centraliza os 9 domínios de
-exceções do EcoChatBot-Marcx.
+exceções do EcoChatBot-MA.
 
 ESTRUTURA DO PACOTE
 ───────────────────
@@ -44,10 +44,20 @@ from app.exceptions.base_exceptions import (
 
 # ─── 2. Canal ───────────────────────────────────────────────────────────
 from app.exceptions.canal_exceptions import (
-    CanalException, CanalNaoEncontradoException, CanalJaExisteException,
-    CanalInvalidoException, CanalDesconectadoException,
-    CanalNaoSuportadoException, CanalWebhookException,
+    CanalException, CanalConfiguracaoInvalidaError, CanalNaoEncontradoError,
+    CanalNomeDuplicadoError, CanalTipoInvalidoError, CanalWebhookError,
 )
+
+# O projeto migrou a convenção de `*Exception` para `*Error` (ver
+# app/services/canal_service.py, que é o consumidor real). Este facade ainda
+# listava os nomes antigos, que nunca foram declarados em canal_exceptions.py.
+# Os aliases abaixo mantêm o código legado funcionando sem quebrar a
+# exportação. NÃO inventamos `CanalDesconectado*` e `CanalNaoSuportado*`:
+# essas classes nunca foram escritas e seguem com funcionalidade ausente.
+CanalNaoEncontradoException = CanalNaoEncontradoError
+CanalJaExisteException = CanalNomeDuplicadoError
+CanalWebhookException = CanalWebhookError
+CanalInvalidoException = CanalTipoInvalidoError
 
 # ─── 3. Auth ────────────────────────────────────────────────────────────
 from app.exceptions.auth_exceptions import (
@@ -109,16 +119,105 @@ from app.exceptions.webhook_exceptions import (
 )
 
 # ─── Exports ────────────────────────────────────────────────────────────
+# ─── 10. Nomes usados pelo código que nunca foram declarados ─────────────
+# Estes 7 nomes são importados por app/services/canal_service.py,
+# app/services/atendimento_service.py, app/security.py e
+# app/routers/atendimentos_routers.py, mas não existiam em nenhum
+# *_exceptions.py — por isso 43 módulos não carregavam.
+#
+# NÃO foram usados alias simples: as classes existentes do mesmo domínio
+# recebem `atendimento_id`/`resource` (identificador), enquanto os call sites
+# passam uma mensagem completa. Um alias produziria mensagens como
+# "Contexto não encontrado. não encontrado". Por isso cada uma é uma
+# subclasse que aceita `message`.
+#
+# Nenhum código de status novo foi inventado: cada subclasse replica o da
+# classe equivalente que já existia (indicado no docstring).
+
+
+class NegocioException(ValidationException):
+    """Regra de negócio violada. HTTP 422 (de ValidationException)."""
+
+    def __init__(self, message='Regra de negócio violada', detail=None, fields=None):
+        super().__init__(message=message, detail=detail, fields=fields)
+        self.error_code = 'NEGOCIO_ERROR'
+
+
+class ValidacaoNegocioException(NegocioException):
+    """Validação de regra de negócio. HTTP 422 (de NegocioException)."""
+
+    def __init__(self, message='Regra de negócio inválida', detail=None, fields=None):
+        super().__init__(message=message, detail=detail, fields=fields)
+        self.error_code = 'VALIDACAO_NEGOCIO_ERROR'
+
+
+class RecursoInvalidoError(NegocioException):
+    """
+    Recurso inválido (ex.: departamento inexistente, configuração malformada).
+    HTTP 422 (de NegocioException).
+    """
+
+    def __init__(self, message='Recurso inválido', detail=None, fields=None):
+        super().__init__(message=message, detail=detail, fields=fields)
+        self.error_code = 'RECURSO_INVALIDO_ERROR'
+
+
+class RecursoNaoEncontradoException(EcoChatBotException):
+    """Recurso não encontrado. HTTP 404 (mesmo código de NotFoundException)."""
+
+    def __init__(self, message='Recurso não encontrado', detail=None):
+        super().__init__(
+            message=message,
+            status_code=404,
+            detail=detail,
+            error_code='NOT_FOUND',
+        )
+
+
+class AtendimentoFinalizadoError(AtendimentoException):
+    """
+    Atendimento já finalizado. HTTP 409 (mesmo código de
+    AtendimentoJaEncerradoException). Nome distinto porque os call sites o
+    tratam como "finalizado", não "encerrado".
+    """
+
+    def __init__(self, message='Atendimento já finalizado', detail=None):
+        super().__init__(
+            message=message,
+            status_code=409,
+            detail=detail,
+            error_code='ATENDIMENTO_FINALIZADO_ERROR',
+        )
+
+
+class AtendimentoNaoEncontradoError(AtendimentoException):
+    """Atendimento não encontrado. HTTP 404 (de AtendimentoNaoEncontradoException)."""
+
+    def __init__(self, message='Atendimento não encontrado', detail=None):
+        super().__init__(
+            message=message,
+            status_code=404,
+            detail=detail,
+            error_code='ATENDIMENTO_NAO_ENCONTRADO_ERROR',
+        )
+
+
+# Único caso em que o alias é seguro: o call site é `raise NaoAutenticadoException()`
+# sem argumentos, e UnauthorizedException já tem message padrão.
+NaoAutenticadoException = UnauthorizedException
+
+
 __all__ = [
     # Base (12)
     'EcoChatBotException', 'ValidationException', 'NotFoundException',
     'ConflictException', 'UnauthorizedException', 'ForbiddenException',
     'ServiceException', 'RepositoryException', 'DatabaseException',
     'IntegrationException', 'FileUploadException', 'EmailException',
-    # Canal (7)
-    'CanalException', 'CanalNaoEncontradoException', 'CanalJaExisteException',
-    'CanalInvalidoException', 'CanalDesconectadoException',
-    'CanalNaoSuportadoException', 'CanalWebhookException',
+    # Canal — *Error é a convenção vigente; *Exception são aliases legados
+    'CanalException', 'CanalConfiguracaoInvalidaError', 'CanalNaoEncontradoError',
+    'CanalNomeDuplicadoError', 'CanalTipoInvalidoError', 'CanalWebhookError',
+    'CanalNaoEncontradoException', 'CanalJaExisteException',
+    'CanalInvalidoException', 'CanalWebhookException',
     # Auth (12)
     'AuthException', 'CredenciaisInvalidasException', 'ContaBloqueadaException',
     'ContaInativaException', 'EmailNaoVerificadoException',
@@ -156,4 +255,8 @@ __all__ = [
     'WebhookNaoAutorizadoException', 'WebhookDuplicadoException',
     'WebhookProcessamentoException', 'WebhookTenantNaoIdentificadoException',
     'WebhookCanalNaoIdentificadoException',
+    # Nomes usados pelo código que nunca foram declarados (seção 10)
+    'NegocioException', 'ValidacaoNegocioException', 'RecursoInvalidoError',
+    'RecursoNaoEncontradoException', 'AtendimentoFinalizadoError',
+    'AtendimentoNaoEncontradoError', 'NaoAutenticadoException',
 ]

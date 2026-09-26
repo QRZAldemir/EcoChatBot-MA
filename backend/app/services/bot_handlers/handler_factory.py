@@ -22,10 +22,10 @@ SINTAXE:
 from sqlalchemy.orm import Session
 from app.models import Atendimento
 from .base_handler import DepartamentoHandler
-from .atendimento_handler import AtendimentoHandler
-from .agendamento_handler import AgendamentoHandler
+from .atendimento import AtendimentoHandler
+from .agendamento import AgendamentoHandler
 from .pedidos_handler import PedidosHandler
-from typing import Optional, Dict, Type
+from typing import Dict, List, Optional, Type
 
 
 class HandlerFactory:

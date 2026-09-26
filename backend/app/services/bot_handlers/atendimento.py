@@ -21,7 +21,8 @@ CORREÇÕES E MELHORIAS APLICADAS:
 """
 
 from sqlalchemy.orm import Session
-from app.models import Atendimento, Mensagem, RegistroAtendimento
+from app.models import Atendimento
+from app.services.bot_handlers.mensagem_payload import MensagemPayload
 from .core import DepartamentoHandler
 from .validators import validar_campo
 from .utils import gerar_protocolo
@@ -127,7 +128,7 @@ class AtendimentoHandler(DepartamentoHandler):
     # HELPER: EXTRAÇÃO SEGURA DE DADOS DA MENSAGEM
     # ══════════════════════════════════════════════════════════════
     
-    def _extrair_dados_mensagem(self, mensagem: Mensagem) -> Dict[str, Any]:
+    def _extrair_dados_mensagem(self, mensagem: MensagemPayload) -> Dict[str, Any]:
         """
         Extrai dados da mensagem de forma segura, lidando com diferentes 
         formatos da Evolution API (texto, lista, botão).
@@ -191,7 +192,7 @@ class AtendimentoHandler(DepartamentoHandler):
     # MÉTODO PRINCIPAL: PROCESSAR MENSAGEM
     # ══════════════════════════════════════════════════════════════
     
-    async def processar(self, atendimento: Atendimento, step: str, mensagem: Mensagem) -> None:
+    async def processar(self, atendimento: Atendimento, step: str, mensagem: MensagemPayload) -> None:
         dados_msg = self._extrair_dados_mensagem(mensagem)
         msg_type = dados_msg["msg_type"]
         content = dados_msg["content"]
@@ -475,27 +476,27 @@ class AtendimentoHandler(DepartamentoHandler):
             dados = self._obter_contexto(atendimento.id, "at_dados") or {}
             await self._transferir_atendente_com_dados(atendimento, dados)
 
-    async def _salvar_no_banco(self, atendimento_id: int, empresa_id: int, submenu: str, protocolo: str, dados: Dict[str, Any]) -> Optional[RegistroAtendimento]:
-        try:
-            registro = RegistroAtendimento(
-                atendimento_id=atendimento_id,
-                empresa_id=empresa_id,
-                submenu=submenu,
-                protocolo=protocolo,
-                dados_json=json.dumps(dados, ensure_ascii=False),
-                data_criacao=datetime.utcnow(),
-                status="PENDENTE"
-            )
-            self.session.add(registro)
-            self.session.commit()
-            self.session.refresh(registro)
-            
-            logger.info("registro_salvo", extra={"registro_id": registro.id, "protocolo": protocolo, "empresa_id": empresa_id, "qtd_campos": len(dados)})
-            return registro
-        except Exception as e:
-            self.session.rollback()
-            logger.error("erro_bd_salvar_registro", extra={"atendimento_id": atendimento_id, "erro": str(e)})
-            return None
+    async def _salvar_no_banco(self, atendimento_id: int, empresa_id: int, submenu: str, protocolo: str, dados: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Gravacao do protocolo atendido em banco.
+
+        A tabela de registro de atendimento nao existe na camada moderna e nao e
+        criada aqui: o modulo de Mensagens Interativas e o registro de protocolo
+        sao o mesmo modelo (`ModeloMensagem`) e ele nao possui os campos
+        `submenu`/`dados_json` exigidos aqui. O metodo fica explicito como
+        nao-persistente para nao mascarar a ausencia de gravacao.
+        """
+        logger.warning(
+            "registro_nao_persistido",
+            extra={
+                "atendimento_id": atendimento_id,
+                "empresa_id": empresa_id,
+                "protocolo": protocolo,
+                "submenu": submenu,
+                "motivo": "sem tabela de registro de atendimento",
+            },
+        )
+        return None
 
     async def _enviar_webhook(self, dados: Dict[str, Any], protocolo: str, atendimento: Atendimento) -> None:
         """Envia os dados coletados para o sistema externo do cliente (White-Label)."""

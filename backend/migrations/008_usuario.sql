@@ -2,7 +2,7 @@
 -- ARQUIVO.....: migrations/008_usuario.sql
 -- AUTOR.......: Aldemir Queiroz
 -- EMAIL.......: queiroz@almarcx.com.br
--- PROJETO.....: EcoChatBotMarcx - Sistema Multi-Tenant de Atendimento
+-- PROJETO.....: EcoChatBot-MA - Sistema Multi-Tenant de Atendimento
 -- MÓDULO......: Migração SQL — Objeto Usuario
 -- VERSÃO......: 3.0.0
 -- CRIADO EM...: 2024-01-15

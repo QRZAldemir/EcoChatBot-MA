@@ -1,4 +1,4 @@
-# EcoChatBotMarcx — Documentação Técnica do Frontend
+# EcoChatBot-MA — Documentação Técnica do Frontend
 
 ## 📋 Índice
 
@@ -17,7 +17,7 @@
 
 ## Visão Geral
 
-O **EcoChatBotMarcx** é um sistema de atendimento digital configurável, desenvolvido com **Angular 17+** no frontend e **FastAPI (Python)** no backend.
+O **EcoChatBot-MA** é um sistema de atendimento digital configurável, desenvolvido com **Angular 17+** no frontend e **FastAPI (Python)** no backend.
 
 ### Características Principais
 
@@ -46,7 +46,7 @@ O **EcoChatBotMarcx** é um sistema de atendimento digital configurável, desenv
 
 Todos os arquivos documentados estão na pasta:
 
-# EcoChatBotMarcx — Documentação Técnica do Frontend
+# EcoChatBot-MA — Documentação Técnica do Frontend
 
 ## 📋 Índice
 
@@ -65,7 +65,7 @@ Todos os arquivos documentados estão na pasta:
 
 ## Visão Geral
 
-O **EcoChatBotMarcx** é um sistema de atendimento digital configurável, desenvolvido com **Angular 17+** no frontend e **FastAPI (Python)** no backend.
+O **EcoChatBot-MA** é um sistema de atendimento digital configurável, desenvolvido com **Angular 17+** no frontend e **FastAPI (Python)** no backend.
 
 ### Características Principais
 
@@ -506,7 +506,7 @@ export const routes: Routes = [
     path: 'login',
     loadComponent: () =>
       import('./pages/login/login.component').then(m => m.LoginComponent),
-    title: 'Login — EcoChatBotMarcx'
+    title: 'Login — EcoChatBot-MA'
   },
 
   // ADMIN — Rotas protegidas
@@ -522,98 +522,98 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/admin/dashboard/dashboard.component')
             .then(m => m.DashboardComponent),
-        title: 'Dashboard — EcoChatBotMarcx'
+        title: 'Dashboard — EcoChatBot-MA'
       },
       {
         path: 'atendimentos',
         loadComponent: () =>
           import('./pages/admin/atendimentos/atendimentos.component')
             .then(m => m.AtendimentosComponent),
-        title: 'Atendimentos — EcoChatBotMarcx'
+        title: 'Atendimentos — EcoChatBot-MA'
       },
       {
         path: 'usuarios',
         loadComponent: () =>
           import('./pages/admin/usuarios/usuarios.component')
             .then(m => m.UsuariosComponent),
-        title: 'Usuários — EcoChatBotMarcx'
+        title: 'Usuários — EcoChatBot-MA'
       },
       {
         path: 'departamentos',
         loadComponent: () =>
           import('./pages/admin/departamentos/departamentos.component')
             .then(m => m.DepartamentosComponent),
-        title: 'Departamentos — EcoChatBotMarcx'
+        title: 'Departamentos — EcoChatBot-MA'
       },
       {
         path: 'canais',
         loadComponent: () =>
           import('./pages/admin/canais/canais.component')
             .then(m => m.CanaisComponent),
-        title: 'Canais de Atendimento — EcoChatBotMarcx'
+        title: 'Canais de Atendimento — EcoChatBot-MA'
       },
       {
         path: 'conexoes',
         loadComponent: () =>
           import('./pages/admin/conexoes/conexoes.component')
             .then(m => m.ConexoesComponent),
-        title: 'Conexões — EcoChatBotMarcx'
+        title: 'Conexões — EcoChatBot-MA'
       },
       {
         path: 'contatos',
         loadComponent: () =>
           import('./pages/admin/contatos/contatos.component')
             .then(m => m.ContatosComponent),
-        title: 'Contatos — EcoChatBotMarcx'
+        title: 'Contatos — EcoChatBot-MA'
       },
       {
         path: 'email',
         loadComponent: () =>
           import('./pages/admin/email/email.component')
             .then(m => m.EmailComponent),
-        title: 'E-mail — EcoChatBotMarcx'
+        title: 'E-mail — EcoChatBot-MA'
       },
       {
         path: 'campanhas',
         loadComponent: () =>
           import('./pages/admin/campanhas/campanhas.component')
             .then(m => m.CampanhasComponent),
-        title: 'Campanhas — EcoChatBotMarcx'
+        title: 'Campanhas — EcoChatBot-MA'
       },
       {
         path: 'arquivos',
         loadComponent: () =>
           import('./pages/admin/arquivos/arquivos.component')
             .then(m => m.ArquivosComponent),
-        title: 'Arquivos — EcoChatBotMarcx'
+        title: 'Arquivos — EcoChatBot-MA'
       },
       {
         path: 'mensagens',
         loadComponent: () =>
           import('./pages/admin/mensagens/mensagens.component')
             .then(m => m.MensagensComponent),
-        title: 'Mensagens — EcoChatBotMarcx'
+        title: 'Mensagens — EcoChatBot-MA'
       },
       {
         path: 'niveis',
         loadComponent: () =>
           import('./pages/admin/niveis/niveis.component')
             .then(m => m.NiveisComponent),
-        title: 'Níveis de Usuário — EcoChatBotMarcx'
+        title: 'Níveis de Usuário — EcoChatBot-MA'
       },
       {
         path: 'escalas',
         loadComponent: () =>
           import('./pages/admin/escalas/escalas.component')
             .then(m => m.EscalasComponent),
-        title: 'Painel de Escalas — EcoChatBotMarcx'
+        title: 'Painel de Escalas — EcoChatBot-MA'
       },
       {
         path: 'relatorio',
         loadComponent: () =>
           import('./pages/admin/relatorio/relatorio.component')
             .then(m => m.RelatorioComponent),
-        title: 'Relatório — EcoChatBotMarcx'
+        title: 'Relatório — EcoChatBot-MA'
       }
     ]
   },
@@ -627,7 +627,7 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/chat/hub-menu/hub-menu.component')
             .then(m => m.HubMenuComponent),
-        title: 'Atendimento — EcoChatBotMarcx'
+        title: 'Atendimento — EcoChatBot-MA'
       },
       {
         path: ':canal',

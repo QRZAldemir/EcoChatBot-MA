@@ -1,6 +1,6 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * EcoChatBot-Marcx · Auth Barrel
+ * EcoChatBot-MA · Auth Barrel
  * Codinome: EcoChatBot-MA
  * ───────────────────────────────────────────────────────────────────────────
  * @file     index.auth.ts
@@ -13,7 +13,7 @@
  * FUNCIONALIDADE
  * ──────────────
  * Barrel file (ponto de entrada público) da camada de AUTENTICAÇÃO e
- * SESSÃO do EcoChatBot-Marcx.
+ * SESSÃO do EcoChatBot-MA.
  *
  * Centraliza os exports de:
  *   • Facade de sessão         → SessionsFacade
@@ -139,7 +139,7 @@ export { nivelGuard } from './guards/nivel.guard';
  */
 
 /**
- * Hierarquia canônica dos níveis de acesso do EcoChatBot-Marcx.
+ * Hierarquia canônica dos níveis de acesso do EcoChatBot-MA.
  *
  * Ordem (do menor para o maior):
  *   atendente (0) < supervisor (1) < gerente (2) < administrador (3)

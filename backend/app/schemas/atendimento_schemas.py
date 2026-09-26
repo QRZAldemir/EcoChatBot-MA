@@ -1,15 +1,36 @@
 """
-Schemas de Atendimento — alinhados ao modelo real em app/models/__init__.py.
+================================================================================
+MÓDULO: app/schemas/atendimento_schemas.py
+AUTOR: Aldemir Queiroz
+DATA: 2026-09-26
+VERSÃO: 2.1.0
+OBJETIVO: Define os schemas Pydantic do atendimento, do filtro de listagem e da
+          transferência entre departamentos. O tipo do canal vem de
+          TipoCanalMensageria (app/models/enums.py).
+PASTA: backend/app/schemas/
+================================================================================
 
-Enums definidos localmente para evitar dependência de módulos inexistentes.
-Campos mapeados conforme colunas reais da tabela 'atendimentos'.
+Schemas de Atendimento — alinhados aos models em app/models/.
+
+ENUNS
+─────
+O tipo do canal NÃO é redefinido aqui. A fonte da verdade é
+`TipoCanalMensageria` (app/models/enums.py), com os 9 canais do produto:
+whatsapp, telegram, discord, instagram, facebook, pabx, email, webchat, sms.
+
+Até 2026-09 este arquivo mantinha um `TipoCanal(int)` local com apenas
+WHATSAPP=1 e INTERNO=2. Isso colidia por nome com o enum oficial e apontava
+para o eixo errado: `INTERNO` não é um canal, e os demais canales não
+tinham representação. Ver `docs/ESTUDO_DE_CASO_CONTRATO_DE_CANAIS.md`.
 """
 
 from enum import Enum
 from typing import Optional, List
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.models.enums import TipoCanalMensageria
 
 
 # ============================================
@@ -23,11 +44,6 @@ class StatusAtendimento(str, Enum):
     FINALIZADO = "finalizado"
 
 
-class TipoCanal(int, Enum):
-    WHATSAPP = 1
-    INTERNO = 2
-
-
 # ============================================
 # SCHEMAS DE FILTRO
 # ============================================
@@ -36,7 +52,7 @@ class FiltroAtendimento(BaseModel):
     """Filtros para listagem de atendimentos."""
     id: Optional[int] = None
     status: Optional[StatusAtendimento] = None
-    tipo_canal: Optional[TipoCanal] = None
+    tipo_canal: Optional[TipoCanalMensageria] = None
     departamento_id: Optional[int] = None
     usuario_id: Optional[int] = None
     cliente_whatsapp: Optional[str] = None
@@ -58,7 +74,7 @@ class FiltroAtendimento(BaseModel):
 # ============================================
 
 class AtendimentoCreate(BaseModel):
-    tipo_canal: TipoCanal
+    tipo_canal: TipoCanalMensageria
     paciente_telefone: str = Field(..., min_length=10)
     paciente_nome: Optional[str] = None
     paciente_email: Optional[str] = None
@@ -89,9 +105,44 @@ class AtendimentoUpdate(BaseModel):
 
 
 class AtendimentoTransferir(BaseModel):
-    usuario_id: int
-    departamento_id: Optional[int] = None
-    canal_id: Optional[int] = None
+    """
+    Transferência de um atendimento para outro departamento.
+
+    O destino vem do MENU (MenuItem.departamento_id), nunca do canal: o canal
+    é a tecnologia de entrada, o departamento é o destino.
+
+    A empresa atendente pode redirecionar o cliente para outro departamento
+    (ex.: o cliente escolheu "Agendamento" no menu mas queria "Exames").
+    Essa ação precisa ser auditável, então `motivo` e o departamento de
+    origem fazem parte do contrato.
+
+    REGISTRO OBRIGATÓRIO
+    ---------------------
+    Toda transferência gera uma linha em `Transferencia`
+    (app/models/transferencia_models.py) com origem, destino, autor e
+    horário. Sem esse registro a operação não é concluída.
+    """
+    usuario_id: int = Field(..., description="Atendente que recebe o atendimento")
+    departamento_id: Optional[int] = Field(
+        None, description="Departamento de destino — se omitido, mantém o atual"
+    )
+    canal_id: Optional[int] = Field(
+        None, description="Canal de origem, quando a transferência ocorre por ramal"
+    )
+    departamento_origem_id: Optional[int] = Field(
+        None, description="Departamento de onde o cliente veio — para o histórico"
+    )
+    menu_item_id: Optional[int] = Field(
+        None, description="Opção de menu escolhida pelo cliente, se a origem foi o menu"
+    )
+    ramal_destino: Optional[str] = Field(
+        None, max_length=20, description="Ramal de destino em transferências VoIP"
+    )
+    motivo: Optional[str] = Field(
+        None,
+        description="Justificativa da transferência — obrigatória quando é o "
+                    "atendente que redireciona",
+    )
 
 
 class AtendimentoFinalizar(BaseModel):
@@ -106,7 +157,7 @@ class AtendimentoFinalizar(BaseModel):
 class AtendimentoResponse(BaseModel):
     id: int
     protocolo: str
-    tipo_canal: int
+    tipo_canal: TipoCanalMensageria
     nome_contato: Optional[str] = None
     telefone: str
     canal_id: Optional[int] = None
@@ -116,8 +167,7 @@ class AtendimentoResponse(BaseModel):
     criado_em: datetime
     atualizado_em: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AtendimentoDetalhado(AtendimentoResponse):

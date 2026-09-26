@@ -2,7 +2,7 @@
 # ARQUIVO.....: app/schemas/usuario_schemas.py
 # AUTOR.......: Aldemir Queiroz
 # EMAIL.......: queiroz@almarcx.com.br
-# PROJETO.....: EcoChatBotMarcx - Sistema Multi-Tenant de Atendimento
+# PROJETO.....: EcoChatBot-MA - Sistema Multi-Tenant de Atendimento
 # MÓDULO......: Schemas Pydantic v2 para Usuario
 # VERSÃO......: 3.0.0
 # CRIADO EM...: 2024-01-15
@@ -26,7 +26,7 @@
 # 7. Schemas para gestão de senha (change, reset)
 # 8. Suporte a conexões múltiplas (conexoes_ids)
 # 9. Conexão padrão opcional (conexao_padrao_id)
-# 10. Suporte a turno (turno_id)
+# 10. Vínculo N:M com canais (canais_ids) + canal principal
 #
 # REGRAS DE VALIDAÇÃO:
 # - Senha: 8-128 chars, maiúscula + número + especial, sem espaços
@@ -36,6 +36,7 @@
 # - Telefone: 10-15 dígitos
 # - Foto: máx 5 MB
 # - conexoes_ids: mínimo 1 item
+# - canal_principal_id: se informado, precisa estar em canais_ids
 #
 # DEPENDÊNCIAS:
 # - pydantic>=2.0
@@ -156,12 +157,56 @@ class ConexaoResponse(BaseModel):
 
 
 # ==============================================================================
+# SCHEMA: CanalVinculoResponse
+# ------------------------------------------------------------------------------
+# Um canal que o usuário ATENDE, visto pela tabela de junção usuarios_canais.
+# Não traz `credenciais`: são segredo do canal, não dado de atendente.
+# ==============================================================================
+class CanalVinculoResponse(BaseModel):
+    id: int
+    apelido: str
+    tipo: str
+    principal: bool
+    ativo: bool
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ==============================================================================
+# SCHEMA: VinculosCanalMixin
+# ------------------------------------------------------------------------------
+# Campos de vínculo N:M usuário <-> canal.
+#
+# ANTES: `canal_id` (um inteiro) + `turno_id` (que apontava para uma tabela
+# `turnos` que nunca existiu). Um atendente ficava preso a UM canal, o que
+# não bate com a operação real: o mesmo atendente atende em vários canais.
+#
+# AGORA: `canais_ids` (lista, gravada em usuarios_canais) + `canal_principal_id`
+# marcando o canal de entrada. O canal principal tem que estar na lista — sem
+# isso dava para "ter" um principal que não é vínculo do usuário, e o
+# roteamento de atendimento pegaria um canal errado.
+# ==============================================================================
+class VinculosCanalMixin(BaseModel):
+    canais_ids: List[int] = Field(default_factory=list)
+    canal_principal_id: Optional[int] = None
+
+    @model_validator(mode="after")
+    def _principal_pertence_a_lista(self):
+        if self.canal_principal_id is not None and self.canal_principal_id not in (
+            self.canais_ids or []
+        ):
+            raise ValueError(
+                "canal_principal_id precisa estar contido em canais_ids"
+            )
+        return self
+
+
+# ==============================================================================
 # SCHEMA: UsuarioCreate
 # ------------------------------------------------------------------------------
 # Payload para criação de usuário. empresa_id NÃO é exposto — sempre
 # extraído do JWT no backend (anti-IDOR). conexoes_ids exige mínimo 1.
 # ==============================================================================
-class UsuarioCreate(BaseModel):
+class UsuarioCreate(VinculosCanalMixin):
     nome: str = Field(..., min_length=NOME_MIN, max_length=NOME_MAX)
     usuario: str = Field(..., min_length=LOGIN_MIN, max_length=LOGIN_MAX)
     email: EmailStr
@@ -170,8 +215,6 @@ class UsuarioCreate(BaseModel):
     foto: Optional[str] = None
     nivel_id: int
     departamento_id: Optional[int] = None
-    canal_id: Optional[int] = None
-    turno_id: Optional[int] = None
     conexoes_ids: List[int] = Field(default_factory=list, min_length=1)
     conexao_padrao_id: Optional[int] = None
     ativo: bool = True
@@ -210,14 +253,12 @@ class UsuarioCreate(BaseModel):
 # ==============================================================================
 # SCHEMA: UsuarioConvidar
 # ==============================================================================
-class UsuarioConvidar(BaseModel):
+class UsuarioConvidar(VinculosCanalMixin):
     nome: str = Field(..., min_length=NOME_MIN, max_length=NOME_MAX)
     usuario: str = Field(..., min_length=LOGIN_MIN, max_length=LOGIN_MAX)
     email: EmailStr
-    nivel_id: int
+    nivel_id: Optional[int] = None
     departamento_id: Optional[int] = None
-    canal_id: Optional[int] = None
-    turno_id: Optional[int] = None
 
     @field_validator("nome")
     @classmethod
@@ -240,7 +281,7 @@ class UsuarioConvidar(BaseModel):
 # ------------------------------------------------------------------------------
 # Atualização parcial (PATCH-like). empresa_id é IMUTÁVEL.
 # ==============================================================================
-class UsuarioUpdate(BaseModel):
+class UsuarioUpdate(VinculosCanalMixin):
     nome: Optional[str] = Field(None, min_length=NOME_MIN, max_length=NOME_MAX)
     usuario: Optional[str] = Field(None, min_length=LOGIN_MIN, max_length=LOGIN_MAX)
     email: Optional[EmailStr] = None
@@ -249,9 +290,11 @@ class UsuarioUpdate(BaseModel):
     senha: Optional[str] = Field(None, min_length=SENHA_MIN, max_length=SENHA_MAX)
     nivel_id: Optional[int] = None
     departamento_id: Optional[int] = None
-    canal_id: Optional[int] = None
-    turno_id: Optional[int] = None
     ativo: Optional[bool] = None
+
+    # Em update os dois campos são parciais: ausente = não mexer.
+    canais_ids: Optional[List[int]] = None
+    canal_principal_id: Optional[int] = None
     conexoes_ids: Optional[List[int]] = None
     conexao_padrao_id: Optional[int] = None
 
@@ -351,12 +394,9 @@ class UsuarioResponse(BaseModel):
     nivel_nome: Optional[str] = None
     departamento_id: Optional[int] = None
     departamento_nome: Optional[str] = None
-    canal_id: Optional[int] = None
-    canal_nome: Optional[str] = None
-    turno_id: Optional[int] = None
-    turno_nome: Optional[str] = None
     ativo: bool
     status: str
+    canais: List[CanalVinculoResponse] = Field(default_factory=list)
     conexoes: List[ConexaoResponse] = Field(default_factory=list)
     conexao_padrao_id: Optional[int] = None
     criado_em: datetime
@@ -378,8 +418,7 @@ class UsuarioListItem(BaseModel):
     status: str
     nivel_nome: Optional[str] = None
     departamento_nome: Optional[str] = None
-    canal_nome: Optional[str] = None
-    turno_nome: Optional[str] = None
+    qtd_canais: int = 0
     qtd_conexoes: int = 0
 
 

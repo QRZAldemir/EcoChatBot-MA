@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Token Revogado (Blacklist JWT)
+EcoChatBot-MA · Token Revogado (Blacklist JWT)
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     token_revogado_models.py

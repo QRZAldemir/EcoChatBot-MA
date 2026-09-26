@@ -1,6 +1,6 @@
 """
 ================================================================================
-PROJETO.......: EcoChatBotMarcx — Sistema de Atendimento Digital Configurável
+PROJETO.......: EcoChatBot-MA — Sistema de Atendimento Digital Configurável
 ARQUIVO.......: bot_handlers/base_handler.py
 AUTOR.........: Aldemir Queiroz
 DATA..........: 08/09/2026
@@ -34,7 +34,8 @@ from abc import ABC, abstractmethod
 from sqlalchemy.orm import Session
 # SINTAXE PYTHON: Importa a classe 'Session' do ORM SQLAlchemy para tipagem.
 
-from app.models import Atendimento, Mensagem
+from app.models import Atendimento
+from app.services.bot_handlers.mensagem_payload import MensagemPayload
 from datetime import datetime
 import json
 import uuid
@@ -95,7 +96,7 @@ class DepartamentoHandler(ABC):
         self,
         atendimento: Atendimento,
         step: str,
-        mensagem: Mensagem,
+        mensagem: MensagemPayload,
     ) -> None:
         """
         MÉTODO ABSTRATO: Processa a mensagem do departamento.

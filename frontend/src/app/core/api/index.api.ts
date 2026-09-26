@@ -4,7 +4,7 @@
 /* eslint-disable */
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * EcoChatBot-Marcx · API Barrel (ponto de entrada público)
+ * EcoChatBot-MA · API Barrel (ponto de entrada público)
  * Codinome: EcoChatBot-MA
  * ───────────────────────────────────────────────────────────────────────────
  * @file     index.api.ts
@@ -17,7 +17,7 @@
  * FUNCIONALIDADE
  * ──────────────
  * Barrel público da camada `core/api/`. Centraliza TODOS os exports da
- * camada de comunicação do EcoChatBot-Marcx, permitindo que features
+ * camada de comunicação do EcoChatBot-MA, permitindo que features
  * importem tudo com um caminho único:
  *
  *   import { MensagensService, ApiError } from '@core/api';

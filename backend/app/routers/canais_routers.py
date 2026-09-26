@@ -15,17 +15,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.schemas.canal import (
-    CanalCreate,
-    CanalUpdate,
-    CanalResponse,
-    CanalDetalhado,
+from app.models import Empresa
+from app.schemas.canal_schemas import (
+    CanalContratadoCreate,
+    CanalContratadoUpdate,
+    CanalContratadoResponse,
+    CanalContratadoDetalhado,
     CanalListaResponse,
-    CanalMetricasResumo
+    CanalMetricasResumo,
 )
 from app.services.canal_service import CanalService
-from app.auth import get_current_user, UsuarioAuth
-from app.utils.zig_response import ZigResponse
+from app.dependencies import get_current_empresa
+from app.core.zig_response import ZigResponse
 
 logger = logging.getLogger(__name__)
 
@@ -42,15 +43,15 @@ router = APIRouter(
 
 @router.post(
     "/",
-    response_model=ZigResponse[CanalResponse],
+    response_model=ZigResponse[CanalContratadoResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Criar novo canal",
     description="Cria um novo canal de comunicação para a empresa do usuário autenticado."
 )
 async def criar_canal(
-    canal_data: CanalCreate,
+    canal_data: CanalContratadoCreate,
     db: Session = Depends(get_db),
-    current_user: UsuarioAuth = Depends(get_current_user)
+    empresa: Empresa = Depends(get_current_empresa)
 ):
     """
     Cria um novo canal de comunicação.
@@ -67,16 +68,12 @@ async def criar_canal(
     try:
         service = CanalService(db)
         
-        # Extrair cliente_id do usuário autenticado
-        cliente_id = current_user.cliente_id or current_user.empresa_id
-        
-        if not cliente_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Usuário não vinculado a nenhuma empresa"
-            )
-        
-        canal = service.criar_canal(canal_data, cliente_id)
+        # A dependencia `get_current_empresa` já devolve a empresa validada
+        # (403 se o usuário não tiver empresa ativa), então aqui não há o que
+        # checar: só usar.
+        empresa_id = empresa.id
+
+        canal = service.criar_canal(canal_data, empresa_id)
         
         return ZigResponse(
             codigo=0,
@@ -106,7 +103,7 @@ async def listar_canais(
     tipo: Optional[str] = Query(None, description="Filtrar por tipo"),
     ativo: Optional[bool] = Query(None, description="Filtrar por status"),
     db: Session = Depends(get_db),
-    current_user: UsuarioAuth = Depends(get_current_user)
+    empresa: Empresa = Depends(get_current_empresa)
 ):
     """
     Lista canais da empresa autenticada.
@@ -119,10 +116,10 @@ async def listar_canais(
     try:
         service = CanalService(db)
         
-        cliente_id = current_user.cliente_id or current_user.empresa_id
+        empresa_id = empresa.id
         
         canais, total = service.listar_canais(
-            cliente_id=cliente_id,
+            empresa_id=empresa_id,
             page=page,
             limit=limit,
             tipo=tipo,
@@ -153,14 +150,14 @@ async def listar_canais(
 
 @router.get(
     "/{canal_id}",
-    response_model=ZigResponse[CanalDetalhado],
+    response_model=ZigResponse[CanalContratadoDetalhado],
     summary="Buscar canal por ID",
     description="Retorna dados detalhados de um canal específico."
 )
 async def buscar_canal(
     canal_id: int,
     db: Session = Depends(get_db),
-    current_user: UsuarioAuth = Depends(get_current_user)
+    empresa: Empresa = Depends(get_current_empresa)
 ):
     """
     Busca um canal específico por ID.
@@ -170,33 +167,27 @@ async def buscar_canal(
     try:
         service = CanalService(db)
         
-        cliente_id = current_user.cliente_id or current_user.empresa_id
+        empresa_id = empresa.id
         
-        canal = service.buscar_por_id(canal_id, cliente_id)
+        canal = service.buscar_por_id(canal_id, empresa_id)
         
         # Obter métricas
-        metricas = service.obter_metricas_canal(canal_id, cliente_id)
+        metricas = service.obter_metricas_canal(canal_id, empresa_id)
         
-        canal_detalhado = CanalDetalhado(
-            **{
-                "id": canal.id,
-                "cliente_id": canal.cliente_id,
-                "nome": canal.nome,
-                "descricao": canal.descricao,
-                "tipo": canal.tipo,
-                "identificador": canal.identificador,
-                "configuracao": canal.configuracao_json,
-                "departamento_id": canal.departamento_id,
-                "ativo": canal.ativo,
-                "webhook_url": canal.webhook_url,
-                "webhook_verify_token": canal.webhook_verify_token,
-                "criado_em": canal.criado_em,
-                "atualizado_em": canal.atualizado_em,
-                "ultimo_sync": canal.ultimo_sync,
-                "status_conexao": "ativo" if canal.ativo else "inativo"
+        # O mapeamento campo-a-campo foi removido de propósito: ele citava
+        # 8 colunas que não existem mais no model (nome, descricao,
+        # identificador, configuracao_json, departamento_id,
+        # webhook_verify_token, ultimo_sync, cliente_id) e ia quebrar de novo
+        # na próxima mudança. `model_validate` lê direto do model, e a
+        # ofuscação de `credenciais` continua valendo porque é o schema que
+        # aplica.
+        canal_detalhado = CanalContratadoDetalhado.model_validate(
+            {**canal.__dict__, "status_conexao": "ativo" if canal.ativo else "inativo"},
+            update={
+                "total_atendimentos": metricas.get("atendimentos_hoje", 0),
+                "atendimentos_ativos": metricas.get("atendimentos_ativos", 0),
+                "ultima_mensagem": None,
             },
-            total_atendimentos=metricas.get("atendimentos_hoje", 0),
-            atendimentos_ativos=metricas.get("atendimentos_ativos", 0)
         )
         
         return ZigResponse(
@@ -217,15 +208,15 @@ async def buscar_canal(
 
 @router.put(
     "/{canal_id}",
-    response_model=ZigResponse[CanalResponse],
+    response_model=ZigResponse[CanalContratadoResponse],
     summary="Atualizar canal",
     description="Atualiza parcialmente os dados de um canal."
 )
 async def atualizar_canal(
     canal_id: int,
-    canal_data: CanalUpdate,
+    canal_data: CanalContratadoUpdate,
     db: Session = Depends(get_db),
-    current_user: UsuarioAuth = Depends(get_current_user)
+    empresa: Empresa = Depends(get_current_empresa)
 ):
     """
     Atualiza um canal existente.
@@ -235,9 +226,9 @@ async def atualizar_canal(
     try:
         service = CanalService(db)
         
-        cliente_id = current_user.cliente_id or current_user.empresa_id
+        empresa_id = empresa.id
         
-        canal = service.atualizar_canal(canal_id, cliente_id, canal_data)
+        canal = service.atualizar_canal(canal_id, empresa_id, canal_data)
         
         return ZigResponse(
             codigo=0,
@@ -264,7 +255,7 @@ async def atualizar_canal(
 async def deletar_canal(
     canal_id: int,
     db: Session = Depends(get_db),
-    current_user: UsuarioAuth = Depends(get_current_user)
+    empresa: Empresa = Depends(get_current_empresa)
 ):
     """
     Deleta um canal.
@@ -274,9 +265,9 @@ async def deletar_canal(
     try:
         service = CanalService(db)
         
-        cliente_id = current_user.cliente_id or current_user.empresa_id
+        empresa_id = empresa.id
         
-        sucesso = service.deletar_canal(canal_id, cliente_id)
+        sucesso = service.deletar_canal(canal_id, empresa_id)
         
         return ZigResponse(
             codigo=0,
@@ -307,7 +298,7 @@ async def deletar_canal(
 async def obter_metricas(
     canal_id: int,
     db: Session = Depends(get_db),
-    current_user: UsuarioAuth = Depends(get_current_user)
+    empresa: Empresa = Depends(get_current_empresa)
 ):
     """
     Obtém métricas de uso do canal.
@@ -321,9 +312,9 @@ async def obter_metricas(
     try:
         service = CanalService(db)
         
-        cliente_id = current_user.cliente_id or current_user.empresa_id
+        empresa_id = empresa.id
         
-        metricas = service.obter_metricas_canal(canal_id, cliente_id)
+        metricas = service.obter_metricas_canal(canal_id, empresa_id)
         
         return ZigResponse(
             codigo=0,
@@ -349,7 +340,7 @@ async def obter_metricas(
 )
 async def resumo_faturamento(
     db: Session = Depends(get_db),
-    current_user: UsuarioAuth = Depends(get_current_user)
+    empresa: Empresa = Depends(get_current_empresa)
 ):
     """
     Retorna resumo de canais para faturamento.
@@ -363,9 +354,9 @@ async def resumo_faturamento(
     try:
         service = CanalService(db)
         
-        cliente_id = current_user.cliente_id or current_user.empresa_id
+        empresa_id = empresa.id
         
-        contagem = service.contar_canais_por_tipo(cliente_id)
+        contagem = service.contar_canais_por_tipo(empresa_id)
         
         return ZigResponse(
             codigo=0,

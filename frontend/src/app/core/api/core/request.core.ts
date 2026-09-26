@@ -1,6 +1,6 @@
 /**
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Core API
+EcoChatBot-MA · Core API
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     request.core.ts

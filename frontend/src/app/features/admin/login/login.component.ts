@@ -1,5 +1,5 @@
 //╔══════════════════════════════════════════════════════════════════════════════╗
-// ║  PROJETO.......: EcoChatBotMarcx — Sistema de Atendimento Digital          ║
+// ║  PROJETO.......: EcoChatBot-MA — Sistema de Atendimento Digital            ║
 // ║  ARQUIVO.......: login.component.ts                                        ║
 // ║  LOCALIZAÇÃO...: Frontend/App/pages/login/login.component.ts              ║
 // ║  AUTOR.........: Ademir Queiroz                                            ║

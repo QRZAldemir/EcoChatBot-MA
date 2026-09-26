@@ -25,6 +25,7 @@ import logging
 from datetime import date, datetime
 from typing import Optional, Any
 
+from app.core.zig_response import ZigResponse
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -47,18 +48,6 @@ logger = logging.getLogger(__name__)
 # ==============================================================================
 # SEÇÃO 1: MODELOS DE REQUISIÇÃO E RESPOSTA (PYDANTIC SCHEMAS)
 # ==============================================================================
-
-class ZigResponse(BaseModel):
-    """
-    Modelo padrão de resposta da API (compatível com ZigChat).
-    
-    MELHORIA: Uso de Field(default_factory=dict) para evitar valor padrão
-    mutável, seguindo boas práticas do Pydantic v2.
-    """
-    codigo: int              # 0 = Sucesso, 1 = Erro
-    erro: Optional[str] = None
-    dados: dict[str, Any] = Field(default_factory=dict)
-
 
 class AtendimentoResponse(BaseModel):
     """

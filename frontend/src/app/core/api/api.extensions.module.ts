@@ -1,6 +1,6 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * EcoChatBot-Marcx · API Extensions Module
+ * EcoChatBot-MA · API Extensions Module
  * Codinome: EcoChatBot-MA
  * ───────────────────────────────────────────────────────────────────────────
  * @file     api.extensions.module.ts

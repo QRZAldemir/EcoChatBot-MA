@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Empresa · Usuario · InstanciaChatbot
+EcoChatBot-MA · Empresa · Usuario · InstanciaChatbot
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     empresa_models.py
@@ -61,9 +61,11 @@ from app.models.mixins import SoftDeleteMixin, TenantMixin, TimestampMixin
 if TYPE_CHECKING:
     from app.models.cliente_models import Cliente
     from app.models.departamento_models import Departamento
+    from app.models.telefone_models import Telefone
+    from app.models.canal_models import CanalContratado
 
 
-class Empresa(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
+class Empresa(TimestampMixin, SoftDeleteMixin, Base):
     """
     Unidade de negócio dentro de um Cliente.
 
@@ -91,51 +93,27 @@ class Empresa(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # ─── Relacionamentos ──────────────────────────────────────────────────
-    cliente: Mapped["Cliente"] = relationship(back_populates="empresas")
+    # A Empresa é o TENANT. Este é o pai COMERCIAL (quem contratou o plano),
+    # não o tenant — por isso a FK continua existindo mesmo após a unificação.
+    cliente_id: Mapped[int | None] = mapped_column(
+        ForeignKey("clientes.id", ondelete="SET NULL"), index=True
+    )
+    cliente: Mapped["Cliente | None"] = relationship(back_populates="empresas")
     usuarios: Mapped[List["Usuario"]] = relationship(
         back_populates="empresa", cascade="all, delete-orphan"
     )
     departamentos: Mapped[List["Departamento"]] = relationship(
         back_populates="empresa", cascade="all, delete-orphan"
     )
+    telefones: Mapped[List["Telefone"]] = relationship(
+        back_populates="empresa", cascade="all, delete-orphan"
+    )
+    canais_contratados: Mapped[List["CanalContratado"]] = relationship(
+        back_populates="empresa", cascade="all, delete-orphan"
+    )
     instancias: Mapped[List["InstanciaChatbot"]] = relationship(
         back_populates="empresa", cascade="all, delete-orphan"
     )
-
-
-class Usuario(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
-    """
-    Operador do sistema.
-
-    Perfis (ver `PerfilUsuario`):
-        super_admin, admin, gestor, atendente, bot, api
-    """
-
-    __tablename__ = "usuarios"
-    __table_args__ = (
-        UniqueConstraint("cliente_id", "email", name="uq_usuarios_cliente_email"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    empresa_id: Mapped[int | None] = mapped_column(
-        ForeignKey("empresas.id", ondelete="SET NULL"), index=True
-    )
-
-    # ─── Dados pessoais ───────────────────────────────────────────────────
-    nome: Mapped[str] = mapped_column(String(150), nullable=False)
-    email: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
-    senha_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    telefone: Mapped[str | None] = mapped_column(String(20))
-
-    # ─── Acesso ───────────────────────────────────────────────────────────
-    perfil: Mapped[str] = mapped_column(
-        String(20), default=PerfilUsuario.ATENDENTE.value, nullable=False, index=True
-    )
-    ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    ultimo_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-    # ─── Relacionamentos ──────────────────────────────────────────────────
-    empresa: Mapped["Empresa | None"] = relationship(back_populates="usuarios")
 
 
 class InstanciaChatbot(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
@@ -151,9 +129,6 @@ class InstanciaChatbot(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     __tablename__ = "instancias_chatbot"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    empresa_id: Mapped[int] = mapped_column(
-        ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False, index=True
-    )
 
     # ─── Identificação ────────────────────────────────────────────────────
     nome: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -173,3 +148,23 @@ class InstanciaChatbot(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
 
 
 __all__ = ["Empresa", "Usuario", "InstanciaChatbot"]
+
+
+# ==============================================================================
+# ALIAS CANÔNICO
+# ------------------------------------------------------------------------------
+# A tabela `usuarios` é mapeada em um único lugar: `usuario_models.Usuario`.
+# Havia uma segunda classe `Usuario` aqui, com o mesmo `__tablename__`, o que
+# registrava a tabela duas vezes no mesmo MetaData e derrubava ~48 imports.
+# Duas classes de mesmo nome no mesmo registry também tornam ambígua a
+# resolução de `relationship("Usuario")`, então `extend_existing` não resolvia.
+#
+# Este alias mantém `from app.models.empresa_models import Usuario` funcionando
+# (3 módulos o usam em TYPE_CHECKING). As colunas `perfil` e `ultimo_login`
+# que só existiam aqui foram preservadas em `usuario_models.Usuario`.
+#
+# NOTA: a constraint `uq_usuarios_cliente_email` (cliente_id, email) NÃO foi
+# migrada — a tabela `usuarios` usa `empresa_id` (tenant), não `cliente_id`.
+# A constraint equivalente já existe: `uq_usuarios_empresa_email`.
+# ==============================================================================
+from app.models.usuario_models import Usuario  # noqa: E402,F401

@@ -1,7 +1,7 @@
 {
   "name": "ecochat-frontend",
   "version": "1.0.0",
-  "description": "EcoChatBot-Marcx — Frontend Angular 17 + Acessibilidade (OCR + TTS)",
+  "description": "EcoChatBot-MA — Frontend Angular 17 + Acessibilidade (OCR + TTS)",
   "private": true,
   "scripts": {
     "start":           "ng serve",

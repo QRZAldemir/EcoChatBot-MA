@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Base Exceptions
+EcoChatBot-MA · Base Exceptions
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     base_exceptions.py
@@ -12,7 +12,7 @@ Codinome: EcoChatBot-MA
 
 FUNCIONALIDADE
 ──────────────
-Define a HIERARQUIA BASE de exceções customizadas do EcoChatBot-Marcx.
+Define a HIERARQUIA BASE de exceções customizadas do EcoChatBot-MA.
 
 Todas as exceções da aplicação herdam de `EcoChatBotException`, que
 carrega:
@@ -74,7 +74,7 @@ from typing import Optional
 
 class EcoChatBotException(Exception):
     """
-    Classe BASE para todas as exceções customizadas do EcoChatBot-Marcx.
+    Classe BASE para todas as exceções customizadas do EcoChatBot-MA.
 
     Attributes:
         message:     Mensagem descritiva do erro.

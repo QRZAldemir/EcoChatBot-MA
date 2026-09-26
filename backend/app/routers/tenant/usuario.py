@@ -2,7 +2,7 @@
 # ARQUIVO.....: app/routers/tenant/usuario_router.py
 # AUTOR.......: Aldemir Queiroz
 # EMAIL.......: queiroz@almarcx.com.br
-# PROJETO.....: EcoChatBotMarcx - Sistema Multi-Tenant de Atendimento
+# PROJETO.....: EcoChatBot-MA - Sistema Multi-Tenant de Atendimento
 # MÓDULO......: Router REST do Objeto Usuario (isolado por tenant)
 # VERSÃO......: 3.0.0
 # CRIADO EM...: 2024-01-15

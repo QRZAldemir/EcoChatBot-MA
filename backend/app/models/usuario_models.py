@@ -2,7 +2,7 @@
 # ARQUIVO.....: app/models/usuario_models.py
 # AUTOR.......: Aldemir Queiroz
 # EMAIL.......: queiroz@almarcx.com.br
-# PROJETO.....: EcoChatBotMarcx - Sistema Multi-Tenant de Atendimento
+# PROJETO.....: EcoChatBot-MA - Sistema Multi-Tenant de Atendimento
 # MÓDULO......: Modelo ORM do Objeto Usuario
 # VERSÃO......: 3.0.0
 # CRIADO EM...: 2024-01-15
@@ -63,15 +63,14 @@ from sqlalchemy import (
     String, Table, Text, UniqueConstraint, func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.database import Base
+from app.models.base import Base
 
 if TYPE_CHECKING:
-    from app.models.canal import Canal
-    from app.models.conexao import Conexao
-    from app.models.departamento import Departamento
-    from app.models.empresa import Empresa
-    from app.models.nivel_usuario import NivelUsuario
-    from app.models.turno import Turno
+    from app.models.conexao_models import Conexao
+    from app.models.departamento_models import Departamento
+    from app.models.empresa_models import Empresa
+    from app.models.nivel_usuario_models import NivelUsuario
+    from app.models.usuario_canal_models import UsuarioCanal
 
 
 # ==============================================================================
@@ -143,12 +142,6 @@ class Usuario(Base):
     departamento_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("departamentos.id"), index=True,
     )
-    canal_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("canais.id"), index=True,
-    )
-    turno_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("turnos.id"), index=True,
-    )
 
     # --------------------------------------------------------------------------
     # CONEXÃO PADRÃO (N:1 — deve estar entre as M:N)
@@ -164,6 +157,13 @@ class Usuario(Base):
     status: Mapped[str] = mapped_column(
         String(20), default="ativo", nullable=False,
     )
+    # `perfil` e `ultimo_login` vinham da segunda definicao de Usuario que
+    # existia em empresa_models.py. Migrados aqui para que nenhuma coluna
+    # seja perdida na consolidacao. `nivel_id` continua sendo o vinculo de
+    # acesso; `perfil` e a chave textual legada (super_admin, admin,
+    # gestor, atendente, bot, api).
+    perfil: Mapped[Optional[str]] = mapped_column(String(20), index=True)
+    ultimo_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     criado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(),
     )
@@ -175,10 +175,11 @@ class Usuario(Base):
     # RELACIONAMENTOS
     # --------------------------------------------------------------------------
     empresa: Mapped["Empresa"] = relationship("Empresa")
-    canal: Mapped[Optional["Canal"]] = relationship("Canal")
-    nivel: Mapped["NivelUsuario"] = relationship("NivelUsuario")
+    nivel: Mapped["NivelUsuario"] = relationship(back_populates="usuarios")
     departamento: Mapped[Optional["Departamento"]] = relationship("Departamento")
-    turno: Mapped[Optional["Turno"]] = relationship("Turno")
+    vinculos_canal: Mapped[List["UsuarioCanal"]] = relationship(
+        back_populates="usuario", cascade="all, delete-orphan", lazy="selectin",
+    )
     conexao_padrao: Mapped[Optional["Conexao"]] = relationship(
         "Conexao", foreign_keys=[conexao_padrao_id],
     )

@@ -1,6 +1,6 @@
 """
 ================================================================================
-PROJETO.......: EcoChatBotMarcx — Sistema de Atendimento Digital Configurável
+PROJETO.......: EcoChatBot-MA — Sistema de Atendimento Digital Configurável
 ARQUIVO.......: bot_handlers/privacy.py
 AUTOR.........: Aldemir Queiroz
 DATA..........: 08/09/2026

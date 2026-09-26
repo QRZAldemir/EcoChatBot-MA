@@ -22,7 +22,8 @@ from sqlalchemy.orm import Session
 import logging
 
 # Imports internos do projeto
-from app.models import Atendimento, Mensagem
+from app.models import Atendimento
+from app.services.bot_handlers.mensagem_payload import MensagemPayload
 from .privacy import hash_telefone, is_chave_sensivel, detectar_tipo_arquivo
 from .validators import validar_campo
 from .utils import gerar_protocolo
@@ -45,7 +46,7 @@ class DepartamentoHandler(ABC):
         self,
         atendimento: Atendimento,
         step: str,
-        mensagem: Mensagem,
+        mensagem: MensagemPayload,
     ) -> None:
         """
         MÉTODO ABSTRATO: Processa mensagem do departamento.

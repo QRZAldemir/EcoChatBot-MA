@@ -33,7 +33,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Usuario
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth_schemas import LoginRequest, TokenResponse
 from app.services.auth_service import verificar_senha, criar_token_acesso
 
 router = APIRouter()

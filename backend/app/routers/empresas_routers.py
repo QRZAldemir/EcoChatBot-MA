@@ -41,7 +41,10 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Empresa, InstanciaChatbot, Usuario
+# `Empresa` e `InstanciaChatbot` só existem na camada moderna; a legada
+# (`app/models/__init__.py`) não as exporta. `Usuario` é o alias canônico
+# definido em empresa_models.py.
+from app.models.empresa_models import Empresa, InstanciaChatbot, Usuario
 from app.security import exigir_nivel, obter_usuario_atual
 from app.services.auth_service import hash_senha
 

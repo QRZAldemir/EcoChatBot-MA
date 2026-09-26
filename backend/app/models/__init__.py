@@ -1,260 +1,107 @@
-from typing import Optional
+"""
+================================================================================
+EcoChatBot-MA · Pacote de Models
+@author  Aldemir Queiroz
+@since   2026
+@version 3.0.0
+================================================================================
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text, Float
-from sqlalchemy.orm import relationship
+SUMÁRIO
+-------
+[1] O QUE ESTE ARQUIVO É
+[2] CONJUNTO DE MODELS
+[3] TABELAS LEGADAS AINDA VIVAS
+[4] O QUE FOI REMOVIDO E POR QUÊ
+================================================================================
+
+[1] O QUE ESTE ARQUIVO É
+-----------------------
+    Ponto único de importação dos models. NÃO define mais nenhuma entidade do
+    domínio: todas moram nos módulos `*_models.py`. Este arquivo apenas
+    reexporta, para o código legado continuar importando de um lugar só.
+
+        from app.models import Usuario, CanalContratado   # funciona
+        import app.models; app.models.Usuario              # funciona
+
+[2] CONJUNTO DE MODELS
+---------------------
+    O domínio canônico está em `app/models/*_models.py`. Cada arquivo traz
+    cabeçalho com FUNCIONALIDADE, EXEMPLO PRÁTICO, RELACIONAMENTO e
+    REGRAS DE NEGÓCIO. aplication usa SQLAlchemy 2.0 (Mapped/mapped_column).
+
+[3] TABELAS LEGADAS AINDA VIVAS
+-------------------------------
+    Três tabelas continuam em uso e por isso seguem declaradas aqui, com
+    relacionamento unidirecional, porque suas ligações antigas apontam para
+    colunas que não existem mais no conjunto canônico:
+
+        Canal           ('canais')  — removido: ver [4]
+        MenuOpcao       ('menu_opcoes') — removido: ver [4]
+        EmailEnviado    ('emails_enviados') — e-mail avulso da central de e-mail
+        CampanhaContato ('campanha_contatos') — status por destinatário
+        Arquivo         ('arquivos') — mídia da biblioteca de chat
+
+[4] O QUE FOI REMOVIDO E POR QUÊ
+--------------------------------
+    `Canal` — a tabela `canais` era o eixo do modelo antigo: `Usuario.canal_id`
+    e `Menu.canal_id` apontavam para ela, o que amarrava o atendente a UM
+    canal único e deixava o canal sem a dimensão do contrato. Hoje o canal é um
+    ITEM DO CONTRATO (`canais_contratados`) e o vínculo atendente↔canal é
+    N:M decidido pelo gestor (`usuarios_canais`). Manter `canais` obrigaria
+    ressuscitar as duas colunas que acabamos de remover.
+
+    `MenuOpcao` — substituída por `MenuItem` (`menu_itens`), que já é o modelo
+    canônico de opção de menu.
+================================================================================
+"""
+
+# ══════════════════════════════════════════════════════════════════════════
+# REEXPORTAÇÃO DO CONJUNTO CANÔNICO
+# ══════════════════════════════════════════════════════════════════════════
 from datetime import datetime
-from app.database import Base
 
-class Cliente(Base):
-    """Cliente/tenant que contratou o sistema (isolamento multi-tenant)."""
-    __tablename__ = "clientes"
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import relationship
 
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String(150), nullable=False)
-    cnpj = Column(String(20), unique=True, index=True)
-    email = Column(String(150), index=True)
-    telefone = Column(String(20))
-    ativo = Column(Boolean, default=True, nullable=False)
-    criado_em = Column(DateTime, default=datetime.utcnow)
-    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relacionamentos
-    usuarios = relationship("Usuario", back_populates="cliente")
-    atendimentos = relationship("Atendimento", back_populates="cliente")
-
-class Atendimento(Base):
-    __tablename__ = "atendimentos"
-
-    id = Column(Integer, primary_key=True, index=True)
-    protocolo = Column(String(50), unique=True, index=True)
-    telefone = Column(String(20), nullable=False)
-    nome_contato = Column(String(100))
-    cliente_id = Column(Integer, ForeignKey("clientes.id"), index=True)
-
-    # Relacionamento com cliente/tenant
-    cliente = relationship("Cliente", back_populates="atendimentos")
-
-    # ==================================================================
-    # CORRIGIDO (2026-07-05): Resolução de conflito de nome de atributo
-    # ==================================================================
-    # PROBLEMA: Havia dois atributos com o mesmo nome 'canal':
-    #   1. canal = Column(Integer) - tipo do canal (1=WhatsApp, 2=Interno)
-    #   2. canal = relationship("Canal") - objeto Canal relacionado
-    # O segundo sobrescrevia o primeiro, causando conflito de tipos no
-    # schema Pydantic. O schema esperava int, mas ORM retornava objeto.
-    #
-    # SOLUÇÃO: Renomear a coluna para 'tipo_canal', mantendo o
-    # relacionamento como 'canal'. Agora não há conflito.
-    #
-    # IMPACTO:
-    # - ORM: tipo_canal (int) + canal (relationship)
-    # - Pydantic: tipo_canal (int) + canal_id (int)
-    # - Service: filtros atualizados para Atendimento.tipo_canal
-    # ==================================================================
-    tipo_canal = Column(Integer, default=1)     # Tipo de canal: 1=WhatsApp, 2=Interno
-    canal_id = Column(Integer, ForeignKey("canais.id"))
-    conexao_id = Column(Integer, index=True)
-    usuario_id = Column(Integer, ForeignKey("usuarios.id"))
-    departamento_id = Column(Integer, ForeignKey("departamentos.id"))
-    tipo = Column(Integer, default=1)            # Tipo de atendimento: 1=automático, 2=manual
-    ativo = Column(Boolean, default=True)
-    status = Column(String(30), default="aberto")  # Status: aberto, fila, em_atendimento, finalizado
-    criado_em = Column(DateTime, default=datetime.utcnow)
-    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relacionamento com tabela 'canais' (via canal_id)
-    # Uso: atendimento.canal.nome retorna o nome do canal
-    canal = relationship("Canal")
-    usuario = relationship("Usuario", foreign_keys=[usuario_id])
-    departamento = relationship("Departamento")
-    contextos = relationship("AtendimentoContext", back_populates="atendimento", cascade="all, delete-orphan")
+from app.models.atendimento_context_models import AtendimentoContexto
+from app.models.atendimento_models import Atendimento
+from app.models.assinatura_models import Assinatura
+from app.models.base import Base
+from app.models.campanha_models import Campanha
+from app.models.canal_models import CanalContratado
+from app.models.chamada_pabx_models import ChamadaPABX
+from app.models.cliente_models import Cliente
+from app.models.conexao_models import Conexao
+from app.models.contato_models import Contato
+from app.models.departamento_models import Departamento
+from app.models.email_models import EmailLog, EmailTemplate
+from app.models.empresa_models import Empresa, InstanciaChatbot
+from app.models.menu_models import Menu, MenuItem
+from app.models.modelo_mensagem_models import ModeloMensagem
+from app.models.nivel_usuario_models import NivelUsuario
+from app.models.pedido_models import Pedido, PedidoItem
+from app.models.roteiro_models import Roteiro
+from app.models.telefone_models import Telefone
+from app.models.token_revogado_models import TokenRevogado
+from app.models.transferencia_models import Transferencia
+from app.models.usuario_canal_models import UsuarioCanal
+from app.models.usuario_models import Usuario
 
 
-class Pedido(Base):
-    """Pedido genérico associado a um atendimento, independente do segmento."""
-    __tablename__ = "pedidos"
-
-    id = Column(Integer, primary_key=True, index=True)
-    atendimento_id = Column(Integer, ForeignKey("atendimentos.id"), nullable=False, index=True)
-    empresa_id = Column(Integer, index=True, nullable=False)
-    protocolo = Column(String(50), unique=True, nullable=False, index=True)
-    itens = Column(Text, nullable=False)
-    total = Column(Float, nullable=False, default=0)
-    status = Column(String(30), nullable=False, default="confirmado")
-    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-
-class AtendimentoContext(Base):
-    __tablename__ = "atendimento_contextos"
-
-    id = Column(Integer, primary_key=True, index=True)
-    atendimento_id = Column(Integer, ForeignKey("atendimentos.id"), nullable=False)
-    context_key = Column(String(100), nullable=False)
-    value = Column(Text, nullable=False)
-    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    atendimento = relationship("Atendimento", back_populates="contextos")
-
-
-class NivelUsuario(Base):
-    __tablename__ = "nivel_usuario"
-
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String(50), unique=True, nullable=False)  # atendente, supervisor, gerente, administrador
-    descricao = Column(String(200))
-    
-    # Relacionamento com usuários
-    usuarios = relationship("Usuario", back_populates="nivel")
-
-class Departamento(Base):
-    __tablename__ = "departamentos"
-
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String(100), unique=True, nullable=False)
-    descricao = Column(String(300))
-    ativo = Column(Boolean, default=True)
-    criado_em = Column(DateTime, default=datetime.utcnow)
-    
-    # Relacionamentos
-    usuarios = relationship("Usuario", back_populates="departamento")
-    canais = relationship("Canal", back_populates="departamento")
-
-class Canal(Base):
-    __tablename__ = "canais"
-
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String(100), unique=True, nullable=False)
-    descricao = Column(String(300))
-    arquivo_menu = Column(String(200), nullable=False, default="")  # legado; o fluxo vem do cadastro de Menu
-    departamento_id = Column(Integer, ForeignKey("departamentos.id"))
-    ativo = Column(Boolean, default=True)
-    criado_em = Column(DateTime, default=datetime.utcnow)
-    
-    # Relacionamentos
-    departamento = relationship("Departamento", back_populates="canais")
-    usuarios = relationship("Usuario", back_populates="canal")
-    menus = relationship("Menu", back_populates="canal")
-
-class MenuOpcao(Base):
-    __tablename__ = "menu_opcoes"
-
-    id = Column(Integer, primary_key=True, index=True)
-    menu_id = Column(Integer, ForeignKey("menus.id"), nullable=False)
-    titulo = Column(String(100), nullable=False)
-    descricao = Column(String(300))
-    row_id = Column(String(50), nullable=False)
-    ordem = Column(Integer, default=0)
-    cor = Column(String(20), default="verde")  # verde | azul | vermelho | amarelo | roxo | cinza
-
-    menu = relationship("Menu", back_populates="opcoes")
-
-
-class Menu(Base):
-    __tablename__ = "menus"
-
-    id = Column(Integer, primary_key=True, index=True)
-    titulo = Column(String(100), nullable=False)
-    descricao = Column(String(300))
-    cabecalho = Column(String(60))
-    rodape = Column(String(100))
-    texto_botao = Column(String(50), default="Ver opções")
-    canal_id = Column(Integer, ForeignKey("canais.id"))
-    usuario_vinculado_id = Column(Integer, ForeignKey("usuarios.id"))
-    ativo = Column(Boolean, default=True)
-    criado_em = Column(DateTime, default=datetime.utcnow)
-
-    opcoes = relationship("MenuOpcao", back_populates="menu", order_by="MenuOpcao.ordem", cascade="all, delete-orphan")
-    canal = relationship("Canal", back_populates="menus")
-    usuario_vinculado = relationship("Usuario")
-
-    @property
-    def usuario_vinculado_nome(self) -> Optional[str]:
-        return self.usuario_vinculado.nome if self.usuario_vinculado else None
-
-
-class ModeloMensagem(Base):
-    __tablename__ = "modelos_mensagem"
-
-    id = Column(Integer, primary_key=True, index=True)
-    descricao = Column(String(100), nullable=False)  # nome para identificar a mensagem
-    corpo = Column(Text, nullable=False)              # texto principal (memorando)
-    arquivo = Column(String(300))                     # URL pública de anexo, opcional
-    departamento_id = Column(Integer, ForeignKey("departamentos.id"))
-    ativo = Column(Boolean, default=True)
-    criado_em = Column(DateTime, default=datetime.utcnow)
-    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    departamento = relationship("Departamento")
-
-
-class Usuario(Base):
-    __tablename__ = "usuarios"
-
-    id = Column(Integer, primary_key=True, index=True)
-    cliente_id = Column(Integer, ForeignKey("clientes.id"), index=True)  # tenant (nullable p/ compatibilidade)
-    nome = Column(String(100), nullable=False)
-    email = Column(String(100), unique=True, nullable=False)
-    senha_hash = Column(String(255), nullable=False)
-    telefone = Column(String(20))
-    
-    nivel_id = Column(Integer, ForeignKey("nivel_usuario.id"), nullable=False)
-    departamento_id = Column(Integer, ForeignKey("departamentos.id"))
-    canal_id = Column(Integer, ForeignKey("canais.id"))
-    
-    ativo = Column(Boolean, default=True)
-    status = Column(String(20), default="ativo")  # ativo | inativo | bloqueado | convidado
-    criado_em = Column(DateTime, default=datetime.utcnow)
-    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relacionamentos
-    cliente = relationship("Cliente", back_populates="usuarios")
-    nivel = relationship("NivelUsuario", back_populates="usuarios")
-    departamento = relationship("Departamento", back_populates="usuarios")
-    canal = relationship("Canal", back_populates="usuarios")
-
-
-class Conexao(Base):
-    """Número WhatsApp (WABA) vinculado ao sistema via Evolution API.
-
-    'padrao' marca qual conexão é o número administrativo principal da
-    empresa — só uma pode ser padrão por vez (ver ConexaoService.tornar_padrao).
-    """
-    __tablename__ = "conexoes"
-
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String(100), nullable=False)          # rótulo exibido, ex: "67 3416-7800 - Oficial"
-    telefone = Column(String(20))
-    tipo = Column(String(20), default="whatsapp")        # whatsapp (reservado p/ outros canais futuros)
-    conexao = Column(String(30), default="waba")          # waba | qrcode
-    atendimento = Column(String(20), default="automatico")  # automatico | manual
-    status = Column(String(20), default="desconectada")   # conectada | desconectada | aguardando
-    padrao = Column(Boolean, default=False, nullable=False)
-    ativo = Column(Boolean, default=True, nullable=False)
-    evolution_instance_name = Column(String(100))
-    criado_em = Column(DateTime, default=datetime.utcnow)
-    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-class Contato(Base):
-    """Agenda de clientes WhatsApp — base usada para disparo de Campanhas."""
-    __tablename__ = "contatos"
-
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String(100), nullable=False)
-    telefone = Column(String(20), unique=True, nullable=False, index=True)
-    email = Column(String(100))
-    empresa = Column(String(100))
-    observacao = Column(String(300))
-    origem = Column(String(20), default="manual")   # manual | atendimento
-    ativo = Column(Boolean, default=True, nullable=False)
-    criado_em = Column(DateTime, default=datetime.utcnow)
-    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    campanhas = relationship("CampanhaContato", back_populates="contato")
-
-
+# ══════════════════════════════════════════════════════════════════════════
+# TABELAS LEGADAS AINDA EM USO —relationship unidirecional
+# ══════════════════════════════════════════════════════════════════════════
 class EmailEnviado(Base):
     """Histórico de e-mails avulsos enviados pelo sistema (central de E-mail)."""
+
     __tablename__ = "emails_enviados"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -262,7 +109,7 @@ class EmailEnviado(Base):
     destinatario = Column(String(150), nullable=False)
     assunto = Column(String(200), nullable=False)
     corpo = Column(Text, nullable=False)
-    status = Column(String(20), default="pendente")   # enviado | erro | simulado
+    status = Column(String(20), default="pendente")  # enviado | erro | simulado
     erro_mensagem = Column(String(300))
     enviado_em = Column(DateTime)
     criado_em = Column(DateTime, default=datetime.utcnow)
@@ -270,61 +117,30 @@ class EmailEnviado(Base):
     contato = relationship("Contato")
 
 
-class Campanha(Base):
-    """Disparo em massa de mensagens WhatsApp para uma lista de Contatos."""
-    __tablename__ = "campanhas"
-
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String(100), nullable=False)
-    mensagem = Column(Text, nullable=False)
-    conexao_id = Column(Integer, ForeignKey("conexoes.id"), nullable=False)
-    status = Column(String(20), default="rascunho")   # rascunho | enviando | concluida | erro
-    total_contatos = Column(Integer, default=0)
-    enviados = Column(Integer, default=0)
-    falhas = Column(Integer, default=0)
-    criado_em = Column(DateTime, default=datetime.utcnow)
-    enviado_em = Column(DateTime)
-
-    conexao = relationship("Conexao")
-    contatos = relationship("CampanhaContato", back_populates="campanha", cascade="all, delete-orphan")
-
-
 class CampanhaContato(Base):
     """Associação Campanha × Contato — status individual do disparo por destinatário."""
+
     __tablename__ = "campanha_contatos"
 
     id = Column(Integer, primary_key=True, index=True)
     campanha_id = Column(Integer, ForeignKey("campanhas.id"), nullable=False, index=True)
     contato_id = Column(Integer, ForeignKey("contatos.id"), nullable=False, index=True)
-    status = Column(String(20), default="pendente")   # pendente | enviado | erro | simulado
+    status = Column(String(20), default="pendente")  # pendente | enviado | erro | simulado
     erro_mensagem = Column(String(300))
     enviado_em = Column(DateTime)
 
-    campanha = relationship("Campanha", back_populates="contatos")
-    contato = relationship("Contato", back_populates="campanhas")
-
-
-class TokenRevogado(Base):
-    """JWTs invalidados antes do vencimento natural — suporta o /auth/logout real.
-
-    JWT é stateless por natureza; sem isso, um token roubado continuaria
-    válido até expirar mesmo depois do usuário fazer logout. 'jti' é o
-    identificador único gravado no payload do token (ver security.py).
-    """
-    __tablename__ = "tokens_revogados"
-
-    jti = Column(String(36), primary_key=True)
-    expira_em = Column(DateTime, nullable=False)   # cópia do "exp" do token — permite podar linhas antigas
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    campanha = relationship("Campanha")
+    contato = relationship("Contato")
 
 
 class Arquivo(Base):
     """Biblioteca de mídia do chat — arquivos trocados nos atendimentos, reutilizáveis em respostas."""
+
     __tablename__ = "arquivos"
 
     id = Column(Integer, primary_key=True, index=True)
     nome_original = Column(String(200), nullable=False)
-    nome_arquivo = Column(String(200), nullable=False)   # nome único no disco (uploads/arquivos/)
+    nome_arquivo = Column(String(200), nullable=False)  # uploads/arquivos/
     tipo_mime = Column(String(100))
     tamanho_bytes = Column(Integer)
     descricao = Column(String(300))
@@ -332,3 +148,16 @@ class Arquivo(Base):
     criado_em = Column(DateTime, default=datetime.utcnow)
 
     atendimento = relationship("Atendimento")
+
+
+__all__ = [
+    # conjunto canônico
+    "Atendimento", "AtendimentoContexto", "Assinatura", "Base", "Campanha",
+    "CanalContratado", "ChamadaPABX", "Cliente", "Conexao", "Contato",
+    "Departamento", "EmailLog", "EmailTemplate", "Empresa", "InstanciaChatbot",
+    "Menu", "MenuItem", "ModeloMensagem", "NivelUsuario", "Pedido", "PedidoItem",
+    "Roteiro", "Telefone", "TokenRevogado", "Transferencia", "Usuario",
+    "UsuarioCanal",
+    # legadas ainda em uso
+    "Arquivo", "CampanhaContato", "EmailEnviado",
+]

@@ -1,7 +1,7 @@
 {
   "name": "ecochatbot-ma",
   "version": "1.0.0",
-  "description": "EcoChatBot-Marcx — Sistema de Atendimento Digital Configurável (Monorepo)",
+  "description": "EcoChatBot-MA — Sistema de Atendimento Digital Configurável (Monorepo)",
   "private": true,
   "scripts": {
     "start":          "concurrently -n BACKEND,FRONTEND -c blue,green \"npm run start:backend\" \"npm run start:frontend\"",

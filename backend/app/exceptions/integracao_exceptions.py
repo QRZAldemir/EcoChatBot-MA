@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Integração Exceptions
+EcoChatBot-MA · Integração Exceptions
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     integracao_exceptions.py
@@ -13,7 +13,7 @@ Codinome: EcoChatBot-MA
 FUNCIONALIDADE
 ──────────────
 Define as exceções específicas do DOMÍNIO "INTEGRAÇÃO" do
-EcoChatBot-Marcx — erros de comunicação com plataformas externas
+EcoChatBot-MA — erros de comunicação com plataformas externas
 de atendimento.
 
 Todas as classes herdam de `IntegracaoException`, que por sua vez herda
@@ -26,7 +26,7 @@ de `EcoChatBotException`, garantindo:
 
 DOMÍNIO "INTEGRAÇÃO"
 ────────────────────
-Uma "integração" é o canal de comunicação entre o EcoChatBot-Marcx
+Uma "integração" é o canal de comunicação entre o EcoChatBot-MA
 e uma plataforma externa (WhatsApp Business API, Telegram Bot API,
 Discord API, Facebook Messenger, Instagram Direct, MicroSIP/PABX).
 

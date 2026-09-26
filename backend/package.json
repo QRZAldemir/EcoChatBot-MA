@@ -1,7 +1,7 @@
 {
   "name": "ecochat-backend",
   "version": "1.0.0",
-  "description": "EcoChatBot-Marcx — Backend (FastAPI + Node helpers: MongoDB, Redis, MicroSIP, OCR, IA)",
+  "description": "EcoChatBot-MA — Backend (FastAPI + Node helpers: MongoDB, Redis, MicroSIP, OCR, IA)",
   "private": true,
   "author": "Aldemir Queiroz",
   "license": "ISC",

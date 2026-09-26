@@ -1,6 +1,6 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * EcoChatBot-Marcx · Token Resolver
+ * EcoChatBot-MA · Token Resolver
  * Codinome: EcoChatBot-MA
  * ───────────────────────────────────────────────────────────────────────────
  * @file     token.resolver.ts
@@ -96,7 +96,7 @@ import type { ApiRequestOptions } from './core/index.core';
  */
 
 /**
- * Contrato mínimo esperado de um provedor de sessão do EcoChatBot-Marcx.
+ * Contrato mínimo esperado de um provedor de sessão do EcoChatBot-MA.
  *
  * Implemente este contrato no seu `AuthService` / `SessionsFacade`.
  *

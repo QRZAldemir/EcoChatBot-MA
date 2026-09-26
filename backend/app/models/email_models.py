@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Templates e Logs de E-mail
+EcoChatBot-MA · Templates e Logs de E-mail
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     email_models.py
@@ -60,9 +60,6 @@ class EmailTemplate(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    empresa_id: Mapped[int] = mapped_column(
-        ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False, index=True
-    )
 
     chave: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     nome: Mapped[str] = mapped_column(String(150), nullable=False)
@@ -72,15 +69,12 @@ class EmailTemplate(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     variaveis: Mapped[str | None] = mapped_column(Text)   # CSV
 
 
-class EmailLog(TimestampMixin, TenantMixin, Base):
+class EmailLog(TimestampMixin, TenantMixin, SoftDeleteMixin, Base):
     """Registro de cada e-mail enviado."""
 
     __tablename__ = "email_logs"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    empresa_id: Mapped[int] = mapped_column(
-        ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False, index=True
-    )
     template_id: Mapped[int | None] = mapped_column(
         ForeignKey("email_templates.id", ondelete="SET NULL")
     )

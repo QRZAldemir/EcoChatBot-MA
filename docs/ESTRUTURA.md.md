@@ -1,4 +1,4 @@
-# 🌳 EcoChatBot-Marcx · Estrutura do Projeto
+# 🌳 EcoChatBot-MA · Estrutura do Projeto
 
 > **Documento vivo** — atualize conforme implementa.
 >

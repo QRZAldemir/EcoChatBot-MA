@@ -2,7 +2,7 @@
 # ARQUIVO.....: app/services/usuario_service.py
 # AUTOR.......: Aldemir Queiroz
 # EMAIL.......: queiroz@almarcx.com.br
-# PROJETO.....: EcoChatBotMarcx - Sistema Multi-Tenant de Atendimento
+# PROJETO.....: EcoChatBot-MA - Sistema Multi-Tenant de Atendimento
 # MÓDULO......: Service do Objeto Usuario (Regras de Negócio)
 # VERSÃO......: 3.0.0
 # CRIADO EM...: 2024-01-15
@@ -51,9 +51,9 @@ from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.security import get_password_hash, verify_password
-from app.models.conexao import Conexao
-from app.models.empresa import Empresa
-from app.models.usuario import Usuario
+from app.models.conexao_models import Conexao
+from app.models.empresa_models import Empresa
+from app.models.usuario_models import Usuario
 from app.repositories.usuario_repository import UsuarioRepository
 from app.schemas.usuario_schemas import (
     UsuarioConvidar,

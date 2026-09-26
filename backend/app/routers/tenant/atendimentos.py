@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.security import obter_usuario_atual
 from app.models import Usuario, Atendimento
-from app.schemas.atendimento import (
+from app.schemas.atendimento_schemas import (
     FiltroAtendimento,
     AtendimentoCreate,
     AtendimentoUpdate,

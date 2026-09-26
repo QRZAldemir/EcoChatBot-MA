@@ -1,6 +1,6 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * EcoChatBot-Marcx · Token Storage
+ * EcoChatBot-MA · Token Storage
  * Codinome: EcoChatBot-MA
  * ───────────────────────────────────────────────────────────────────────────
  * @file     token.storage.ts

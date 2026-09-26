@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Canal Contratado
+EcoChatBot-MA · Canal Contratado
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     canal_contratado_models.py
@@ -18,23 +18,29 @@ Representa um ITEM DO CONTRATO da Empresa. Cada registro aqui significa:
 EXEMPLO PRÁTICO
 ───────────────
     Empresa: Aldemir Ltda
-    ├── CanalContratado(tipo="whatsapp", ativo=True)   ✅
-    ├── CanalContratado(tipo="telegram", ativo=True)   ✅
-    └── (não existe registro de facebook → não aceita)
+    ├── Telefone(numero="556734167800", principal=True)
+    │     ├── CanalContratado(tipo="whatsapp", ativo=True)   ✅
+    │     └── CanalContratado(tipo="telegram", ativo=True)   ✅
+    ├── Telefone(numero="5567992469894")
+    │     └── CanalContratado(tipo="whatsapp", ativo=True)   ✅  2º whatsapp
+    └── (canal sem telefone → sistema REJEITA com 403)
 
     Se chegar webhook do Facebook → sistema REJEITA com 403.
 
 RELACIONAMENTO
 ──────────────
-    Empresa (1) ── (N) CanalContratado
-                       │
-                       ├── (N) Conexao        (status/histórico do socket)
-                       ├── (N) Atendimento    (mensagens recebidas)
-                       └── (N) Menu           (menu específico do canal)
+    Empresa (1) ── (N) Telefone ── (N) CanalContratado
+                                          │
+                                          ├── (N) Conexao      (status/histórico do socket)
+                                          ├── (N) Atendimento  (mensagens recebidas)
+                                          └── (N) Menu         (menu específico do canal)
 
 REGRAS DE NEGÓCIO
 ─────────────────
-    • Unicidade: 1 tipo por Empresa (não pode ter 2 WhatsApp na mesma empresa)
+    • Unicidade: 1 tipo por TELEFONE — não pode haver 2 WhatsApp no mesmo
+      número. Com um 2º telefone, a Empresa PODE contratar um 2º WhatsApp
+      (e a mensalidade é duplicada).
+    • O canal SEMPRE pertence a um telefone: `telefone_id` é obrigatório
     • `credenciais` guarda tokens/IDs em JSON (criptografar em produção)
     • `webhook_token` valida a origem do webhook recebido
     • Soft delete: desativar contrato NÃO apaga histórico de mensagens
@@ -53,10 +59,12 @@ from app.models.enums import TipoCanalMensageria
 from app.models.mixins import SoftDeleteMixin, TenantMixin, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.usuario_canal_models import UsuarioCanal
     from app.models.atendimento_models import Atendimento
     from app.models.conexao_models import Conexao
     from app.models.empresa_models import Empresa
     from app.models.menu_models import Menu
+    from app.models.telefone_models import Telefone
 
 
 class CanalContratado(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
@@ -70,14 +78,15 @@ class CanalContratado(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     __tablename__ = "canais_contratados"
     __table_args__ = (
         UniqueConstraint(
-            "empresa_id", "tipo",
-            name="uq_canais_contratados_empresa_tipo",
+            "telefone_id", "tipo",
+            name="uq_canais_contratados_telefone_tipo",
         ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    empresa_id: Mapped[int] = mapped_column(
-        ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False, index=True
+    telefone_id: Mapped[int] = mapped_column(
+        ForeignKey("telefones.id", ondelete="CASCADE"), nullable=False, index=True,
+        comment="Telefone que sustenta este canal — eixo da contratação",
     )
 
     # ─── Tipo do canal ────────────────────────────────────────────────────
@@ -108,6 +117,7 @@ class CanalContratado(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
 
     # ─── Relacionamentos ──────────────────────────────────────────────────
     empresa: Mapped["Empresa"] = relationship(back_populates="canais_contratados")
+    telefone: Mapped["Telefone"] = relationship(back_populates="canais")
     conexoes: Mapped[List["Conexao"]] = relationship(
         back_populates="canal_contratado", cascade="all, delete-orphan"
     )
@@ -116,6 +126,9 @@ class CanalContratado(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     )
     atendimentos: Mapped[List["Atendimento"]] = relationship(
         back_populates="canal_contratado"
+    )
+    vinculos_usuario: Mapped[List["UsuarioCanal"]] = relationship(
+        back_populates="canal", cascade="all, delete-orphan"
     )
 
 

@@ -1,6 +1,6 @@
 """
 ================================================================================
-PROJETO: EcoChatBotMarcx - Omnichannel SaaS
+PROJETO: EcoChatBot-MA - Omnichannel SaaS
 MÓDULO: services/webhook_service.py
 AUTOR: Aldemir Queiroz
 CONTATO: [Inserir E-mail] | [Inserir LinkedIn] | [Inserir GitHub]

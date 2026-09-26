@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Mixins Reutilizáveis do ORM
+EcoChatBot-MA · Mixins Reutilizáveis do ORM
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     mixins.py
@@ -14,14 +14,14 @@ FUNCIONALIDADE
 ──────────────
 Define mixins que podem ser combinados em qualquer entidade ORM:
 
-    • TimestampMixin  → created_at + updated_at (server-side defaults)
+    • TimestampMixin  → criado_em + atualizado_em (server-side defaults)
     • SoftDeleteMixin → deleted_at + is_deleted + soft_delete() + restore()
-    • TenantMixin     → cliente_id (FK para `clientes.id`)
+    • TenantMixin     → empresa_id (FK para `empresas.id`) — a Empresa é o tenant
 
 POR QUE MIXINS?
 ───────────────
-Sem eles, TODA tabela repetiria colunas como `created_at`, `updated_at`,
-`deleted_at` e `cliente_id`. Com mixins, a regra vive em um só lugar —
+Sem eles, TODA tabela repetiria colunas como `criado_em`, `atualizado_em`,
+`deleted_at` e `empresa_id`. Com mixins, a regra vive em um só lugar —
 correção aplicada aqui vale para todas as entidades.
 
 REGRA DE USO
@@ -51,17 +51,24 @@ class TimestampMixin:
     """
     Adiciona auditoria temporal básica.
 
-    created_at  → preenchido pelo banco (server_default=func.now())
-    updated_at  → atualizado automaticamente em cada UPDATE (onupdate)
+    criado_em     → preenchido pelo banco (server_default=func.now())
+    atualizado_em → atualizado automaticamente em cada UPDATE (onupdate)
+
+    POR QUE `criado_em` E NÃO `created_at`?
+    ---------------------------------------
+    O banco em produção já se chama `criado_em`, e o código legado inteiro
+    (69 chamadas) lê e escreve por esse nome. Emitir `created_at` aqui criaria
+    uma segunda nomenclatura e obrigaria a traduzir em todo serviço. O mixin
+    segue o banco: um nome só, em todo o projeto.
     """
 
-    created_at: Mapped[datetime] = mapped_column(
+    criado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
         index=True,
     )
-    updated_at: Mapped[datetime] = mapped_column(
+    atualizado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
@@ -105,16 +112,28 @@ class SoftDeleteMixin:
 
 class TenantMixin:
     """
-    Isolamento multi-tenant: toda entidade pertence a um Cliente.
+    Isolamento multi-tenant: toda entidade pertence a uma EMPRESA.
 
-    A FK aponta para `clientes.id`. Entidades que NÃO pertencem a um
-    cliente específico (ex.: `Cliente` em si) NÃO herdam este mixin.
+    A FK aponta para `empresas.id`.
 
-    ⚠️ Ao herdar, garanta que a tabela `clientes` já existe no metadata.
+    POR QUE `empresa_id` E NÃO `cliente_id`?
+    ---------------------------------------
+    O modelo tinha as DUAS colunas ao mesmo tempo em 13 tabelas, e nenhuma
+    criteriava qual era a verdadeira — o isolamento do tenant ficava
+    ambíguo. A decisão é: **a Empresa é o tenant**. Toda linha operacional
+    pertence a uma empresa, e é por `empresa_id` que se filtra.
+
+    `Cliente` continua existindo, mas NÃO é tenant: é a conta COMERCIAL que
+    contrata e agrupa empresas (`plano`, `limite_empresas`, `limite_usuarios`).
+    Por isso `empresas.cliente_id` continua existindo — é o pai comercial,
+    não o tenant. Quem filtra dado do cliente vai por `Cliente → Empresa`.
+
+    ⚠️ Entidades que NÃO pertencem a uma empresa (o próprio `Cliente` e a
+    própria `Empresa`) NÃO herdam este mixin.
     """
 
-    cliente_id: Mapped[int] = mapped_column(
-        ForeignKey("clientes.id", ondelete="CASCADE"),
+    empresa_id: Mapped[int] = mapped_column(
+        ForeignKey("empresas.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

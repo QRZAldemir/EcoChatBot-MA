@@ -1,3 +1,4 @@
+from app.core.zig_response import ZigResponse
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
@@ -25,12 +26,6 @@ class EnviarMensagemRequest(BaseModel):
     interna: bool = False
     verifica_numero: bool = True
     finalizarAtendimento: bool = False
-
-
-class ZigResponse(BaseModel):
-    codigo: int           # 0 = sucesso, 1 = erro
-    erro: Optional[str] = None
-    dados: dict = {}
 
 
 @router.post("/enviar", response_model=ZigResponse)

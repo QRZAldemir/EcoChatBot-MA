@@ -23,7 +23,7 @@
 # ==============================================================================
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Security (JWT + RBAC)
+EcoChatBot-MA · Security (JWT + RBAC)
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     security.py
@@ -35,7 +35,7 @@ Codinome: EcoChatBot-MA
 
 FUNCIONALIDADE
 ──────────────
-Centraliza TODA a lógica de SEGURANÇA do EcoChatBot-Marcx:
+Centraliza TODA a lógica de SEGURANÇA do EcoChatBot-MA:
 
     1. Hash de senha (bcrypt)
     2. Verificação de senha
@@ -122,7 +122,9 @@ from sqlalchemy.orm import selectinload
 from app.config import settings  # Assume-se o uso de pydantic-settings
 from app.database import get_async_session
 from app.redis_client import redis_client
-from app.models import Usuario, Nivel
+from app.models import Usuario
+# `Nivel` nunca existiu na camada de models. O model real e `NivelUsuario`
+# (app/models/__init__.py) e o campo de autorizacao e `Usuario.perfil`.
 from app.exceptions import (
     NaoAutenticadoException,
     TokenExpiradoException,
@@ -182,7 +184,7 @@ def criar_access_token(user_id: int, empresa_id: int, nivel: str) -> str:
         "nivel": nivel,
         "iat": agora,
         "exp": expiracao,
-        "iss": "ecochatbot-marcx",
+        "iss": "EcoChatBot-MA",
         "aud": "ecochatbot-frontend",
     }
     
@@ -197,7 +199,7 @@ def decodificar_token(token: str) -> dict[str, Any]:
             settings.jwt_secret,
             algorithms=[settings.jwt_algorithm],
             audience="ecochatbot-frontend",
-            issuer="ecochatbot-marcx",
+            issuer="EcoChatBot-MA",
         )
     except JWTError as e:
         logger.warning(f"security | Falha na decodificação JWT: {str(e)}")
@@ -309,3 +311,8 @@ def exigir_nivel_minimo(nivel_minimo: str):
             raise NivelInsuficienteException()
         return usuario
     return _verificador
+
+
+# Alias de compatibilidade: nomes em ingles mantidos por imports legados.
+# `get_current_user` e o mesmo provider de `obter_usuario_atual`.
+get_current_user = obter_usuario_atual

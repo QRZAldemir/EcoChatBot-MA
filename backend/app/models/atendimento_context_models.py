@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Contexto do Atendimento
+EcoChatBot-MA · Contexto do Atendimento
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     atendimento_context_models.py
@@ -49,13 +49,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 from app.models.enums import TipoPergunta
-from app.models.mixins import TimestampMixin
+from app.models.mixins import SoftDeleteMixin, TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.atendimento_models import Atendimento
 
 
-class AtendimentoContexto(TimestampMixin, Base):
+class AtendimentoContexto(TimestampMixin, SoftDeleteMixin, Base):
     """
     Resposta individual de uma pergunta do roteiro.
 

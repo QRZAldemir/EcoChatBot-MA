@@ -2,7 +2,7 @@
 # ARQUIVO.....: app/repositories/usuario_repository.py
 # AUTOR.......: Aldemir Queiroz
 # EMAIL.......: queiroz@almarcx.com.br
-# PROJETO.....: EcoChatBotMarcx - Sistema Multi-Tenant de Atendimento
+# PROJETO.....: EcoChatBot-MA - Sistema Multi-Tenant de Atendimento
 # MÓDULO......: Repository do Objeto Usuario (Unit of Work)
 # VERSÃO......: 3.0.0
 # CRIADO EM...: 2024-01-15
@@ -39,7 +39,7 @@
 from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
-from app.models.usuario import Usuario
+from app.models.usuario_models import Usuario
 
 
 class UsuarioRepository:

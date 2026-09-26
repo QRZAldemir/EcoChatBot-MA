@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Database Connection (PostgreSQL)
+EcoChatBot-MA · Database Connection (PostgreSQL)
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     database.py
@@ -104,7 +104,11 @@ class Base(DeclarativeBase):
 
 
 engine = create_async_engine(
-    settings.database_url,
+    # `database_url` é Optional e o .env do projeto não a define — só define as
+    # partes POSTGRES_*. A propriedade `async_database_url` monta a URL a
+    # partir delas (e prioriza `database_url` quando ela existir). Usar o
+    # campo diretamente passava None para a engine e derrubava 91 módulos.
+    settings.async_database_url,
     echo=settings.debug,              # loga SQL em desenvolvimento
     future=True,                      # compatível com SQLAlchemy 2.0
     pool_pre_ping=True,               # testa conexão antes de usar
@@ -183,3 +187,10 @@ async def init_db() -> None:
 async def close_db() -> None:
     """Fecha a engine e libera o pool de conexões."""
     await engine.dispose()
+
+
+# ─── Alias de nome ────────────────────────────────────────────────────────────
+# app/security.py e app/deps.py importam `get_async_session`, mas a função
+# deste módulo se chama `get_db`. É a mesma dependência FastAPI: só o nome
+# divergia. O alias evita duplicar a lógica de sessão.
+get_async_session = get_db

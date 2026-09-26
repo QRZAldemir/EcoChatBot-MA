@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Cliente (Tenant Raiz)
+EcoChatBot-MA · Cliente (Tenant Raiz)
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     cliente_models.py
@@ -50,11 +50,7 @@ from app.models.enums import PlanoTenant, StatusTenant
 from app.models.mixins import SoftDeleteMixin, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.campanha_models import Campanha
-    from app.models.canal_models import CanalMensageria
-    from app.models.contato_models import Contato
     from app.models.empresa_models import Empresa
-    from app.models.pedido_models import Pedido
 
 
 class Cliente(TimestampMixin, SoftDeleteMixin, Base):
@@ -96,18 +92,9 @@ class Cliente(TimestampMixin, SoftDeleteMixin, Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
-    contatos: Mapped[List["Contato"]] = relationship(
-        back_populates="cliente", cascade="all, delete-orphan"
-    )
-    canais_mensageria: Mapped[List["CanalMensageria"]] = relationship(
-        back_populates="cliente", cascade="all, delete-orphan"
-    )
-    campanhas: Mapped[List["Campanha"]] = relationship(
-        back_populates="cliente", cascade="all, delete-orphan"
-    )
-    pedidos: Mapped[List["Pedido"]] = relationship(
-        back_populates="cliente", cascade="all, delete-orphan"
-    )
+    # Só `empresas` fica diretamente sob o Cliente. Contatos, canais, campanhas
+    # e pedidos NÃO ficam mais aqui: eles pertencem a uma EMPRESA (o tenant) e
+    # são alcançados por Cliente → Empresa → filhos.
 
 
 __all__ = ["Cliente"]

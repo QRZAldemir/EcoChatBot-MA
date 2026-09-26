@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Campanha de Marketing
+EcoChatBot-MA · Campanha de Marketing
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     campanha_models.py
@@ -53,8 +53,7 @@ from app.models.enums import StatusCampanha
 from app.models.mixins import SoftDeleteMixin, TenantMixin, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.canal_contratado_models import CanalContratado
-    from app.models.cliente_models import Cliente
+    from app.models.canal_models import CanalContratado
 
 
 class Campanha(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
@@ -63,9 +62,6 @@ class Campanha(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     __tablename__ = "campanhas"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    empresa_id: Mapped[int] = mapped_column(
-        ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False, index=True
-    )
     canal_contratado_id: Mapped[int] = mapped_column(
         ForeignKey("canais_contratados.id", ondelete="RESTRICT"),
         nullable=False,
@@ -104,7 +100,6 @@ class Campanha(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # ─── Relacionamentos ──────────────────────────────────────────────────
-    cliente: Mapped["Cliente"] = relationship(back_populates="campanhas")
     canal_contratado: Mapped["CanalContratado"] = relationship()
 
 

@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Enumerações do Domínio
+EcoChatBot-MA · Enumerações do Domínio
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     enums.py
@@ -203,7 +203,12 @@ class StatusRoteiro(BaseStrEnum):
 # ═══════════════════════════════════════════════════════════════════════════
 
 class StatusChamada(BaseStrEnum):
-    INICIADA    = "iniciada"
+    # O primeiro valor PRECISA ser "iniciando": é o DEFAULT da coluna no banco
+    # (migration 004). Antes o enum começava em "iniciada", e qualquer INSERT
+    # que não informasse status recebia "iniciando" do Postgres — valor que
+    # não existia aqui. O registro ficava gravado, ninguém via erro, e toda
+    # consulta filtrando por INICIADA não encontrava a linha.
+    INICIANDO   = "iniciando"
     TOCANDO     = "tocando"
     ATENDIDA    = "atendida"
     PERDIDA     = "perdida"
@@ -266,6 +271,40 @@ class MotivoRevogacao(BaseStrEnum):
     ADMIN     = "admin"
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# 9. CONTRATAÇÃO
+# ═══════════════════════════════════════════════════════════════════════════
+
+class StatusAssinatura(BaseStrEnum):
+    """
+    Situação comercial da assinatura da Empresa.
+
+    ⚠️ ESTRUTURA SEM REGRA DE COBRANÇA: os valores monetários e o cálculo
+    de mensalidade por canal contratado ainda NÃO foram definidos pelo
+    negócio. O que existe aqui é o espaço para registrar o contrato.
+    """
+    TRIAL      = "trial"
+    ATIVA      = "ativa"
+    INADIMPLENTE = "inadimplente"
+    SUSPENSA   = "suspensa"
+    CANCELADA  = "cancelada"
+
+
+class TipoTransferencia(BaseStrEnum):
+    """
+    O que originou a transferência do atendimento.
+
+    MENU     → o cliente escolheu uma opção do MenuItem (pode ter errado)
+    ATENDENTE → o atendente redirecionou para outro departamento
+    RAMAL    → transferência para um ramal (VoIP/PABX)
+    SISTEMA  → regra automática (fila, horário, fallback do menu)
+    """
+    MENU      = "menu"
+    ATENDENTE = "atendente"
+    RAMAL     = "ramal"
+    SISTEMA   = "sistema"
+
+
 __all__ = [
     "BaseStrEnum",
     # Tenant/Empresa
@@ -273,7 +312,9 @@ __all__ = [
     # Canais
     "TipoCanalMensageria", "StatusConexao",
     # Atendimento
-    "StatusAtendimento", "PrioridadeAtendimento",
+    "StatusAtendimento",
+    "StatusAssinatura",
+    "TipoTransferencia", "PrioridadeAtendimento",
     "OrigemAtendimento", "MotivoAlerta",
     # Mensagem
     "TipoMensagem", "DirecaoMensagem", "StatusMensagem",

@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Modelo de Mensagem (Template)
+EcoChatBot-MA · Modelo de Mensagem (Template)
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     modelo_mensagem_models.py
@@ -68,9 +68,6 @@ class ModeloMensagem(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    empresa_id: Mapped[int] = mapped_column(
-        ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False, index=True
-    )
 
     # ─── Identificação ────────────────────────────────────────────────────
     chave: Mapped[str] = mapped_column(String(80), nullable=False, index=True)

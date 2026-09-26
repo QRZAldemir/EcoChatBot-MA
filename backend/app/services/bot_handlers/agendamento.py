@@ -1,6 +1,6 @@
 """
 ================================================================================
-PROJETO.......: EcoChatBotMarcx — Sistema de Atendimento Digital Configurável
+PROJETO.......: EcoChatBot-MA — Sistema de Atendimento Digital Configurável
 ARQUIVO.......: bot_handlers/agendamento_handler.py
 AUTOR.........: Aldemir Queiroz
 DATA..........: 08/09/2026
@@ -54,7 +54,8 @@ PRIVACIDADE E LGPD/GDPR:
 # ─────────────────────────────────────────────────────────────────────────────
 
 from sqlalchemy.orm import Session
-from app.models import Atendimento, Mensagem
+from app.models import Atendimento
+from app.services.bot_handlers.mensagem_payload import MensagemPayload
 from .core import DepartamentoHandler
 from .validators import validar_campo
 from .utils import gerar_protocolo
@@ -251,7 +252,7 @@ class AgendamentoHandler(DepartamentoHandler):
         self,
         atendimento: Atendimento,
         step: str,
-        mensagem: Mensagem,
+        mensagem: MensagemPayload,
     ) -> None:
         """
         POLIMORFISMO: Implementação específica para Agendamentos.

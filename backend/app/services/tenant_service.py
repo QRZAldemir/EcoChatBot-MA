@@ -5,11 +5,13 @@ Fornece acesso e resolução do cliente/tenant a partir da sessão do
 usuário autenticado, bem como operações básicas de cadastro.
 """
 
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from sqlalchemy.orm import Session
 
 from app.models import Cliente, Usuario
+from app.database import Base
+from sqlalchemy import Column, Integer, JSON, String
 
 
 class TenantService:

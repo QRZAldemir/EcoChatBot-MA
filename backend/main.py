@@ -35,33 +35,33 @@ load_dotenv()
 # ==============================================================================
 # Cada router representa um domínio do sistema. 
 # O padrão DRY (Don't Repeat Yourself) é aplicado via lista de tuplas.
-from app.routers import (
-    auth,               # Autenticação e gestão de tokens JWT
-    empresas,           # Gestão multi-tenant (empresas/clientes)
-    usuarios,           # CRUD de usuários e perfis
-    departamentos,      # Estrutura organizacional
-    canais,             # Canais omnichannel (WhatsApp, Telegram, etc.)
-    conexoes,           # Configurações de conexão com APIs externas
-    contatos,           # Base de contatos e CRM
-    email,              # Disparo e gestão de e-mails
-    campanhas,          # Campanhas de marketing e broadcast
-    arquivos,           # Upload e gestão de mídia
-    ia,                 # Integrações com IA (OpenAI, Gemini)
-    mensagem,           # Envio e recebimento de mensagens
-    menus,              # Menus interativos e URA
-    modelos_mensagem,   # Templates de mensagem
-    atendimento,        # Gestão de tickets e atendimento humano
-    dashboard,          #  NOVO: Dashboard analítico e KPIs
-    webhook,            # Recebimento de webhooks (Meta, Telegram)
-    audio,              # Processamento de áudio (STT/TTS)
-)
+# Os módulos seguem a convenção `*_routers.py`. O alias à direita preserva o
+# nome usado em `ROUTERS_CONFIG`, que é o nome do domínio, não do arquivo.
+from app.routers import auths_routers as auth
+from app.routers import empresas_routers as empresas
+from app.routers import usuario_routers as usuarios
+from app.routers import departamentos_routers as departamentos
+from app.routers import canais_routers as canais
+from app.routers import conexoes_routers as conexoes
+from app.routers import contatos_routers as contatos
+from app.routers import emails_routers as email
+from app.routers import campanhas_routers as campanhas
+from app.routers import ias_routers as ia
+from app.routers import mensagens_routers as mensagem
+from app.routers import menus_routers as menus
+from app.routers import modelos_mensagens_routers as modelos_mensagem
+from app.routers import atendimentos_routers as atendimento
+from app.routers import dashboard_routers as dashboard
+from app.routers import webhook_routers as webhook
+from app.routers import audios_routers as audio
+# `arquivos` (upload de mídia) foi removido: não existe router correspondente.
 from app.security import exigir_nivel_minimo, obter_usuario_atual
 
 # ==============================================================================
 # 3. CONFIGURAÇÃO DA INSTÂNCIA FASTAPI
 # ==============================================================================
 app = FastAPI(
-    title="EcoChat Marcx API",
+    title="EcoChatBot-MA API",
     description=(
         "API omnichannel de atendimento digital unificando WhatsApp, Telegram, "
         "Instagram e voz. Inclui automação via n8n, IA generativa e dashboard analítico."
@@ -140,7 +140,6 @@ ROUTERS_CONFIG: List[tuple] = [
     (contatos, "/api/contatos", "Contatos", True, "gerente"),
     (email, "/api/emails", "Email", True, "gerente"),
     (campanhas, "/api/campanhas", "Campanhas", True, "gerente"),
-    (arquivos, "/api/arquivos", "Arquivos", True, "atendente"),
     (ia, "/api/ia", "Inteligencia Artificial", True, "gerente"),
     (mensagem, "/api/mensagem", "Mensagens", True, "atendente"),
     (menus, "/api/menus", "Menus", False, None),
@@ -192,7 +191,7 @@ def read_root() -> Dict[str, str]:
     Endpoint raiz. Confirma que a API está operacional.
     """
     return {
-        "message": "EcoChat Marcx API - Backend Python FastAPI v2.0.0",
+        "message": "EcoChatBot-MA API - Backend Python FastAPI v2.0.0",
         "docs": "/docs",
         "health": "/health"
     }

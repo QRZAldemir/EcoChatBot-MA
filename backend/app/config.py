@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Configurações Globais
+EcoChatBot-MA · Configurações Globais
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     config.py
@@ -85,6 +85,7 @@ class Settings(BaseSettings):
 
     secret_key: str = Field(
         default='',
+        alias='JWT_SECRET',
         description='Chave secreta JWT. DEVE ser alterada em produção (≥32 chars).',
     )
     jwt_algorithm:  str = Field(default='HS256', description='Algoritmo de criptografia do JWT')
@@ -94,9 +95,9 @@ class Settings(BaseSettings):
     # 3. CORS (Cross-Origin Resource Sharing)
     # ═══════════════════════════════════════════════════════════════════════
 
-    cors_origins: str = Field(
-        default='http://localhost:4200,http://localhost:3000',
-        description='Origens permitidas para CORS (separadas por vírgula)',
+    cors_origins: List[str] = Field(
+        default_factory=lambda: ['http://localhost:4200', 'http://localhost:3000'],
+        description='Origens permitidas para CORS. No .env, separadas por vírgula.',
     )
 
     # ═══════════════════════════════════════════════════════════════════════

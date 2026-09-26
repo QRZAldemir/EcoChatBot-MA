@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Atendimento
+EcoChatBot-MA · Atendimento
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     atendimento_models.py
@@ -64,8 +64,9 @@ from app.models.mixins import SoftDeleteMixin, TenantMixin, TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.atendimento_context_models import AtendimentoContexto
-    from app.models.canal_contratado_models import CanalContratado
+    from app.models.canal_models import CanalContratado
     from app.models.chamada_pabx_models import ChamadaPABX
+    from app.models.transferencia_models import Transferencia
     from app.models.contato_models import Contato
     from app.models.departamento_models import Departamento
     from app.models.empresa_models import Empresa, Usuario
@@ -80,9 +81,6 @@ class Atendimento(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # ─── FKs de contexto ──────────────────────────────────────────────────
-    empresa_id: Mapped[int] = mapped_column(
-        ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False, index=True
-    )
     contato_id: Mapped[int] = mapped_column(
         ForeignKey("contatos.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -146,6 +144,9 @@ class Atendimento(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     atendente: Mapped["Usuario | None"] = relationship()
 
     contextos: Mapped[List["AtendimentoContexto"]] = relationship(
+        back_populates="atendimento", cascade="all, delete-orphan"
+    )
+    transferencias: Mapped[List["Transferencia"]] = relationship(
         back_populates="atendimento", cascade="all, delete-orphan"
     )
     chamadas: Mapped[List["ChamadaPABX"]] = relationship(

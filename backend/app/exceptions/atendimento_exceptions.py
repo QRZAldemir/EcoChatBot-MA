@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Atendimento Exceptions
+EcoChatBot-MA · Atendimento Exceptions
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     atendimento_exceptions.py
@@ -13,7 +13,7 @@ Codinome: EcoChatBot-MA
 FUNCIONALIDADE
 ──────────────
 Define as exceções específicas do DOMÍNIO "ATENDIMENTO" do
-EcoChatBot-Marcx.
+EcoChatBot-MA.
 
 DOMÍNIO "ATENDIMENTO"
 ─────────────────────

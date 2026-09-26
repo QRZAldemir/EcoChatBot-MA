@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Departamento
+EcoChatBot-MA · Departamento
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     departamento_models.py
@@ -52,9 +52,6 @@ class Departamento(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     __tablename__ = "departamentos"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    empresa_id: Mapped[int] = mapped_column(
-        ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False, index=True
-    )
 
     # ─── Identificação ────────────────────────────────────────────────────
     nome: Mapped[str] = mapped_column(String(120), nullable=False)

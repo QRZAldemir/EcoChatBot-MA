@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Roteiro
+EcoChatBot-MA · Roteiro
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     roteiro_models.py
@@ -65,9 +65,6 @@ class Roteiro(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     __tablename__ = "roteiros"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    empresa_id: Mapped[int] = mapped_column(
-        ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False, index=True
-    )
 
     # ─── Identificação ────────────────────────────────────────────────────
     nome: Mapped[str] = mapped_column(String(120), nullable=False, index=True)

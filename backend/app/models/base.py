@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Base Declarativa do ORM
+EcoChatBot-MA · Base Declarativa do ORM
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     base.py

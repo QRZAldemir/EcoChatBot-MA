@@ -1,7 +1,7 @@
 version: '3.9'
 
 # ═══════════════════════════════════════════════════════════════════════════
-# EcoChatBot-Marcx · Infraestrutura de Desenvolvimento
+# EcoChatBot-MA · Infraestrutura de Desenvolvimento
 # Codinome: EcoChatBot-MA
 # ───────────────────────────────────────────────────────────────────────────
 # Sobe MongoDB + Redis para desenvolvimento local.

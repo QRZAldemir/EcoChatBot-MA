@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════
-# EcoChatBot-Marcx · Gerador de Árvore de Estrutura
+# EcoChatBot-MA · Gerador de Árvore de Estrutura
 # Gera um arquivo estrutura.txt com a árvore REAL do projeto
 # ═══════════════════════════════════════════════════════════════════
 
@@ -39,7 +39,7 @@ function Show-Tree {
 # Header
 $header = @"
 ╔══════════════════════════════════════════════════════════════════╗
-║  ECOCHATBOT-MARCX · ESTRUTURA GERADA AUTOMATICAMENTE             ║
+║  EcoChatBot-MA · ESTRUTURA GERADA AUTOMATICAMENTE                ║
 ║  Gerado em: $(Get-Date -Format "dd/MM/yyyy HH:mm:ss")                              ║
 ╚══════════════════════════════════════════════════════════════════╝
 

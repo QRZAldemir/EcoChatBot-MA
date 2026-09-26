@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Auth Exceptions
+EcoChatBot-MA · Auth Exceptions
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     auth_exceptions.py
@@ -13,7 +13,7 @@ Codinome: EcoChatBot-MA
 FUNCIONALIDADE
 ──────────────
 Define as exceções específicas do DOMÍNIO "AUTENTICAÇÃO E AUTORIZAÇÃO"
-do EcoChatBot-Marcx.
+do EcoChatBot-MA.
 
 Todas as classes herdam de `AuthException`, que por sua vez herda de
 `EcoChatBotException`, garantindo:

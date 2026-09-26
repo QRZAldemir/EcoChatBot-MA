@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Menu e MenuItem
+EcoChatBot-MA · Menu e MenuItem
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     menu_models.py
@@ -57,7 +57,7 @@ from app.models.base import Base
 from app.models.mixins import SoftDeleteMixin, TenantMixin, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.canal_contratado_models import CanalContratado
+    from app.models.canal_models import CanalContratado
     from app.models.departamento_models import Departamento
     from app.models.roteiro_models import Roteiro
 
@@ -74,9 +74,6 @@ class Menu(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     __tablename__ = "menus"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    empresa_id: Mapped[int] = mapped_column(
-        ForeignKey("empresas.id", ondelete="CASCADE"), nullable=False, index=True
-    )
     canal_contratado_id: Mapped[int | None] = mapped_column(
         ForeignKey("canais_contratados.id", ondelete="CASCADE"), index=True
     )

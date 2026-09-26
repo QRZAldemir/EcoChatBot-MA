@@ -1,30 +1,30 @@
 """
 ==============================================================================
-PROJETO: EcoChatBotMarcx
+PROJETO: EcoChatBot-MA
 MÓDULO: app/exceptions.py
 AUTOR: Aldemir Queiroz
 DATA: 2024-05-24
 ==============================================================================
 
 DESCRIÇÃO:
-Este módulo centraliza a hierarquia de exceções de domínio e de infraestrutura 
-do sistema EcoChatBotMarcx. Ele define uma classe base (`AppError`) e suas 
-respectivas subclasses, categorizadas por contexto de negócio (Canais, 
+Este módulo centraliza a hierarquia de exceções de domínio e de infraestrutura
+do sistema EcoChatBot-MA. Ele define uma classe base (`AppError`) e suas
+respectivas subclasses, categorizadas por contexto de negócio (Canais,
 Atendimento, Usuário, Tenant) e camada de acesso a dados.
 
 OBJETIVO:
-Fornecer um mecanismo unificado e tipado para o tratamento de erros, permitindo 
-que a camada de apresentação (FastAPI) capture exceções específicas e retorne 
-respostas HTTP padronizadas, com códigos de status e mensagens amigáveis 
+Fornecer um mecanismo unificado e tipado para o tratamento de erros, permitindo
+que a camada de apresentação (FastAPI) capture exceções específicas e retorne
+respostas HTTP padronizadas, com códigos de status e mensagens amigáveis
 adequados, promovendo o desacoplamento entre as regras de negócio e a API.
 
 INSTRUÇÕES DE USO:
-1. Para criar uma nova exceção, herde de `AppError` (para erros de domínio) ou 
+1. Para criar uma nova exceção, herde de `AppError` (para erros de domínio) ou
    de `RepositoryError` (para erros de infraestrutura).
-2. Sobrescreva o método `__init__` para definir uma mensagem padrão e um 
+2. Sobrescreva o método `__init__` para definir uma mensagem padrão e um
    `status_code` HTTP apropriado.
 3. Na camada de Serviço (Service), levante as exceções utilizando `raise`.
-4. Registre as exceções no FastAPI utilizando `@app.exception_handler()` para 
+4. Registre as exceções no FastAPI utilizando `@app.exception_handler()` para
    mapeá-las para `JSONResponse`.
 ==============================================================================
 """
@@ -33,7 +33,7 @@ from __future__ import annotations
 
 class AppError(Exception):
     """Classe base para todas as exceções da aplicação."""
-    
+
     def __init__(self, message: str, status_code: int = 500) -> None:
         self.message = message
         self.status_code = status_code

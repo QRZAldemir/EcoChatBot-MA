@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Tenant Exceptions
+EcoChatBot-MA · Tenant Exceptions
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     tenant_exceptions.py
@@ -13,7 +13,7 @@ Codinome: EcoChatBot-MA
 FUNCIONALIDADE
 ──────────────
 Define as exceções específicas do DOMÍNIO "TENANT" (multi-tenant) do
-EcoChatBot-Marcx.
+EcoChatBot-MA.
 
 Todas as classes herdam de `TenantException`, que por sua vez herda de
 `EcoChatBotException`, garantindo:
@@ -25,7 +25,7 @@ Todas as classes herdam de `TenantException`, que por sua vez herda de
 
 DOMÍNIO "TENANT"
 ───────────────
-O EcoChatBot-Marcx é MULTI-TENANT (SaaS). Cada "tenant" é uma EMPRESA
+O EcoChatBot-MA é MULTI-TENANT (SaaS). Cada "tenant" é uma EMPRESA
 cliente que usa o sistema com dados isolados.
 
 Conceitos:

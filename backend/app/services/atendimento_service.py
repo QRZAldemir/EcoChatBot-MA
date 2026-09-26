@@ -17,7 +17,7 @@ from sqlalchemy import func, desc, asc, case
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import Atendimento, Departamento, Usuario
-from app.schemas.atendimento import (
+from app.schemas.atendimento_schemas import (
     FiltroAtendimento, AtendimentoCreate, AtendimentoUpdate,
     AtendimentoTransferir, AtendimentoFinalizar, AtendimentoIndicadores,
 )

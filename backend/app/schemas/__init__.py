@@ -16,73 +16,83 @@ def _normalizar_descricao(cls, v: Optional[str]) -> Optional[str]:
         raise ValueError('Descrição deve conter apenas letras, números, espaços e underscore')
     return v
 
-# ━━━ Menu Opcao ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-class MenuOpcaoBase(BaseModel):
+# ━━━ Menu Item (opção do menu) ━━━━━━━━━━━━━━━━━━━━━━━━━━
+# `row_id` do schema antigo virou `atalho`; `cor` saiu porque a cor passou a
+# ser deduce da cor do botão desenhada no front, e `departamento_id` passou a
+# ser obrigatório porque TODA opção do menu tem que dizer quem atende.
+class MenuItemBase(BaseModel):
     titulo: str
     descricao: Optional[str] = None
-    row_id: str
+    atalho: Optional[str] = None
     ordem: int = 0
-    cor: CorOpcao = "verde"
+    departamento_id: int
+    roteiro_id: Optional[int] = None
+    transfere_direto: bool = False
+    ativo: bool = True
 
-class MenuOpcaoCreate(MenuOpcaoBase):
+class MenuItemCreate(MenuItemBase):
     pass
 
-class MenuOpcaoUpsert(MenuOpcaoBase):
+class MenuItemUpsert(MenuItemBase):
     id: Optional[int] = None
 
-class MenuOpcaoUpdate(BaseModel):
+class MenuItemUpdate(BaseModel):
     titulo: Optional[str] = None
     descricao: Optional[str] = None
-    row_id: Optional[str] = None
+    atalho: Optional[str] = None
     ordem: Optional[int] = None
-    cor: Optional[CorOpcao] = None
+    departamento_id: Optional[int] = None
+    roteiro_id: Optional[int] = None
+    transfere_direto: Optional[bool] = None
+    ativo: Optional[bool] = None
 
-class MenuOpcaoResponse(MenuOpcaoBase):
+class MenuItemResponse(MenuItemBase):
     id: int
     menu_id: int
+    criado_em: datetime
 
     class Config:
         from_attributes = True
 
 # ━━━ Menu ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Alinhado ao model canônico `Menu`: o menu pertence à EMPRESA e, quando há
+# `canal_contratado_id`, é o menu específico daquele canal. Sem esse campo é
+# o menu principal (hub). `usuario_vinculado_id` saiu: quem atende é sempre um
+# DEPARTAMENTO, resolvido em `MenuItem.departamento_id`.
 class MenuBase(BaseModel):
-    titulo: str
-    descricao: Optional[str] = None
-    cabecalho: Optional[str] = None
+    nome: str
+    saudacao: Optional[str] = None
     rodape: Optional[str] = None
-    texto_botao: str = "Ver opções"
-    canal_id: Optional[int] = None
-    usuario_vinculado_id: Optional[int] = None
+    tempo_espera_seg: int = 300
+    tentativas_max: int = 3
+    canal_contratado_id: Optional[int] = None
     ativo: bool = True
+    criado_em: datetime
 
-    _normalizar_titulo = field_validator('titulo')(_normalizar_descricao)
+    _normalizar_nome = field_validator('nome')(_normalizar_descricao)
 
 class MenuCreate(MenuBase):
-    opcoes: List[MenuOpcaoCreate] = []
+    itens: List[MenuItemCreate] = []
+    fallback_departamento_id: Optional[int] = None
 
 class MenuUpdate(BaseModel):
-    titulo: Optional[str] = None
-    descricao: Optional[str] = None
-    cabecalho: Optional[str] = None
+    nome: Optional[str] = None
+    saudacao: Optional[str] = None
     rodape: Optional[str] = None
-    texto_botao: Optional[str] = None
-    canal_id: Optional[int] = None
-    usuario_vinculado_id: Optional[int] = None
+    tempo_espera_seg: Optional[int] = None
+    tentativas_max: Optional[int] = None
+    canal_contratado_id: Optional[int] = None
+    fallback_departamento_id: Optional[int] = None
     ativo: Optional[bool] = None
-    opcoes: Optional[List[MenuOpcaoUpsert]] = None
+    itens: Optional[List[MenuItemUpsert]] = None
 
-    _normalizar_titulo = field_validator('titulo')(_normalizar_descricao)
+    _normalizar_nome = field_validator('nome')(_normalizar_descricao)
 
 class MenuResponse(MenuBase):
     id: int
-    criado_em: datetime
-    usuario_vinculado_nome: Optional[str] = None
-    opcoes: List[MenuOpcaoResponse] = []
+    empresa_id: int
+    itens: List[MenuItemResponse] = []
 
-    class Config:
-        from_attributes = True
-
-# ━━━ Nível Usuario ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class NivelUsuarioBase(BaseModel):
     nome: str
     descricao: Optional[str] = None
@@ -117,28 +127,52 @@ class DepartamentoResponse(DepartamentoBase):
     class Config:
         from_attributes = True
 
-# ━━━ Canal ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-class CanalBase(BaseModel):
-    nome: str
-    descricao: Optional[str] = None
-    arquivo_menu: str = ""
-    departamento_id: Optional[int] = None
+# ━━━ Canal Contratado ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# O canal deixou de ser um registro solto: ele é um ITEM DO CONTRATO da
+# empresa. Por isso `telefone_id` e `tipo` são obrigatórios — todo canal
+# precisa de um telefone que o sustente, e o tipo é a escolha da empresa.
+class CanalContratadoBase(BaseModel):
+    tipo: str
+    telefone_id: int
+    apelido: Optional[str] = None
+    credenciais: Optional[str] = None
+    webhook_token: Optional[str] = None
+    webhook_url: Optional[str] = None
+    horario_inicio: Optional[str] = None
+    horario_fim: Optional[str] = None
+    dias_semana: Optional[str] = None
     ativo: bool = True
 
-class CanalCreate(CanalBase):
-    pass
+class CanalContratadoCreate(CanalContratadoBase):
+    empresa_id: int
 
-class CanalUpdate(BaseModel):
-    nome: Optional[str] = None
-    descricao: Optional[str] = None
-    arquivo_menu: Optional[str] = None
-    departamento_id: Optional[int] = None
+class CanalContratadoUpdate(BaseModel):
+    tipo: Optional[str] = None
+    telefone_id: Optional[int] = None
+    apelido: Optional[str] = None
+    credenciais: Optional[str] = None
+    webhook_token: Optional[str] = None
+    webhook_url: Optional[str] = None
+    horario_inicio: Optional[str] = None
+    horario_fim: Optional[str] = None
+    dias_semana: Optional[str] = None
     ativo: Optional[bool] = None
 
-class CanalResponse(CanalBase):
+class CanalContratadoResponse(CanalContratadoBase):
     id: int
+    empresa_id: int
     criado_em: datetime
-    departamento: Optional[DepartamentoResponse] = None
+    atualizado_em: datetime
+
+    class Config:
+        from_attributes = True
+
+# Resumo usado dentro do cadastro do atendente, onde a lista de canais é longa.
+class CanalContratadoResumo(BaseModel):
+    id: int
+    tipo: str
+    apelido: Optional[str] = None
+    principal: bool = False
 
     class Config:
         from_attributes = True
@@ -314,7 +348,6 @@ class UsuarioBase(BaseModel):
     telefone: Optional[str] = None
     nivel_id: int
     departamento_id: Optional[int] = None
-    canal_id: Optional[int] = None
     ativo: bool = True
 
 class UsuarioCreate(UsuarioBase):
@@ -326,7 +359,6 @@ class UsuarioUpdate(BaseModel):
     telefone: Optional[str] = None
     nivel_id: Optional[int] = None
     departamento_id: Optional[int] = None
-    canal_id: Optional[int] = None
     ativo: Optional[bool] = None
     senha: Optional[str] = None
 
@@ -336,7 +368,6 @@ class UsuarioResponse(UsuarioBase):
     atualizado_em: datetime
     nivel: Optional[NivelUsuarioResponse] = None
     departamento: Optional[DepartamentoResponse] = None
-    canal: Optional[CanalResponse] = None
 
     class Config:
         from_attributes = True
@@ -349,7 +380,23 @@ class UsuarioListItem(BaseModel):
     ativo: bool
     nivel_nome: Optional[str] = None
     departamento_nome: Optional[str] = None
-    canal_nome: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# COMPATIBILIDADE
+# `Canal*` e `MenuOpcao*` passaram a se chamar `CanalContratado*` e
+# `MenuItem*`. Os nomes antigos ficam como apelido temporário para não quebrar
+# imports de uma vez; podem ser removidos quando a migração terminar.
+# ══════════════════════════════════════════════════════════════════════════
+CanalBase = CanalContratadoBase
+CanalCreate = CanalContratadoCreate
+CanalUpdate = CanalContratadoUpdate
+CanalResponse = CanalContratadoResponse
+MenuOpcaoBase = MenuItemBase
+MenuOpcaoCreate = MenuItemCreate
+MenuOpcaoUpsert = MenuItemUpsert
+MenuOpcaoUpdate = MenuItemUpdate
+MenuOpcaoResponse = MenuItemResponse

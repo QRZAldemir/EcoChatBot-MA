@@ -1,6 +1,6 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-Marcx · Contato
+EcoChatBot-MA · Contato
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     contato_models.py
@@ -16,7 +16,7 @@ Representa a PESSOA (física ou jurídica) que conversa com o sistema,
 independente do canal de mensageria.
 
 Um mesmo Contato pode existir em vários canais (WhatsApp + Telegram +
-PABX) — por isso a unicidade é (cliente_id, canal_tipo, canal_identificador)
+PABX) — por isso a unicidade é (empresa_id, canal_tipo, canal_identificador)
 e NÃO apenas o telefone.
 
 RELACIONAMENTO
@@ -46,7 +46,7 @@ from app.models.mixins import SoftDeleteMixin, TenantMixin, TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.atendimento_models import Atendimento
-    from app.models.cliente_models import Cliente
+    from app.models.empresa_models import Empresa
 
 
 class Contato(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
@@ -55,8 +55,8 @@ class Contato(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     __tablename__ = "contatos"
     __table_args__ = (
         UniqueConstraint(
-            "cliente_id", "canal_tipo", "canal_identificador",
-            name="uq_contatos_cliente_canal",
+            "empresa_id", "canal_tipo", "canal_identificador",
+            name="uq_contatos_empresa_canal",
         ),
     )
 
@@ -80,7 +80,7 @@ class Contato(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     ultima_interacao: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # ─── Relacionamentos ──────────────────────────────────────────────────
-    cliente: Mapped["Cliente"] = relationship(back_populates="contatos")
+    empresa: Mapped["Empresa"] = relationship()
     atendimentos: Mapped[List["Atendimento"]] = relationship(
         back_populates="contato", cascade="all, delete-orphan"
     )
