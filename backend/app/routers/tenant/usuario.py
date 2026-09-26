@@ -32,7 +32,7 @@
 # - HTTPException propagadas do Service
 #
 # DEPENDÊNCIAS:
-# - app.dependencies.get_current_cliente / get_current_usuario
+# - app.deps.get_current_cliente / get_current_user
 # - app.services.usuario_service.UsuarioService
 # - app.schemas.usuario_schemas (DTOs)
 #
@@ -44,7 +44,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.dependencies import get_current_cliente, get_current_usuario
+from app.deps import get_current_cliente, get_current_user
 from app.models import Cliente, Usuario
 from app.schemas.usuario_schemas import (
     ConexaoResponse,
@@ -220,7 +220,7 @@ def deletar_usuario(
 def alterar_minha_senha(
     dados: UsuarioUpdateSenha,
     db: Session = Depends(get_db),
-    usuario_atual: Usuario = Depends(get_current_usuario),
+    usuario_atual: Usuario = Depends(get_current_user),
 ):
     """Altera senha do próprio usuário autenticado."""
     svc = UsuarioService(db, usuario_atual.empresa_id)

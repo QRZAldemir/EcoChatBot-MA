@@ -177,8 +177,12 @@ async def init_db() -> None:
     ⚠️ Só use em desenvolvimento. Em produção, use Alembic:
         alembic upgrade head
     """
-    # Importa todos os models para que o `Base.metadata` os conheça
-    from app.models import models  # noqa: F401
+    # Importa o pacote de models para que o `Base.metadata` conheça as 30
+    # tabelas. Antes isto importava `app.models.models`, que declarava
+    # Empresa/Usuario/InstanciaChatbot numa SEGUNDA classe Base (a deste
+    # arquivo) — cópias pré-refatoração, invisíveis ao Alembic e com campos
+    # que já não existem mais (created_at, Empresa.plano, cnpj_cpf).
+    import app.models  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

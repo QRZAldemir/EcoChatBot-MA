@@ -25,7 +25,7 @@ from app.schemas.canal_schemas import (
     CanalMetricasResumo,
 )
 from app.services.canal_service import CanalService
-from app.dependencies import get_current_empresa
+from app.deps import get_current_empresa
 from app.core.zig_response import ZigResponse
 
 logger = logging.getLogger(__name__)
