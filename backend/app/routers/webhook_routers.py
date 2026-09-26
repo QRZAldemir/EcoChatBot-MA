@@ -14,7 +14,7 @@ DESCRIÇÃO:
 
 CONTEXTO ARQUITETURAL:
     - Framework: FastAPI (Python)
-    - Banco de Dados: PostgreSQL (via SQLAlchemy e SessionLocal)
+    - Banco de Dados: PostgreSQL (via SQLAlchemy e AsyncSessionLocal)
     - Padrão de Projeto: Background Tasks (para evitar bloqueio da thread principal 
       e timeouts da Evolution API, que exige resposta em ~5 segundos).
     - Segurança: Validação de token via comparação constante (hmac.compare_digest) 
@@ -38,7 +38,7 @@ from typing import Tuple, Dict, Any
 from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
 
 # Importações internas do projeto
-from app.database import SessionLocal
+from app.database import AsyncSessionLocal
 from app.services.bot_service import processar_mensagem_recebida
 
 # Inicialização do Router do FastAPI
@@ -211,23 +211,26 @@ async def _processar_mensagem(instance: str, payload: Dict[str, Any]) -> None:
         return
 
     # Gerenciamento de Sessão de Banco de Dados
-    # Cada task em background deve criar e fechar sua própria sessão para evitar 
-    # vazamento de conexões (connection leaks) e conflitos de thread.
-    db = SessionLocal()
-    try:
-        await processar_mensagem_recebida(
-            db=db,
-            instance_nome=instance,
-            remote_jid=remote_jid,
-            push_name=push_name,
-            msg_type=msg_type,
-            content=content,
-        )
-    except Exception:
-        # logger.exception já inclui o stack trace completo, essencial para depuração
-        logger.exception("webhook | instancia=%s | erro crítico ao processar mensagem de %s", instance, remote_jid)
-    finally:
-        db.close()
+    # A sessão é assíncrona (`AsyncSessionLocal`) e usada como context manager.
+    # O `SessionLocal()` sync original era instanciado aqui e, se
+    # `processar_mensagem_recebida` falhasse, o `finally` chamava `db.close()`
+    # numa sessão já commitada por outra — vazando conexão do pool a cada
+    # mensagem recebida.
+    async with AsyncSessionLocal() as db:
+        try:
+            await processar_mensagem_recebida(
+                db=db,
+                instance_nome=instance,
+                remote_jid=remote_jid,
+                push_name=push_name,
+                msg_type=msg_type,
+                content=content,
+            )
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            # logger.exception já inclui o stack trace completo, essencial para depuração
+            logger.exception("webhook | instancia=%s | erro crítico ao processar mensagem de %s", instance, remote_jid)
 
 
 async def _processar_status(instance: str, payload: Dict[str, Any]) -> None:

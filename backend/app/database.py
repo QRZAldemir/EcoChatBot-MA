@@ -164,6 +164,37 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
+async def get_db_read() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Dependência FastAPI para rotas de LEITURA (dashboard, relatórios, listagens).
+
+    Diferença em relação a `get_db`:
+      - NÃO faz commit no final — uma sessão de leitura não deve confirmar
+        nada, e o commit implícito mascararia escrita acidental;
+      - marca a transação como somente-leitura, de modo que o próprio
+        PostgreSQL rejeite INSERT/UPDATE/DELETE vindo de um relatório.
+
+    `postgresql_readonly` é honrado pelo driver do PostgreSQL. Em SQLite
+    (usado nos testes) a opção é ignorada pelo dialeto, sem erro — a
+    guarantee real continua sendo o filtro de tenant na query.
+
+    Uso:
+        @router.get('/dashboard')
+        async def resumo(db: AsyncSession = Depends(get_db_read)):
+            ...
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            connection = await session.connection()
+            await connection.execution_options(postgresql_readonly=True)
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # INICIALIZAÇÃO E SHUTDOWN
 # ═══════════════════════════════════════════════════════════════════════════

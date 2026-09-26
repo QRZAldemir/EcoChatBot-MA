@@ -16,7 +16,7 @@ from typing import Optional
 # Importações do projeto
 from app.database import get_db_read
 from app.security import exigir_nivel_minimo
-from app.models import Atendimento, Usuario, Canal # Ajuste conforme seus models reais
+from app.models import Atendimento, Usuario, CanalContratado # Ajuste conforme seus models reais
 
 router = APIRouter()
 
@@ -70,18 +70,18 @@ def get_insight_mensagens(
     _ = Depends(exigir_nivel_minimo("gerente"))
 ):
     """
-    Retorna os dados para o gráfico de barras (Insight de Mensagens por Canal).
+    Retorna os dados para o gráfico de barras (Insight de Mensagens por CanalContratado).
     """
     # Exemplo de query agrupando por canal
     resultados = db.query(
-        Canal.nome, 
+        CanalContratado.apelido, 
         func.count(Atendimento.id).label('total')
-    ).join(Atendimento, Atendimento.canal_id == Canal.id).filter(
+    ).join(Atendimento, Atendimento.canal_id == CanalContratado.id).filter(
         func.extract('month', Atendimento.criado_em) == mes,
         func.extract('year', Atendimento.criado_em) == ano
-    ).group_by(Canal.nome).all()
+    ).group_by(CanalContratado.apelido).all()
 
-    labels = [r.nome for r in resultados]
+    labels = [r.apelido for r in resultados]
     data = [r.total for r in resultados]
     max_value = max(data) if data else 0
 

@@ -32,7 +32,7 @@ from sqlalchemy.orm import Session
 
 # Importações internas
 from app.database import get_db
-from app.models import Canal, Departamento
+from app.models import CanalContratado, Departamento
 from app.services.atendimento_service import AtendimentoService
 from app.exceptions import (
     NegocioException,
@@ -271,8 +271,8 @@ async def _avisar_cliente_transferencia(db: Session, atendimento, mensagem: Opti
     if not texto:
         setor = None
         if atendimento.canal_id:
-            canal = db.query(Canal).filter(Canal.id == atendimento.canal_id).first()
-            setor = canal.nome if canal else None
+            canal = db.query(CanalContratado).filter(CanalContratado.id == atendimento.canal_id).first()
+            setor = canal.apelido if canal else None
         if not setor and atendimento.departamento_id:
             depto = db.query(Departamento).filter(Departamento.id == atendimento.departamento_id).first()
             setor = depto.nome if depto else None

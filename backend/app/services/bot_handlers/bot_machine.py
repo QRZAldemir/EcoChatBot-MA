@@ -31,7 +31,7 @@ from typing import Optional, Dict, Any, Tuple
 
 from sqlalchemy.orm import Session
 
-from app.models import Atendimento, AtendimentoContext
+from app.models import Atendimento, AtendimentoContexto
 from app.services.bot_handlers.mensagem_payload import MensagemPayload
 from .core import DepartamentoHandler
 from .evolution_client import EvolutionApiClient
@@ -349,33 +349,33 @@ class BotMaquinaEstados:
 
     def _obter_contexto(self, atendimento_id: int, chave: str) -> Optional[str]:
         row = (
-            self._db.query(AtendimentoContext)
+            self._db.query(AtendimentoContexto)
             .filter(
-                AtendimentoContext.atendimento_id == atendimento_id,
-                AtendimentoContext.context_key == chave,
+                AtendimentoContexto.atendimento_id == atendimento_id,
+                AtendimentoContexto.chave == chave,
             )
             .first()
         )
-        return row.value if row else None
+        return row.valor if row else None
 
     def _guardar_contexto(self, atendimento_id: int, chave: str, valor: str) -> None:
         row = (
-            self._db.query(AtendimentoContext)
+            self._db.query(AtendimentoContexto)
             .filter(
-                AtendimentoContext.atendimento_id == atendimento_id,
-                AtendimentoContext.context_key == chave,
+                AtendimentoContexto.atendimento_id == atendimento_id,
+                AtendimentoContexto.chave == chave,
             )
             .first()
         )
         
         if row:
-            row.value = valor
+            row.valor = valor
         else:
             self._db.add(
-                AtendimentoContext(
+                AtendimentoContexto(
                     atendimento_id=atendimento_id,
-                    context_key=chave,
-                    value=valor,
+                    chave=chave,
+                    valor=valor,
                 )
             )
         self._db.commit()

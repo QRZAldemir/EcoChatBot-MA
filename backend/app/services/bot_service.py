@@ -3,7 +3,7 @@ app/services/bot_service.py
 ──────────────────────────────────────────────────────────────────
 Máquina de estados da conversa WhatsApp (plataforma SaaS genérica).
 Fluxos de departamento NÃO são hardcoded: o hub e as telas de cada
-canal vêm do cadastro (Menu / MenuOpcao / Canal). Qualquer opção após
+canal vêm do cadastro (Menu / MenuOpcao / CanalContratado). Qualquer opção após
 a 1ª tela do canal encaminha para atendimento humano (fila).
 
 BOOT → AGUARDAR_LGPD → AGUARDAR_NOME → AGUARDAR_HUB
@@ -24,7 +24,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy.orm import Session
-from app.models import Atendimento, AtendimentoContext, Canal, Menu, Usuario
+from app.models import Atendimento, AtendimentoContexto, CanalContratado, Menu, Usuario
 from app.services import audio_service, evolution_service
 
 logger = logging.getLogger(__name__)
@@ -79,28 +79,28 @@ def _tel(remote_jid: str) -> str:
 
 def _get(db: Session, atendimento_id: int, key: str) -> Optional[str]:
     row = (
-        db.query(AtendimentoContext)
+        db.query(AtendimentoContexto)
         .filter(
-            AtendimentoContext.atendimento_id == atendimento_id,
-            AtendimentoContext.context_key == key,
+            AtendimentoContexto.atendimento_id == atendimento_id,
+            AtendimentoContexto.chave == key,
         )
         .first()
     )
-    return row.value if row else None
+    return row.valor if row else None
 
 def _set(db: Session, atendimento_id: int, key: str, value: str) -> None:
     row = (
-        db.query(AtendimentoContext)
+        db.query(AtendimentoContexto)
         .filter(
-            AtendimentoContext.atendimento_id == atendimento_id,
-            AtendimentoContext.context_key == key,
+            AtendimentoContexto.atendimento_id == atendimento_id,
+            AtendimentoContexto.chave == key,
         )
         .first()
     )
     if row:
-        row.value = value
+        row.valor = value
     else:
-        db.add(AtendimentoContext(atendimento_id=atendimento_id, context_key=key, value=value))
+        db.add(AtendimentoContexto(atendimento_id=atendimento_id, chave=key, valor=value))
         db.commit()
 
 def _step(db: Session, atendimento: Atendimento, novo_step: str) -> None:
@@ -407,18 +407,18 @@ def _texto_lgpd() -> str:
     )
 
 def _hub_rows_de_canais(db: Session) -> list[dict]:
-    canais = db.query(Canal).filter(Canal.ativo == True).order_by(Canal.nome).all()
+    canais = db.query(CanalContratado).filter(CanalContratado.ativo == True).order_by(CanalContratado.apelido).all()
     return [
         {"title": c.nome, "description": c.descricao or "", "rowId": f"CANAL_{c.id}"}
         for c in canais
     ]
 
-def resolver_canal_do_hub(db: Session, row: str) -> Optional[Canal]:
+def resolver_canal_do_hub(db: Session, row: str) -> Optional[CanalContratado]:
     if row.startswith("CANAL_") and row[len("CANAL_"):].isdigit():
-        return db.query(Canal).filter(
-            Canal.id == int(row[len("CANAL_"):]), Canal.ativo == True
+        return db.query(CanalContratado).filter(
+            CanalContratado.id == int(row[len("CANAL_"):]), CanalContratado.ativo == True
         ).first()
-    return db.query(Canal).filter(Canal.nome.ilike(row), Canal.ativo == True).first()
+    return db.query(CanalContratado).filter(CanalContratado.apelido.ilike(row), CanalContratado.ativo == True).first()
 
 async def _boot(db: Session, at: Atendimento, inst: str, tel: str) -> None:
     if at.status == "finalizado":
@@ -483,8 +483,8 @@ async def _hub(db, at, inst, tel, msg_type, content):
     await _txt(inst, tel, "Opção não reconhecida. Utilize o menu abaixo:")
     await _enviar_hub(db, inst, tel, at)
 
-async def _entrar_departamento_dinamico(db, at, inst, tel, canal: Canal) -> None:
-    _set(db, at.id, "canal_selecionado", canal.nome)
+async def _entrar_departamento_dinamico(db, at, inst, tel, canal: CanalContratado) -> None:
+    _set(db, at.id, "canal_selecionado", canal.apelido)
     at.canal_id = canal.id
     at.departamento_id = canal.departamento_id
     db.commit()
