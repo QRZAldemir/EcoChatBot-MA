@@ -80,7 +80,7 @@ from app.models.canal_models import CanalContratado
 from app.models.chamada_pabx_models import ChamadaPABX
 from app.models.cliente_models import Cliente
 from app.models.conexao_models import Conexao
-from app.models.contato_models import Contato
+from app.models.contato_models import Contato, ContatoCanal
 from app.models.departamento_models import Departamento
 from app.models.email_models import EmailLog, EmailTemplate
 from app.models.empresa_models import Empresa, InstanciaChatbot
@@ -154,6 +154,7 @@ __all__ = [
     # conjunto canônico
     "Atendimento", "AtendimentoContexto", "Assinatura", "Base", "Campanha",
     "CanalContratado", "ChamadaPABX", "Cliente", "Conexao", "Contato",
+      "ContatoCanal",
     "Departamento", "EmailLog", "EmailTemplate", "Empresa", "InstanciaChatbot",
     "Menu", "MenuItem", "ModeloMensagem", "NivelUsuario", "Pedido", "PedidoItem",
     "Roteiro", "Telefone", "TokenRevogado", "Transferencia", "Usuario",

@@ -174,7 +174,89 @@ class RecursoNaoEncontradoException(EcoChatBotException):
         )
 
 
-class AtendimentoFinalizadoError(AtendimentoException):
+# ─────────────────────────────────────────────────────────────────────────────
+# A1 — Contato (pessoa) / ContatoCanal (identidade) / Departamento / Modelo
+# ─────────────────────────────────────────────────────────────────────────────
+class ContatoNaoEncontradoError(RecursoNaoEncontradoException):
+    """Contato inexistente OU de outra empresa. HTTP 404.
+
+    Mesma exceção para os dois casos de propósito: responder 404 em um e 403 no
+    outro deixaria o invasor enumerar IDs de contato entre empresas.
+    """
+
+    def __init__(self, contato_id=None, message=None, detail=None):
+        super().__init__(
+            message=message or f'Contato {contato_id} não encontrado',
+            detail=detail,
+        )
+        self.error_code = 'CONTATO_NAO_ENCONTRADO'
+
+
+class ContatoCanalDuplicadoError(ConflictException):
+    """Mesmo `identificador` já usado nesse `canal_contratado_id`. HTTP 409.
+
+    A unicidade é `(canal_contratado_id, identificador)`: a MESMA pessoa pode
+    (e deve) aparecer em canais diferentes, mas não pode ser duplicada no mesmo.
+    """
+
+    def __init__(self, identificador=None, canal_contratado_id=None, detail=None):
+        super().__init__(message=f'Identificador {identificador} já existe neste canal')
+        self.detail = detail
+        self.error_code = 'CONTATO_CANAL_DUPLICADO'
+
+
+class DepartamentoNaoEncontradoError(RecursoNaoEncontradoException):
+    """Departamento inexistente OU de outra empresa. HTTP 404."""
+
+    def __init__(self, departamento_id=None, message=None, detail=None):
+        super().__init__(
+            message=message or f'Departamento {departamento_id} não encontrado',
+            detail=detail,
+        )
+        self.error_code = 'DEPARTAMENTO_NAO_ENCONTRADO'
+
+
+class DepartamentoEmUsoError(ConflictException):
+    """Departamento tem menu items ou usuários vinculados. HTTP 409.
+
+    O soft delete é recusado: deixar item de menu apontando para departamento
+    sumido quebraria o roteamento do bot na hora de atender.
+    """
+
+    def __init__(self, mensagem: str, detail=None):
+        super().__init__(message=mensagem)
+        self.detail = detail
+        self.error_code = 'DEPARTAMENTO_EM_USO'
+
+
+class ModeloMensagemNaoEncontradoError(RecursoNaoEncontradoException):
+    """Modelo de mensagem inexistente OU de outra empresa. HTTP 404."""
+
+    def __init__(self, modelo_id=None, chave=None, message=None, detail=None):
+        super().__init__(
+            message=message or (
+                f'Modelo de mensagem {chave!r} não encontrado' if chave
+                else f'Modelo de mensagem {modelo_id} não encontrado'
+            ),
+            detail=detail,
+        )
+        self.error_code = 'MODELO_MENSAGEM_NAO_ENCONTRADO'
+
+
+class ChaveModeloDuplicadaError(ConflictException):
+    """`chave` já usada por outro modelo DA MESMA empresa. HTTP 409.
+
+    A chave é o lookup da campanha (`Campanha.modelo_mensagem_chave`). Duas
+    empresas podem ter a mesma chave — a unicidade é por empresa, não global.
+    """
+
+    def __init__(self, chave=None, detail=None):
+        super().__init__(message=f'Já existe um modelo com a chave {chave!r}')
+        self.detail = detail
+        self.error_code = 'CHAVE_MODELO_DUPLICADA'
+
+
+class class_AtendimentoFinalizadoError(AtendimentoException):
     """
     Atendimento já finalizado. HTTP 409 (mesmo código de
     AtendimentoJaEncerradoException). Nome distinto porque os call sites o
@@ -218,6 +300,10 @@ __all__ = [
     'CanalNomeDuplicadoError', 'CanalTipoInvalidoError', 'CanalWebhookError',
     'CanalNaoEncontradoException', 'CanalJaExisteException',
     'CanalInvalidoException', 'CanalWebhookException',
+    # A1 (6)
+    'ContatoNaoEncontradoError', 'ContatoCanalDuplicadoError',
+    'DepartamentoNaoEncontradoError', 'DepartamentoEmUsoError',
+    'ModeloMensagemNaoEncontradoError', 'ChaveModeloDuplicadaError',
     # Auth (12)
     'AuthException', 'CredenciaisInvalidasException', 'ContaBloqueadaException',
     'ContaInativaException', 'EmailNaoVerificadoException',

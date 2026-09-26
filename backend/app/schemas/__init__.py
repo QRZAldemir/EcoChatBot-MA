@@ -4,6 +4,8 @@ from pydantic import BaseModel, EmailStr, field_validator
 from typing import List, Literal, Optional
 from datetime import datetime
 
+from app.models.enums import TipoMensagem
+
 CorOpcao = Literal["verde", "azul", "vermelho", "amarelo", "roxo", "cinza"]
 
 
@@ -14,6 +16,40 @@ def _normalizar_descricao(cls, v: Optional[str]) -> Optional[str]:
     v = v.strip().upper()
     if v and not re.match(r'^[\w\s]+$', v, re.UNICODE):
         raise ValueError('Descrição deve conter apenas letras, números, espaços e underscore')
+    return v
+
+def _normalizar_chave(cls, v: Optional[str]) -> Optional[str]:
+    """Uppercase + trim; aceita letras/números/ponto/hífen/underscore.
+
+    Própria, e não `_normalizar_descricao`: aquela restringe a `\w`+espaço e a
+    mensagem de erro diz "Descrição", que mentiria ao validar uma chave.
+    """
+    if v is None:
+        return v
+    v = v.strip().upper()
+    if v and not re.match(r'^[\w.\-]+$', v, re.UNICODE):
+        raise ValueError(
+            'Chave deve conter apenas letras, números, ponto, hífen ou underscore'
+        )
+    return v
+
+_RE_E164 = re.compile(r"^\+[1-9]\d{1,14}$")
+
+
+def _validar_e164(cls, v: Optional[str]) -> Optional[str]:
+    """E.164 estrito, como o Chatwoot faz: `+`, 1-9, ate 15 digitos.
+
+    Sem o `+` ou com `00`/`(11)` nao entra: o identificador do canal e a chave
+    de deduplicacao do contato, e `1199999999` e `+5511999999999` seriam duas
+    pessoas diferentes no mesmo numero.
+    """
+    if v is None or v == "":
+        return v
+    v = v.strip()
+    if not _RE_E164.match(v):
+        raise ValueError(
+            f"'{v}' nao e E.164. Use +<pais><numero>, ex: +5511988887777"
+        )
     return v
 
 # ━━━ Menu Item (opção do menu) ━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -212,34 +248,84 @@ class ConexaoQRCodeResponse(BaseModel):
     pairing_code: Optional[str] = None
     simulado: bool = False
     mensagem: Optional[str] = None
-
-# ━━━ Contato (agenda de clientes WhatsApp) ━━━━━━━━━━━━━━━━━
+# Contato (agenda de clientes WhatsApp)
+# ALINHADO AO MODEL CANONICO `Contato`.
+#   Sai `empresa` (str): colidia com o TENANT `Empresa`; o tenant vem do token.
+#   Sai `ativo`: `Contato` nao tem essa coluna - desativar e soft delete
+#   (`deleted_at`).
+#   Sai `observacao`: a coluna chama `notas`.
+#   Sai `origem` (so no Response): nao existe no model.
 class ContatoBase(BaseModel):
     nome: str
-    telefone: str
+    telefone: Optional[str] = None
     email: Optional[str] = None
-    empresa: Optional[str] = None
-    observacao: Optional[str] = None
-    ativo: bool = True
+    notas: Optional[str] = None
+    tags: Optional[str] = None
+    apelido: Optional[str] = None
+    # Identidade canonica por canal esta em `ContatoCanal`; estes dois sao so
+    # atalho de leitura. Contato SEM canal e valido (lead de campanha).
+    canal_tipo: Optional[str] = None
+    canal_identificador: Optional[str] = None
+
+    _e164 = field_validator("telefone", "canal_identificador")(_validar_e164)
+
+
+class ContatoCanalBase(BaseModel):
+    canal_contratado_id: int
+    identificador: str
+    push_name: Optional[str] = None
+
+    _e164 = field_validator("identificador")(_validar_e164)
+
+
+class ContatoCanalCreate(ContatoCanalBase):
+    pass
+
+class ContatoCanalResponse(ContatoCanalBase):
+    id: int
+    contato_id: int
+
+    class Config:
+        from_attributes = True
 
 class ContatoCreate(ContatoBase):
-    pass
+    """`empresa_id` NAO e campo: o tenant vem do token.
+
+    `canais` vincula o contato a um ou mais canais contratados ja na criacao.
+    Sem isso todo contato nasceria orfao e o webhook nao saberia onde grava-lo.
+    """
+    canais: List[ContatoCanalCreate] = []
 
 class ContatoUpdate(BaseModel):
     nome: Optional[str] = None
     telefone: Optional[str] = None
     email: Optional[str] = None
-    empresa: Optional[str] = None
-    observacao: Optional[str] = None
-    ativo: Optional[bool] = None
+    notas: Optional[str] = None
+    tags: Optional[str] = None
+    apelido: Optional[str] = None
 
 class ContatoResponse(ContatoBase):
     id: int
-    origem: str
+    empresa_id: int
     criado_em: datetime
+    ultima_interacao: Optional[datetime] = None
+    canais: List[ContatoCanalResponse] = []
 
     class Config:
         from_attributes = True
+
+class ContatoCanalResolvido(BaseModel):
+    """Contato localizado a partir de uma mensagem recebida num canal.
+
+    E o que o webhook precisa: dado `canal_contratado_id` + `identificador`,
+    devolve o contato e a empresa dona. O escopo vem SEMPRE por
+    `contatos.empresa_id` (join) - `contato_canais` nao tem `empresa_id` de
+    proposito, e por isso todo acesso a esta tabela precisa passar por ele.
+    """
+    contato_id: int
+    empresa_id: int
+    nome: Optional[str] = None
+
 
 # ━━━ E-mail (central de e-mail — compõe e envia, guarda histórico) ━
 class EmailEnviarDTO(BaseModel):
@@ -310,36 +396,52 @@ class ArquivoResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
-# ━━━ Modelo de Mensagem (mensagem padrão / memorando) ━━━━━━
+# Modelo de Mensagem (mensagem padrao / memorando)
+# ALINHADO AO MODEL CANONICO `ModeloMensagem`.
+#   Sai `corpo`: o model chama `conteudo` (e NOT NULL).
+#   Sai `arquivo`: nao existe no model.
+#   Sai `departamento_id` / `departamento`: nao existe no model. Departamento e
+#   do MENU ITEM (`MenuItem.departamento_id`), nao do modelo de mensagem.
+#   Entra `chave` (NOT NULL, e por ela que a campanha acha o modelo), `nome`
+#   (NOT NULL) e `tipo` (NOT NULL, enum `TipoMensagem`).
 class ModeloMensagemBase(BaseModel):
-    descricao: str
-    corpo: str
-    arquivo: Optional[str] = None
-    departamento_id: Optional[int] = None
+    chave: str
+    nome: str
+    conteudo: str
+    descricao: Optional[str] = None
+    tipo: TipoMensagem = TipoMensagem.TEXTO
+    variaveis: Optional[str] = None
+    canal_tipo: Optional[str] = None
     ativo: bool = True
 
-    _normalizar_descricao = field_validator('descricao')(_normalizar_descricao)
+    # A chave e normalizada em maiusculo: e por ela que `Campanha` faz lookup
+    # (`modelo_mensagem_chave="promo_black_friday"`), entao "Promo" e
+    # "PROMO" precisam colidir no mesmo lugar.
+    _normalizar_chave = field_validator("chave")(_normalizar_chave)
 
 class ModeloMensagemCreate(ModeloMensagemBase):
     pass
 
 class ModeloMensagemUpdate(BaseModel):
+    chave: Optional[str] = None
+    nome: Optional[str] = None
+    conteudo: Optional[str] = None
     descricao: Optional[str] = None
-    corpo: Optional[str] = None
-    arquivo: Optional[str] = None
-    departamento_id: Optional[int] = None
+    tipo: Optional[TipoMensagem] = None
+    variaveis: Optional[str] = None
+    canal_tipo: Optional[str] = None
     ativo: Optional[bool] = None
 
-    _normalizar_descricao = field_validator('descricao')(_normalizar_descricao)
+    _normalizar_chave = field_validator("chave")(_normalizar_chave)
 
 class ModeloMensagemResponse(ModeloMensagemBase):
     id: int
+    empresa_id: int
     criado_em: datetime
-    departamento: Optional[DepartamentoResponse] = None
 
     class Config:
         from_attributes = True
+
 
 # ━━━ Usuario ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class UsuarioBase(BaseModel):
