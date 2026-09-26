@@ -100,3 +100,15 @@ edge-tts==6.1.10                # TTS Microsoft Edge
 # LOGS ESTRUTURADOS
 # ═══════════════════════════════════════════════════════════════════════════════
 loguru==0.7.2                   # Logs com rotação
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TESTES
+# ───────────────────────────────────────────────────────────────────────────────
+# A suíte roda contra SQLite ASSÍNCRONO. `aiosqlite` não é opcional: sem ele não
+# existe driver async para SQLite, e o plano de validar tudo localmente antes de
+# tocar no PostgreSQL não funciona. `pytest-asyncio` é o que permite testar
+# serviços que agora são todos `async def`.
+# ═══════════════════════════════════════════════════════════════════════════════
+pytest==9.1.1                      # Test runner
+pytest-asyncio==1.4.0              # Suporte a testes assíncronos
+aiosqlite==0.20.0                  # Driver SQLite assíncrono (testes)

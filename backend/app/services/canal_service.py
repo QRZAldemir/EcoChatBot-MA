@@ -53,8 +53,8 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Atendimento, CanalContratado, Telefone
 from app.models.enums import StatusAtendimento
@@ -93,7 +93,7 @@ class CanalService:
         - Métricas de uso para o dashboard
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
     # ==============================================================================
@@ -130,7 +130,7 @@ class CanalService:
     # ==============================================================================
     # CRUD
     # ==============================================================================
-    def criar_canal(self, data: CanalContratadoCreate, empresa_id: int) -> CanalContratado:
+    async def criar_canal(self, data: CanalContratadoCreate, empresa_id: int) -> CanalContratado:
         """
         Contrata um novo canal para a empresa.
 
@@ -145,17 +145,17 @@ class CanalService:
         """
         # 1. O telefone precisa ser DA EMPRESA — é o que impede um canal de
         #    apontar para o número de outro tenant.
-        self._validar_telefone(data.telefone_id, empresa_id)
+        await self._validar_telefone(data.telefone_id, empresa_id)
 
         # 2. Regra real de unicidade: um tipo por telefone.
-        self._validar_tipo_por_telefone(data.telefone_id, data.tipo)
+        await self._validar_tipo_por_telefone(data.telefone_id, data.tipo)
 
         # 3. Tipo suportado.
         self._validar_tipo_canal(data.tipo)
 
         # 4. Apelido único dentro da empresa (usabilidade, não integridade).
         if data.apelido:
-            self._validar_apelido_unico(data.apelido, empresa_id)
+            await self._validar_apelido_unico(data.apelido, empresa_id)
 
         # 5. O identificador validado pelo schema entra em `credenciais`.
         credenciais: Dict[str, Any] = dict(data.credenciais or {})
@@ -181,8 +181,8 @@ class CanalService:
         )
 
         self.db.add(canal)
-        self.db.commit()
-        self.db.refresh(canal)
+        await self.db.commit()
+        await self.db.refresh(canal)
 
         logger.info(
             "Canal contratado: ID=%s tipo=%s telefone=%s empresa=%s",
@@ -192,13 +192,13 @@ class CanalService:
         # 7. Falha de webhook NÃO pode derrubar a contratação: o canal já é
         #    válido, e o provedor pode estar momentaneamente fora.
         try:
-            self._configurar_webhook(canal)
+            await self._configurar_webhook(canal)
         except Exception as e:
             logger.warning("Webhook não configurado para o canal %s: %s", canal.id, e)
 
         return canal
 
-    def buscar_por_id(
+    async def buscar_por_id(
         self, canal_id: int, empresa_id: int, incluir_excluidos: bool = False
     ) -> CanalContratado:
         """
@@ -213,21 +213,21 @@ class CanalService:
         exigiria um caminho que o ignorasse esse filtro. Passar o parâmetro é
         mais explícito do que criar uma segunda query quase igual.
         """
-        query = self.db.query(CanalContratado).filter(
+        stmt = select(CanalContratado).where(
             CanalContratado.id == canal_id,
             CanalContratado.empresa_id == empresa_id,
         )
         if not incluir_excluidos:
-            query = query.filter(CanalContratado.deleted_at.is_(None))
+            stmt = stmt.where(CanalContratado.deleted_at.is_(None))
 
-        canal = query.first()
+        canal = (await self.db.execute(stmt)).scalars().first()
         if not canal:
             raise CanalNaoEncontradoError(
                 f"Canal {canal_id} não encontrado ou você não tem permissão"
             )
         return canal
 
-    def listar_canais(
+    async def listar_canais(
         self,
         empresa_id: int,
         page: int = 1,
@@ -237,32 +237,42 @@ class CanalService:
         telefone_id: Optional[int] = None,
     ) -> Tuple[List[CanalContratado], int]:
         """Lista os canais contratados da empresa, com filtros e paginação."""
-        query = self.db.query(CanalContratado).filter(
+        filtros = [
             CanalContratado.empresa_id == empresa_id,
             CanalContratado.deleted_at.is_(None),
-        )
+        ]
         if tipo:
-            query = query.filter(CanalContratado.tipo == tipo)
+            filtros.append(CanalContratado.tipo == tipo)
         if ativo is not None:
-            query = query.filter(CanalContratado.ativo == ativo)
+            filtros.append(CanalContratado.ativo == ativo)
         if telefone_id is not None:
-            query = query.filter(CanalContratado.telefone_id == telefone_id)
+            filtros.append(CanalContratado.telefone_id == telefone_id)
 
-        total = query.count()
+        # A contagem roda sobre os MESMOS filtros, antes de offset/limit.
+        total = await self.db.scalar(
+            select(func.count(CanalContratado.id)).where(*filtros)
+        )
         offset = max(page - 1, 0) * limit
         canais = (
-            query.order_by(CanalContratado.criado_em.desc())
-            .offset(offset)
-            .limit(limit)
+            (
+                await self.db.execute(
+                    select(CanalContratado)
+                    .where(*filtros)
+                    .order_by(CanalContratado.criado_em.desc())
+                    .offset(offset)
+                    .limit(limit)
+                )
+            )
+            .scalars()
             .all()
         )
-        return canais, total
+        return canais, total or 0
 
-    def atualizar_canal(
+    async def atualizar_canal(
         self, canal_id: int, empresa_id: int, data: CanalContratadoUpdate
     ) -> CanalContratado:
         """Atualização parcial do canal, revalidando as regras afetadas."""
-        canal = self.buscar_por_id(canal_id, empresa_id)
+        canal = await self.buscar_por_id(canal_id, empresa_id)
         mudancas = data.model_dump(exclude_unset=True)
         if not mudancas:
             return canal
@@ -271,14 +281,14 @@ class CanalService:
             novo_telefone = mudancas.get("telefone_id", canal.telefone_id)
             novo_tipo = mudancas.get("tipo", canal.tipo)
             if novo_telefone != canal.telefone_id:
-                self._validar_telefone(novo_telefone, empresa_id)
+                await self._validar_telefone(novo_telefone, empresa_id)
             if (novo_telefone, novo_tipo) != (canal.telefone_id, canal.tipo):
-                self._validar_tipo_por_telefone(novo_telefone, novo_tipo, exclude_id=canal_id)
+                await self._validar_tipo_por_telefone(novo_telefone, novo_tipo, exclude_id=canal_id)
             if "tipo" in mudancas:
                 self._validar_tipo_canal(novo_tipo)
 
         if mudancas.get("apelido") and mudancas["apelido"] != canal.apelido:
-            self._validar_apelido_unico(mudancas["apelido"], empresa_id, exclude_id=canal_id)
+            await self._validar_apelido_unico(mudancas["apelido"], empresa_id, exclude_id=canal_id)
 
         if "credenciais" in mudancas and mudancas["credenciais"] is not None:
             # Mescla: um update parcial de credenciais não pode apagar as
@@ -291,12 +301,12 @@ class CanalService:
         for chave, valor in mudancas.items():
             setattr(canal, chave, valor)
 
-        self.db.commit()
-        self.db.refresh(canal)
+        await self.db.commit()
+        await self.db.refresh(canal)
         logger.info("Canal atualizado: ID=%s", canal.id)
         return canal
 
-    def deletar_canal(self, canal_id: int, empresa_id: int) -> bool:
+    async def deletar_canal(self, canal_id: int, empresa_id: int) -> bool:
         """
         Soft delete do canal.
 
@@ -304,17 +314,17 @@ class CanalService:
         Se o canal sumisse, as conversas antigas ficariam sem procedência.
         Se houver atendimento em aberto, nem o soft delete é aceito.
         """
-        canal = self.buscar_por_id(canal_id, empresa_id)
+        canal = await self.buscar_por_id(canal_id, empresa_id)
 
         abertos = (
-            self.db.query(Atendimento)
-            .filter(
-                Atendimento.canal_contratado_id == canal_id,
-                Atendimento.status.in_(STATUS_ABERTOS),
-                Atendimento.deleted_at.is_(None),
+            await self.db.scalar(
+                select(func.count(Atendimento.id)).where(
+                    Atendimento.canal_contratado_id == canal_id,
+                    Atendimento.status.in_(STATUS_ABERTOS),
+                    Atendimento.deleted_at.is_(None),
+                )
             )
-            .count()
-        )
+        ) or 0
         if abertos > 0:
             raise RecursoInvalidoError(
                 f"Não é possível desativar o canal: há {abertos} atendimento(s) em aberto"
@@ -322,24 +332,24 @@ class CanalService:
 
         canal.soft_delete()
         canal.ativo = False
-        self.db.commit()
+        await self.db.commit()
 
         logger.info("Canal desativado (soft delete): ID=%s", canal_id)
         return True
 
-    def restaurar_canal(self, canal_id: int, empresa_id: int) -> CanalContratado:
+    async def restaurar_canal(self, canal_id: int, empresa_id: int) -> CanalContratado:
         """Desfaz o soft delete e reativa o canal."""
-        canal = self.buscar_por_id(canal_id, empresa_id, incluir_excluidos=True)
+        canal = await self.buscar_por_id(canal_id, empresa_id, incluir_excluidos=True)
         canal.restore()
         canal.ativo = True
-        self.db.commit()
-        self.db.refresh(canal)
+        await self.db.commit()
+        await self.db.refresh(canal)
         return canal
 
     # ==============================================================================
     # VALIDAÇÕES
     # ==============================================================================
-    def _validar_telefone(self, telefone_id: int, empresa_id: int) -> Telefone:
+    async def _validar_telefone(self, telefone_id: int, empresa_id: int) -> Telefone:
         """
         Valida que o telefone existe, está ativo e é da mesma empresa.
 
@@ -347,14 +357,14 @@ class CanalService:
         empresa poderia contratar um canal em cima do número de outra.
         """
         telefone = (
-            self.db.query(Telefone)
-            .filter(
-                Telefone.id == telefone_id,
-                Telefone.empresa_id == empresa_id,
-                Telefone.deleted_at.is_(None),
+            await self.db.execute(
+                select(Telefone).where(
+                    Telefone.id == telefone_id,
+                    Telefone.empresa_id == empresa_id,
+                    Telefone.deleted_at.is_(None),
+                )
             )
-            .first()
-        )
+        ).scalars().first()
         if not telefone:
             raise RecursoInvalidoError(
                 f"Telefone {telefone_id} não encontrado para esta empresa"
@@ -365,7 +375,7 @@ class CanalService:
             )
         return telefone
 
-    def _validar_tipo_por_telefone(
+    async def _validar_tipo_por_telefone(
         self, telefone_id: int, tipo: str, exclude_id: Optional[int] = None
     ) -> None:
         """
@@ -376,31 +386,31 @@ class CanalService:
         mensalidade é duplicada, que é exatamente como um plano por número
         funciona.
         """
-        query = self.db.query(CanalContratado).filter(
+        stmt = select(CanalContratado).where(
             CanalContratado.telefone_id == telefone_id,
             CanalContratado.tipo == tipo,
             CanalContratado.deleted_at.is_(None),
         )
         if exclude_id:
-            query = query.filter(CanalContratado.id != exclude_id)
-        if query.first():
+            stmt = stmt.where(CanalContratado.id != exclude_id)
+        if (await self.db.execute(stmt)).scalars().first():
             raise CanalTipoInvalidoError(
                 f"Este telefone já possui um canal do tipo '{tipo}'. "
                 "Cada tipo de canal só pode existir uma vez por telefone."
             )
 
-    def _validar_apelido_unico(
+    async def _validar_apelido_unico(
         self, apelido: str, empresa_id: int, exclude_id: Optional[int] = None
     ) -> None:
         """Apelido único na empresa — evita dois canais iguais na tela."""
-        query = self.db.query(CanalContratado).filter(
+        stmt = select(CanalContratado).where(
             CanalContratado.empresa_id == empresa_id,
             func.lower(CanalContratado.apelido) == apelido.lower().strip(),
             CanalContratado.deleted_at.is_(None),
         )
         if exclude_id:
-            query = query.filter(CanalContratado.id != exclude_id)
-        if query.first():
+            stmt = stmt.where(CanalContratado.id != exclude_id)
+        if (await self.db.execute(stmt)).scalars().first():
             raise CanalNomeDuplicadoError(
                 f"Já existe um canal com o nome '{apelido}' para esta empresa"
             )
@@ -422,7 +432,7 @@ class CanalService:
     def _url_publica(self) -> str:
         return os.getenv("BACKEND_PUBLIC_URL", "http://localhost:8000").rstrip("/")
 
-    def _configurar_webhook(self, canal: CanalContratado) -> bool:
+    async def _configurar_webhook(self, canal: CanalContratado) -> bool:
         """
         Registra o webhook do canal na API do provedor.
 
@@ -439,19 +449,19 @@ class CanalService:
 
         try:
             if canal.tipo == "telegram":
-                return self._configurar_webhook_telegram(canal, url)
+                return await self._configurar_webhook_telegram(canal, url)
             if canal.tipo == "whatsapp":
-                return self._configurar_webhook_whatsapp(canal, url)
+                return await self._configurar_webhook_whatsapp(canal, url)
             if canal.tipo in ("instagram", "facebook"):
-                return self._configurar_webhook_meta(canal, url)
+                return await self._configurar_webhook_meta(canal, url)
             if canal.tipo == "discord":
-                return self._configurar_webhook_discord(canal, url)
+                return await self._configurar_webhook_discord(canal, url)
             return True
         except Exception as e:
             logger.error("Erro ao configurar webhook do canal %s: %s", canal.id, e)
             return False
 
-    def _configurar_webhook_telegram(self, canal: CanalContratado, webhook_url: str) -> bool:
+    async def _configurar_webhook_telegram(self, canal: CanalContratado, webhook_url: str) -> bool:
         """setWebhook do Telegram Bot API."""
         import httpx
 
@@ -461,21 +471,21 @@ class CanalService:
             return False
 
         try:
-            with httpx.Client(timeout=10) as client:
-                resp = client.post(
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
                     f"https://api.telegram.org/bot{token}/setWebhook",
                     json={"url": webhook_url, "allowed_updates": ["message", "callback_query"]},
                 )
                 resp.raise_for_status()
             canal.webhook_url = webhook_url
-            self.db.commit()
+            await self.db.commit()
             logger.info("Webhook Telegram configurado: canal=%s", canal.id)
             return True
         except httpx.HTTPError as e:
             logger.error("Webhook Telegram falhou (canal %s): %s", canal.id, e)
             return False
 
-    def _configurar_webhook_whatsapp(self, canal: CanalContratado, webhook_url: str) -> bool:
+    async def _configurar_webhook_whatsapp(self, canal: CanalContratado, webhook_url: str) -> bool:
         """
         WhatsApp depende de duas credenciais: o ID do número de telefone
         (`phone_number_id`) e o token da conta (`access_token`). Sem as duas,
@@ -492,21 +502,21 @@ class CanalService:
             return False
 
         try:
-            with httpx.Client(timeout=10) as client:
-                resp = client.post(
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
                     f"https://graph.facebook.com/v19.0/{phone_number_id}/subscribed_apps",
                     headers={"Authorization": f"Bearer {access_token}"},
                 )
                 resp.raise_for_status()
             canal.webhook_url = webhook_url
-            self.db.commit()
+            await self.db.commit()
             logger.info("Webhook WhatsApp configurado: canal=%s", canal.id)
             return True
         except httpx.HTTPError as e:
             logger.error("Webhook WhatsApp falhou (canal %s): %s", canal.id, e)
             return False
 
-    def _configurar_webhook_meta(self, canal: CanalContratado, webhook_url: str) -> bool:
+    async def _configurar_webhook_meta(self, canal: CanalContratado, webhook_url: str) -> bool:
         """Instagram/Facebook pela Meta Graph API."""
         import httpx
 
@@ -517,21 +527,21 @@ class CanalService:
             return False
 
         try:
-            with httpx.Client(timeout=10) as client:
-                resp = client.post(
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
                     f"https://graph.facebook.com/v19.0/{page_id}/subscribed_apps",
                     headers={"Authorization": f"Bearer {access_token}"},
                 )
                 resp.raise_for_status()
             canal.webhook_url = webhook_url
-            self.db.commit()
+            await self.db.commit()
             logger.info("Webhook Meta configurado: canal=%s", canal.id)
             return True
         except httpx.HTTPError as e:
             logger.error("Webhook Meta falhou (canal %s): %s", canal.id, e)
             return False
 
-    def _configurar_webhook_discord(self, canal: CanalContratado, webhook_url: str) -> bool:
+    async def _configurar_webhook_discord(self, canal: CanalContratado, webhook_url: str) -> bool:
         """Discord:_channels_webhook."""
         import httpx
 
@@ -543,15 +553,15 @@ class CanalService:
             return False
 
         try:
-            with httpx.Client(timeout=10) as client:
-                resp = client.post(
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
                     f"https://discord.com/api/v10/guilds/{guild_id}/channels/{channel_id}",
                     headers={"Authorization": f"Bot {token}"},
                     json={"type": 0, "name": "atendimento"},
                 )
                 resp.raise_for_status()
             canal.webhook_url = webhook_url
-            self.db.commit()
+            await self.db.commit()
             logger.info("Webhook Discord configurado: canal=%s", canal.id)
             return True
         except httpx.HTTPError as e:
@@ -561,7 +571,7 @@ class CanalService:
     # ==============================================================================
     # MÉTRICAS
     # ==============================================================================
-    def obter_metricas_canal(self, canal_id: int, empresa_id: int) -> Dict[str, Any]:
+    async def obter_metricas_canal(self, canal_id: int, empresa_id: int) -> Dict[str, Any]:
         """
         Métricas do canal para o dashboard.
 
@@ -574,53 +584,53 @@ class CanalService:
 
         O tempo de resposta é REAL: sai de `primeira_resposta_em`.
         """
-        canal = self.buscar_por_id(canal_id, empresa_id)
+        canal = await self.buscar_por_id(canal_id, empresa_id)
         hoje = datetime.now(timezone.utc).date()
 
         atendimentos_hoje = (
-            self.db.query(func.count(Atendimento.id))
-            .filter(
-                Atendimento.canal_contratado_id == canal_id,
-                func.date(Atendimento.criado_em) == hoje,
-                Atendimento.deleted_at.is_(None),
+            await self.db.scalar(
+                select(func.count(Atendimento.id)).where(
+                    Atendimento.canal_contratado_id == canal_id,
+                    func.date(Atendimento.criado_em) == hoje,
+                    Atendimento.deleted_at.is_(None),
+                )
             )
-            .scalar()
             or 0
         )
 
         atendimentos_ativos = (
-            self.db.query(func.count(Atendimento.id))
-            .filter(
-                Atendimento.canal_contratado_id == canal_id,
-                Atendimento.status.in_(STATUS_ABERTOS),
-                Atendimento.deleted_at.is_(None),
+            await self.db.scalar(
+                select(func.count(Atendimento.id)).where(
+                    Atendimento.canal_contratado_id == canal_id,
+                    Atendimento.status.in_(STATUS_ABERTOS),
+                    Atendimento.deleted_at.is_(None),
+                )
             )
-            .scalar()
             or 0
         )
 
         atendimentos_com_atendente = (
-            self.db.query(func.count(Atendimento.id))
-            .filter(
-                Atendimento.canal_contratado_id == canal_id,
-                func.date(Atendimento.criado_em) == hoje,
-                Atendimento.atendente_id.isnot(None),
+            await self.db.scalar(
+                select(func.count(Atendimento.id)).where(
+                    Atendimento.canal_contratado_id == canal_id,
+                    func.date(Atendimento.criado_em) == hoje,
+                    Atendimento.atendente_id.isnot(None),
+                )
             )
-            .scalar()
             or 0
         )
 
         # Tempo de primeira resposta: só dos atendimentos que JÁ responderam.
         respondidos = (
-            self.db.query(Atendimento.iniciado_em, Atendimento.primeira_resposta_em)
-            .filter(
-                Atendimento.canal_contratado_id == canal_id,
-                Atendimento.primeira_resposta_em.isnot(None),
-                Atendimento.iniciado_em.isnot(None),
-                Atendimento.deleted_at.is_(None),
+            await self.db.execute(
+                select(Atendimento.iniciado_em, Atendimento.primeira_resposta_em).where(
+                    Atendimento.canal_contratado_id == canal_id,
+                    Atendimento.primeira_resposta_em.isnot(None),
+                    Atendimento.iniciado_em.isnot(None),
+                    Atendimento.deleted_at.is_(None),
+                )
             )
-            .all()
-        )
+        ).all()
         if respondidos:
             segundos = [
                 (r - i).total_seconds() for i, r in respondidos if r >= i
@@ -644,16 +654,17 @@ class CanalService:
             ),
         }
 
-    def contar_canais_por_tipo(self, empresa_id: int) -> Dict[str, int]:
+    async def contar_canais_por_tipo(self, empresa_id: int) -> Dict[str, int]:
         """Conta canais ativos por tipo — base do faturamento por canal."""
         resultados = (
-            self.db.query(CanalContratado.tipo, func.count(CanalContratado.id))
-            .filter(
-                CanalContratado.empresa_id == empresa_id,
-                CanalContratado.ativo.is_(True),
-                CanalContratado.deleted_at.is_(None),
+            await self.db.execute(
+                select(CanalContratado.tipo, func.count(CanalContratado.id))
+                .where(
+                    CanalContratado.empresa_id == empresa_id,
+                    CanalContratado.ativo.is_(True),
+                    CanalContratado.deleted_at.is_(None),
+                )
+                .group_by(CanalContratado.tipo)
             )
-            .group_by(CanalContratado.tipo)
-            .all()
-        )
+        ).all()
         return {tipo: qtd for tipo, qtd in resultados}

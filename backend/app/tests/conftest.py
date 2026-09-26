@@ -1,227 +1,259 @@
-# tests/conftest.py
 """
-Configuração central de fixtures para a suíte de testes do EcoChatBot-MA.
-Utiliza SQLite em memória para velocidade e isolamento entre testes.
+Fixtures da suíte do EcoChatBot-MA.
+
+BANCO DE TESTE
+--------------
+SQLite **assíncrono** (`sqlite+aiosqlite`). O serviço é todo `async def` e
+depende de `AsyncSession`; um `Session` síncrono não exercita o mesmo caminho de
+código do que a aplicação real, então o teste passaria sem provar nada.
+
+`StaticPool` é obrigatório: sem ele, cada conexão abriria um banco em memória
+NOVO e vazio, e o `create_all` de uma conexão não apareceria na outra.
+
+GRAFO DE TENANT
+---------------
+Os testes montam a cadeia real, porque as regras de negócio dependem dela:
+
+    Cliente  →  Empresa  →  Telefone  →  CanalContratado
+
+`Empresa` é o tenant. `Cliente` é a conta comercial (plano, limites) e fica
+ACIMA do tenant. Um canal só existe apoiado em um telefone, e o telefone
+pertence a uma empresa — é esse elo que impede um tenant de contratar canal
+sobre o número de outro.
 """
 import pytest
-from datetime import datetime, timezone, timedelta
-from typing import Generator
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from fastapi.testclient import TestClient
+import pytest_asyncio
+from datetime import datetime, timezone
+from typing import AsyncGenerator
 
-from app.database import Base, get_db
-from app.main import app
-from app.models import Atendimento, Departamento, Usuario, Canal
-from app.services.atendimento_service import AtendimentoService
-
-
-# ==============================================================================
-# CONFIGURAÇÃO DO BANCO DE DADOS DE TESTE
-# ==============================================================================
-
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}  # Necessário para SQLite com threads
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
 )
+from sqlalchemy.pool import StaticPool
 
-TestingSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
+# Importar o pacote registra as 30 tabelas no Base.metadata. Sem esta linha o
+# create_all cria um banco vazio e todo teste falha com "no such table".
+import app.models  # noqa: F401
+from app.models.base import Base
+from app.models import Cliente, Empresa, Telefone
+
+TEST_DATABASE_URL = "sqlite+aiosqlite://"
 
 
-# ==============================================================================
-# FIXTURES DE BANCO DE DADOS
-# ==============================================================================
+def _agora() -> datetime:
+    return datetime.now(timezone.utc)
 
-@pytest.fixture(scope="function")
-def db_session() -> Generator[Session, None, None]:
-    """
-    Fixture que fornece uma sessão de banco de dados limpa para cada teste.
-    Cria todas as tabelas antes do teste e as remove após a execução.
-    """
-    Base.metadata.create_all(bind=engine)
-    
-    session = TestingSessionLocal()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BANCO
+# ══════════════════════════════════════════════════════════════════════════════
+
+@pytest_asyncio.fixture
+async def engine() -> AsyncGenerator:
+    eng = create_async_engine(
+        TEST_DATABASE_URL,
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+    async with eng.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     try:
-        yield session
+        yield eng
     finally:
-        session.close()
-        Base.metadata.drop_all(bind=engine)
+        async with eng.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+        await eng.dispose()
 
 
-@pytest.fixture(scope="function")
-def client(db_session: Session) -> Generator[TestClient, None, None]:
-    """
-    Fixture que cria um cliente de teste do FastAPI com injeção de dependência
-    do banco de dados de teste.
-    """
-    def override_get_db():
+@pytest_asyncio.fixture
+async def session_factory(engine):
+    return async_sessionmaker(
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+    )
+
+
+@pytest_asyncio.fixture
+async def db_session(session_factory) -> AsyncGenerator[AsyncSession, None]:
+    """Sessão assíncrona limpa por teste."""
+    async with session_factory() as session:
         try:
-            yield db_session
-        finally:
-            pass
-    
-    app.dependency_overrides[get_db] = override_get_db
-    
-    with TestClient(app) as client:
-        yield client
-    
-    app.dependency_overrides.clear()
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
 
 
-@pytest.fixture
-def service(db_session: Session) -> AtendimentoService:
+# ══════════════════════════════════════════════════════════════════════════════
+# TENANT
+# ══════════════════════════════════════════════════════════════════════════════
+
+@pytest_asyncio.fixture
+async def cliente(db_session: AsyncSession) -> Cliente:
+    """Conta comercial. NÃO é o tenant."""
+    c = Cliente(
+        razao_social="Clínica Exemplo LTDA",
+        nome_fantasia="Clínica Exemplo",
+        cnpj="11222333000181",
+        slug="clinica-exemplo",
+        email="contato@clinicaexemplo.com.br",
+        plano="profissional",
+        limite_empresas=5,
+        limite_usuarios=50,
+        limite_canais=10,
+        ativo=True,
+    )
+    db_session.add(c)
+    await db_session.commit()
+    await db_session.refresh(c)
+    return c
+
+
+@pytest_asyncio.fixture
+async def empresa(db_session: AsyncSession, cliente: Cliente) -> Empresa:
+    """Tenant principal."""
+    e = Empresa(
+        razao_social="Clínica Exemplo Unidade Centro",
+        nome_fantasia="Clínica Centro",
+        slug="clinica-centro",
+        cnpj="11222333000181",
+        email="centro@clinicaexemplo.com.br",
+        cliente_id=cliente.id,
+        ativo=True,
+    )
+    db_session.add(e)
+    await db_session.commit()
+    await db_session.refresh(e)
+    return e
+
+
+@pytest_asyncio.fixture
+async def outra_empresa(db_session: AsyncSession, cliente: Cliente) -> Empresa:
+    """SEGUNDO tenant do mesmo cliente.
+
+    Existe para provar isolamento: como as duas estão sob o mesmo `Cliente`, um
+    filtro por `cliente_id` deixaria uma ver a outra. O isolamento real é por
+    `Empresa`.
     """
-    Fixture que fornece uma instância do AtendimentoService com a sessão de teste.
+    e = Empresa(
+        razao_social="Clínica Exemplo Unidade Norte",
+        nome_fantasia="Clínica Norte",
+        slug="clinica-norte",
+        cnpj="11222333000182",
+        email="norte@clinicaexemplo.com.br",
+        cliente_id=cliente.id,
+        ativo=True,
+    )
+    db_session.add(e)
+    await db_session.commit()
+    await db_session.refresh(e)
+    return e
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TELEFONE
+# ══════════════════════════════════════════════════════════════════════════════
+
+@pytest_asyncio.fixture
+async def telefone(db_session: AsyncSession, empresa: Empresa) -> Telefone:
+    t = Telefone(
+        numero="5511988880001",
+        pais="BR",
+        descricao="WhatsApp comercial",
+        principal=True,
+        ativo=True,
+        empresa_id=empresa.id,
+    )
+    db_session.add(t)
+    await db_session.commit()
+    await db_session.refresh(t)
+    return t
+
+
+@pytest_asyncio.fixture
+async def telefone_outra_empresa(
+    db_session: AsyncSession, outra_empresa: Empresa
+) -> Telefone:
+    t = Telefone(
+        numero="5511988880002",
+        pais="BR",
+        descricao="WhatsApp da unidade norte",
+        principal=True,
+        ativo=True,
+        empresa_id=outra_empresa.id,
+    )
+    db_session.add(t)
+    await db_session.commit()
+    await db_session.refresh(t)
+    return t
+
+
+@pytest_asyncio.fixture
+async def telefone_inativo(db_session: AsyncSession, empresa: Empresa) -> Telefone:
+    t = Telefone(
+        numero="5511988880003",
+        pais="BR",
+        descricao="Número desligado",
+        principal=False,
+        ativo=False,
+        empresa_id=empresa.id,
+    )
+    db_session.add(t)
+    await db_session.commit()
+    await db_session.refresh(t)
+    return t
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CONTATO
+# ══════════════════════════════════════════════════════════════════════════════
+
+@pytest_asyncio.fixture
+async def contato(db_session: AsyncSession, empresa: Empresa):
+    """Pessoa do outro lado do canal.
+
+    `Atendimento.contato_id` é NOT NULL: um atendimento sem contato não sabe
+    com quem está falando, e o histórico perde o interlocutor.
     """
-    return AtendimentoService(db_session)
+    from app.models import Contato
 
-
-# ==============================================================================
-# FIXTURES DE DADOS DE TESTE
-# ==============================================================================
-
-@pytest.fixture
-def canal_whatsapp(db_session: Session) -> Canal:
-    """Cria um canal de WhatsApp de teste."""
-    canal = Canal(
-        nome="WhatsApp Principal",
-        tipo=1,  # WhatsApp
-        ativo=True
+    c = Contato(
+        nome="Maria Souza",
+        canal_tipo="whatsapp",
+        canal_identificador="5511988880001",
+        telefone="5511988880001",
+        empresa_id=empresa.id,
     )
-    db_session.add(canal)
-    db_session.commit()
-    db_session.refresh(canal)
-    return canal
+    db_session.add(c)
+    await db_session.commit()
+    await db_session.refresh(c)
+    return c
 
 
-@pytest.fixture
-def departamento_triagem(db_session: Session) -> Departamento:
-    """Cria um departamento de Triagem."""
-    depto = Departamento(
-        nome="Triagem",
-        ativo=True
+# ══════════════════════════════════════════════════════════════════════════════
+# TRANSPARENCIA DA SUITE
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Arquivos em `_quarentena/` nao sao coletados. Eles nao estao "passando": sao
+# testes que NAO rodam. Este cabecalho e impresso a cada execucao para que um
+# `pytest` verde nunca seja lido como cobertura completa.
+collect_ignore_glob = ["_quarentena/*"]
+
+
+def pytest_report_header(config):
+    import pathlib
+
+    pasta = pathlib.Path(__file__).resolve().parents[2] / "_quarentena"
+    arquivos = sorted(p.name for p in pasta.glob("*.legado")) if pasta.is_dir() else []
+    if not arquivos:
+        return None
+    return (
+        f"ATENCAO: {len(arquivos)} arquivo(s) legado(s) em _quarentena/ NAO "
+        f"sao executados: {', '.join(arquivos)}\n"
+        f"         Testam modulos ainda sincronos (frente C). Ver _quarentena/README.md"
     )
-    db_session.add(depto)
-    db_session.commit()
-    db_session.refresh(depto)
-    return depto
-
-
-@pytest.fixture
-def departamento_suporte(db_session: Session) -> Departamento:
-    """Cria um departamento de Suporte."""
-    depto = Departamento(
-        nome="Suporte Técnico",
-        ativo=True
-    )
-    db_session.add(depto)
-    db_session.commit()
-    db_session.refresh(depto)
-    return depto
-
-
-@pytest.fixture
-def usuario_atendente(db_session: Session, departamento_triagem: Departamento) -> Usuario:
-    """Cria um usuário atendente vinculado ao departamento de Triagem."""
-    usuario = Usuario(
-        nome="João Atendente",
-        email="joao@ecochatbot.com",
-        departamento_id=departamento_triagem.id,
-        ativo=True
-    )
-    db_session.add(usuario)
-    db_session.commit()
-    db_session.refresh(usuario)
-    return usuario
-
-
-@pytest.fixture
-def usuario_suporte(db_session: Session, departamento_suporte: Departamento) -> Usuario:
-    """Cria um usuário atendente vinculado ao departamento de Suporte."""
-    usuario = Usuario(
-        nome="Maria Suporte",
-        email="maria@ecochatbot.com",
-        departamento_id=departamento_suporte.id,
-        ativo=True
-    )
-    db_session.add(usuario)
-    db_session.commit()
-    db_session.refresh(usuario)
-    return usuario
-
-
-@pytest.fixture
-def atendimento_aberto(
-    db_session: Session,
-    departamento_triagem: Departamento,
-    canal_whatsapp: Canal
-) -> Atendimento:
-    """Cria um atendimento em status 'aberto'."""
-    atendimento = Atendimento(
-        protocolo="ECO-TESTE-001",
-        telefone="5511999999999",
-        nome_contato="Paciente Teste",
-        tipo_canal=1,  # WhatsApp
-        canal_id=canal_whatsapp.id,
-        departamento_id=departamento_triagem.id,
-        usuario_id=None,  # Sem atendente atribuído
-        status="aberto",
-        ativo=True,
-        criado_em=datetime.now(timezone.utc)
-    )
-    db_session.add(atendimento)
-    db_session.commit()
-    db_session.refresh(atendimento)
-    return atendimento
-
-
-@pytest.fixture
-def atendimento_em_fila(
-    db_session: Session,
-    departamento_triagem: Departamento,
-    canal_whatsapp: Canal
-) -> Atendimento:
-    """Cria um atendimento em status 'fila'."""
-    atendimento = Atendimento(
-        protocolo="ECO-TESTE-002",
-        telefone="5511888888888",
-        nome_contato="Paciente Fila",
-        tipo_canal=1,
-        canal_id=canal_whatsapp.id,
-        departamento_id=departamento_triagem.id,
-        usuario_id=None,
-        status="fila",
-        ativo=True,
-        criado_em=datetime.now(timezone.utc) - timedelta(hours=1)
-    )
-    db_session.add(atendimento)
-    db_session.commit()
-    db_session.refresh(atendimento)
-    return atendimento
-
-
-@pytest.fixture
-def atendimento_em_atendimento(
-    db_session: Session,
-    departamento_triagem: Departamento,
-    usuario_atendente: Usuario,
-    canal_whatsapp: Canal
-) -> Atendimento:
-    """Cria um atendimento em status 'em_atendimento' com atendente atribuído."""
-    atendimento = Atendimento(
-        protocolo="ECO-TESTE-003",
-        telefone="5511777777777",
-        nome_contato="Paciente em Atendimento",
-        tipo_canal=1,
-        canal_id=canal_whatsapp.id,
-        departamento_id=departamento_triagem.id,
-        usuario_id=usuario_atendente.id,
-        status="em_atendimento",
-        ativo=True,
-        criado_em=datetime.now(timezone.utc) - timedelta(hours

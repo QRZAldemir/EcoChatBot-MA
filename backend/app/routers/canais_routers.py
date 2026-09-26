@@ -12,7 +12,7 @@ PASTA: backend/app/routers/
 import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Empresa
@@ -50,7 +50,7 @@ router = APIRouter(
 )
 async def criar_canal(
     canal_data: CanalContratadoCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa)
 ):
     """
@@ -73,7 +73,7 @@ async def criar_canal(
         # checar: só usar.
         empresa_id = empresa.id
 
-        canal = service.criar_canal(canal_data, empresa_id)
+        canal = await service.criar_canal(canal_data, empresa_id)
         
         return ZigResponse(
             codigo=0,
@@ -102,7 +102,7 @@ async def listar_canais(
     limit: int = Query(50, ge=1, le=100, description="Limite por página"),
     tipo: Optional[str] = Query(None, description="Filtrar por tipo"),
     ativo: Optional[bool] = Query(None, description="Filtrar por status"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa)
 ):
     """
@@ -118,7 +118,7 @@ async def listar_canais(
         
         empresa_id = empresa.id
         
-        canais, total = service.listar_canais(
+        canais, total = await service.listar_canais(
             empresa_id=empresa_id,
             page=page,
             limit=limit,
@@ -156,7 +156,7 @@ async def listar_canais(
 )
 async def buscar_canal(
     canal_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa)
 ):
     """
@@ -169,10 +169,10 @@ async def buscar_canal(
         
         empresa_id = empresa.id
         
-        canal = service.buscar_por_id(canal_id, empresa_id)
+        canal = await service.buscar_por_id(canal_id, empresa_id)
         
         # Obter métricas
-        metricas = service.obter_metricas_canal(canal_id, empresa_id)
+        metricas = await service.obter_metricas_canal(canal_id, empresa_id)
         
         # O mapeamento campo-a-campo foi removido de propósito: ele citava
         # 8 colunas que não existem mais no model (nome, descricao,
@@ -215,7 +215,7 @@ async def buscar_canal(
 async def atualizar_canal(
     canal_id: int,
     canal_data: CanalContratadoUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa)
 ):
     """
@@ -228,7 +228,7 @@ async def atualizar_canal(
         
         empresa_id = empresa.id
         
-        canal = service.atualizar_canal(canal_id, empresa_id, canal_data)
+        canal = await service.atualizar_canal(canal_id, empresa_id, canal_data)
         
         return ZigResponse(
             codigo=0,
@@ -254,7 +254,7 @@ async def atualizar_canal(
 )
 async def deletar_canal(
     canal_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa)
 ):
     """
@@ -267,7 +267,7 @@ async def deletar_canal(
         
         empresa_id = empresa.id
         
-        sucesso = service.deletar_canal(canal_id, empresa_id)
+        sucesso = await service.deletar_canal(canal_id, empresa_id)
         
         return ZigResponse(
             codigo=0,
@@ -297,7 +297,7 @@ async def deletar_canal(
 )
 async def obter_metricas(
     canal_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa)
 ):
     """
@@ -314,7 +314,7 @@ async def obter_metricas(
         
         empresa_id = empresa.id
         
-        metricas = service.obter_metricas_canal(canal_id, empresa_id)
+        metricas = await service.obter_metricas_canal(canal_id, empresa_id)
         
         return ZigResponse(
             codigo=0,
@@ -339,7 +339,7 @@ async def obter_metricas(
     description="Retorna contagem de canais por tipo para cálculo de mensalidade."
 )
 async def resumo_faturamento(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     empresa: Empresa = Depends(get_current_empresa)
 ):
     """
@@ -356,7 +356,7 @@ async def resumo_faturamento(
         
         empresa_id = empresa.id
         
-        contagem = service.contar_canais_por_tipo(empresa_id)
+        contagem = await service.contar_canais_por_tipo(empresa_id)
         
         return ZigResponse(
             codigo=0,

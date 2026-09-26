@@ -152,11 +152,13 @@ class CanalContratadoCreate(CanalContratadoBase):
     """
     Criação de canal contratado.
 
-    `empresa_id` vem do contexto de autenticação (é o tenant). `identificador`
-    é validado por tipo e guardado dentro de `credenciais` pelo service.
+    `empresa_id` NÃO é campo deste schema, de propósito. O tenant vem do token
+    (`get_current_empresa`) e o serviço ignora qualquer valor vindo do corpo.
+    Exigir o campo no request só faria o cliente mandar um dado descartado —
+    e creates a ilusão de que o corpo escolhe o tenant, que é exatamente o
+    que não deve acontecer. `identificador` é validado por tipo e guardado
+    dentro de `credenciais` pelo serviço.
     """
-
-    empresa_id: int = Field(..., description="Empresa que contrata o canal (tenant)")
 
     identificador: Optional[str] = Field(
         None,
