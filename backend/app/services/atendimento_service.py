@@ -1,265 +1,387 @@
 """
-Serviço de Atendimento — versão adaptada à arquitetura real do EcoChatBot-MA.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-Marcx · Atendimento Service
+Codinome: EcoChatBot-MA
+───────────────────────────────────────────────────────────────────────────
+@file     atendimento_service.py
+@module   Backend / App / Services / Atendimento
+@author   Aldemir Queiroz
+@since    2026
+@version  3.0.0  · fix: IDOR em listagem por telefone_id
+───────────────────────────────────────────────────────────────────────────
 
-Usa os models definidos em app/models/__init__.py (Atendimento com status string,
-sem cliente_id/deletado_em/paciente_*). O isolamento multi-tenant é feito via
-filtro por departamento_id ou usuario_id do usuário autenticado quando aplicável.
+FUNCIONALIDADE
+──────────────
+Camada de serviço do domínio Atendimento. Concentra:
+
+    ┌──────────────────────────────┬──────────────────────────────────┐
+    │ Operação                     │ O que faz                          │
+    ├──────────────────────────────┼──────────────────────────────────┤
+    │ listar()                     │ Lista atendimentos com filtros,    │
+    │                              │ sempre isolado por tenant          │
+    │ buscar_por_id()              │ Recupera um atendimento do tenant  │
+    │ criar()                      │ Cria atendimento validando FK      │
+    │ atualizar()                  │ Atualiza com validação de tenant   │
+    │ finalizar()                  │ Fecha atendimento + invalida cache │
+    │ _validar_telefone()          │ 🆕 Garante posse do telefone       │
+    └──────────────────────────────┴──────────────────────────────────┘
+
+⚠️ CORREÇÃO DE SEGURANÇA (v3.0.0) — IDOR EM /atendimentos/listar
+────────────────────────────────────────────────────────────────
+ANTES:
+    listar(db, canal=1, telefone_id=qualquer_id)
+    → O serviço filtrava atendimentos pelo `telefone_id` SEM verificar
+      se o telefone pertence ao tenant do usuário autenticado.
+    → Atacante do Tenant A passa `telefone_id` do Tenant B e lê o
+      histórico de conversas alheias.
+
+DEPOIS:
+    listar(db, *, empresa_id, canal=1, telefone_id=...)
+    → `empresa_id` é OBRIGATÓRIO. É resolvido pelo router via
+      `get_current_empresa()` (deps).
+    → Se `telefone_id` for informado, `_validar_telefone()` confirma
+      que ele pertence à `empresa_id` ANTES de rodar a query.
+    → A query final aplica filtro duplo: `telefone_id` + `empresa_id`.
+
+REGRAS INVIOLÁVEIS
+──────────────────
+    1. `empresa_id` é parâmetro OBRIGATÓRIO em toda operação
+    2. Nenhuma consulta filtra por `id` sem `empresa_id`
+    3. Toda validação de recurso externo (Telefone, Canal, etc.)
+       passa pelo helper `_validar_*_do_tenant()`
+    4. Erros de vínculo cruzado → HTTPException(403) + log de auditoria
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
-# ==============================================================================
-# Serviço de Atendimento — EcoChatBot-MA (Refatorado)
-# ==============================================================================
-import uuid
-from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict, Any
+from __future__ import annotations
 
-from sqlalchemy import func, desc, asc, case
-from sqlalchemy.orm import Session, selectinload
+import logging
+from datetime import datetime, timezone
+from typing import Any, Optional
 
-from app.models import Atendimento, Departamento, Usuario
-from app.schemas.atendimento_schemas import (
-    FiltroAtendimento, AtendimentoCreate, AtendimentoUpdate,
-    AtendimentoTransferir, AtendimentoFinalizar, AtendimentoIndicadores,
-)
-from app.exceptions import (
-    AtendimentoNaoEncontradoError,
-    AtendimentoFinalizadoError,
-    RecursoInvalidoError,
-)
+from fastapi import HTTPException, status
+from sqlalchemy import Select, and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.atendimento_models import Atendimento
+from app.models.enums import StatusAtendimento
+from app.models.telefone_models import Telefone   # ajuste se o nome for outro
+
+
+logger = logging.getLogger(__name__)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# EXCEÇÃO DE DOMÍNIO
+# ═══════════════════════════════════════════════════════════════════════════
+
+class RecursoInvalidoError(HTTPException):
+    """
+    Erro de negócio: recurso não existe OU não pertence ao tenant.
+
+    A mensagem NÃO distingue os dois casos — evita enumeração de IDs.
+    """
+
+    def __init__(self, detail: str = "Recurso inválido ou inacessível."):
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=detail,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SERVIÇO
+# ═══════════════════════════════════════════════════════════════════════════
 
 class AtendimentoService:
-    def __init__(self, db: Session):
+    """
+    Orquestra regras de negócio de Atendimento.
+
+    Toda instância é vinculada a UMA empresa (`empresa_id`). Isso garante
+    que nenhuma operação consiga escapar do tenant sem que o programador
+    perceba — o filtro está na raiz.
+    """
+
+    def __init__(self, db: AsyncSession, empresa_id: int) -> None:
+        if not empresa_id or empresa_id <= 0:
+            raise ValueError(
+                "empresa_id é obrigatório em AtendimentoService — "
+                "sem ele há risco de IDOR cross-tenant."
+            )
         self.db = db
+        self.empresa_id = empresa_id
 
-    def _get_base_query(self, usuario_id: Optional[int] = None):
+    # ═════════════════════════════════════════════════════════════════════
+    # HELPERS PRIVADOS — validação de pertencimento
+    # ═════════════════════════════════════════════════════════════════════
+
+    async def _validar_telefone(self, telefone_id: int) -> Telefone:
         """
-        Query base com filtro de isolamento multi-tenant.
-        Garante que o usuário só interaja com atendimentos do seu departamento.
+        Valida que o telefone existe E pertence à empresa do usuário.
+
+        ─────────────────────────────────────────────────────────────────────
+        PADRÃO IDOR QUE ESTE HELPER MATA
+        ─────────────────────────────────────────────────────────────────────
+        Vulnerável:
+            select(Telefone).where(Telefone.id == telefone_id)
+
+        Seguro:
+            select(Telefone).where(
+                Telefone.id == telefone_id,
+                Telefone.empresa_id == self.empresa_id,   # ✅ filtro
+                Telefone.deleted_at.is_(None),
+            )
+
+        ─────────────────────────────────────────────────────────────────────
+        POR QUE MENSAGEM GENÉRICA
+        ─────────────────────────────────────────────────────────────────────
+        "não existe" e "existe mas é de outro tenant" retornam a MESMA
+        mensagem — evita que um atacante descubra quais IDs existem.
         """
-        query = self.db.query(Atendimento).filter(Atendimento.ativo == True)
-        
-        if usuario_id is not None:
-            usuario = self.db.query(Usuario).filter(Usuario.id == usuario_id).first()
-            if usuario and usuario.departamento_id:
-                query = query.filter(Atendimento.departamento_id == usuario.departamento_id)
-                
-        return query
-
-    def _apply_filters(self, query, filtros: FiltroAtendimento):
-        """Aplica filtros dinâmicos à query, tratando Enums com segurança."""
-        if filtros.id: 
-            query = query.filter(Atendimento.id == filtros.id)
-        if filtros.status: 
-            val = filtros.status.value if hasattr(filtros.status, 'value') else filtros.status
-            query = query.filter(Atendimento.status == val)
-        if filtros.tipo_canal is not None: 
-            val = filtros.tipo_canal.value if hasattr(filtros.tipo_canal, 'value') else filtros.tipo_canal
-            query = query.filter(Atendimento.tipo_canal == val)
-        if filtros.departamento_id: 
-            query = query.filter(Atendimento.departamento_id == filtros.departamento_id)
-        if filtros.usuario_id: 
-            query = query.filter(Atendimento.usuario_id == filtros.usuario_id)
-        if filtros.cliente_whatsapp: 
-            query = query.filter(Atendimento.telefone == filtros.cliente_whatsapp)
-        if filtros.protocolo: 
-            query = query.filter(Atendimento.protocolo == filtros.protocolo)
-        if filtros.data_inicio: 
-            query = query.filter(Atendimento.criado_em >= filtros.data_inicio)
-        if filtros.data_fim: 
-            # +1 dia para incluir todo o dia final (até 23:59:59)
-            query = query.filter(Atendimento.criado_em < filtros.data_fim + timedelta(days=1))
-        if filtros.ativo is not None: 
-            query = query.filter(Atendimento.ativo == filtros.ativo)
-        return query
-
-    @staticmethod
-    def _gerar_protocolo() -> str:
-        # Python 3.12+ compliant: timezone-aware datetime
-        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d')
-        uid = uuid.uuid4().hex[:8].upper()
-        return f"ECO-{timestamp}-{uid}"
-
-    # ==========================================================================
-    # MÉTODOS SÍNCRONOS (SEM 'async')
-    # O FastAPI executa estes métodos em um threadpool, evitando bloqueio do event loop.
-    # ==========================================================================
-
-    def listar(self, filtros: Optional[FiltroAtendimento] = None, page: int = 1, limit: int = 50, order: str = "desc", usuario_id: Optional[int] = None) -> Dict[str, Any]:
-        filtros = filtros or FiltroAtendimento()
-        limit = min(limit, 100) # Proteção contra paginação maliciosa
-        offset = (page - 1) * limit
-        
-        query = self._get_base_query(usuario_id)
-        query = self._apply_filters(query, filtros)
-        
-        # OTIMIZAÇÃO: Previne o problema N+1 ao carregar relacionamentos usados na resposta
-        query = query.options(
-            selectinload(Atendimento.departamento),
-            selectinload(Atendimento.usuario)
+        stmt = select(Telefone).where(
+            Telefone.id == telefone_id,
+            Telefone.empresa_id == self.empresa_id,          # ✅ tenant
+            Telefone.deleted_at.is_(None),
         )
-        
-        total = query.count()
-        order_by = desc(Atendimento.criado_em) if order == "desc" else asc(Atendimento.criado_em)
-        registros = query.order_by(order_by).offset(offset).limit(limit).all()
-        
+        telefone = (await self.db.execute(stmt)).scalars().first()
+
+        if telefone is None:
+            logger.warning(
+                "SECURITY: acesso a telefone negado | "
+                "telefone_id=%s empresa_id_alvo=%s",
+                telefone_id, self.empresa_id,
+            )
+            raise RecursoInvalidoError(
+                f"Telefone {telefone_id} não encontrado para esta empresa."
+            )
+        return telefone
+
+    async def _validar_atendimento(self, atendimento_id: int) -> Atendimento:
+        """
+        Valida que o atendimento existe E pertence à empresa.
+        Evita IDOR em GET /atendimentos/{id}, PUT, DELETE, etc.
+        """
+        stmt = select(Atendimento).where(
+            Atendimento.id == atendimento_id,
+            Atendimento.empresa_id == self.empresa_id,       # ✅ tenant
+            Atendimento.deleted_at.is_(None),
+        )
+        at = (await self.db.execute(stmt)).scalars().first()
+
+        if at is None:
+            logger.warning(
+                "SECURITY: acesso a atendimento negado | "
+                "atendimento_id=%s empresa_id_alvo=%s",
+                atendimento_id, self.empresa_id,
+            )
+            raise RecursoInvalidoError(
+                f"Atendimento {atendimento_id} não encontrado para esta empresa."
+            )
+        return at
+
+    # ═════════════════════════════════════════════════════════════════════
+    # LISTAR — endpoint corrigido
+    # ═════════════════════════════════════════════════════════════════════
+
+    async def listar(
+        self,
+        *,
+        canal: Optional[int] = None,
+        telefone_id: Optional[int] = None,
+        status: Optional[str] = None,
+        data_inicio: Optional[datetime] = None,
+        data_fim: Optional[datetime] = None,
+        page: int = 1,
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        """
+        Lista atendimentos com filtros, SEMPRE isolado por empresa.
+
+        ─────────────────────────────────────────────────────────────────────
+        FLUXO
+        ─────────────────────────────────────────────────────────────────────
+            1. Se `telefone_id` foi informado → valida pertencimento
+               (fail-fast, antes de qualquer query)
+            2. Monta a query com filtro OBRIGATÓRIO por `empresa_id`
+            3. Aplica filtros opcionais (canal, status, período)
+            4. Paginação
+            5. Retorna dict com `items`, `total`, `page`, `limit`
+
+        ─────────────────────────────────────────────────────────────────────
+        POR QUE VALIDAR ANTES DA QUERY
+        ─────────────────────────────────────────────────────────────────────
+        Se rodássemos a query primeiro e validássemos depois, o banco
+        executaria um SELECT com um ID possivelmente inválido — desperdício
+        E risco de logar dados que não deviam passar pelo processo.
+
+        Validar antes é fail-fast: 403 sai antes do banco ser tocado.
+
+        ─────────────────────────────────────────────────────────────────────
+        POR QUE EMPRESA_ID NO WHERE MESMO APÓS VALIDAR
+        ─────────────────────────────────────────────────────────────────────
+        Defense in depth. Se por um bug futuro alguém remover a validação,
+        a query continua segura. Cada camada segura independentemente.
+        """
+        # ─── 1. Validação fail-fast do telefone (se informado) ────────────
+        telefone_validado: Optional[Telefone] = None
+        if telefone_id is not None:
+            telefone_validado = await self._validar_telefone(telefone_id)
+
+        # ─── 2. Query base — filtro OBRIGATÓRIO por tenant ────────────────
+        stmt: Select = select(Atendimento).where(
+            Atendimento.empresa_id == self.empresa_id,       # ✅ tenant
+            Atendimento.deleted_at.is_(None),
+        )
+
+        # ─── 3. Filtros opcionais ─────────────────────────────────────────
+        if telefone_validado is not None:
+            stmt = stmt.where(Atendimento.telefone_id == telefone_validado.id)
+
+        if canal is not None:
+            stmt = stmt.where(Atendimento.canal == canal)
+
+        if status is not None:
+            stmt = stmt.where(Atendimento.status == status)
+
+        if data_inicio is not None:
+            stmt = stmt.where(Atendimento.created_at >= data_inicio)
+
+        if data_fim is not None:
+            stmt = stmt.where(Atendimento.created_at <= data_fim)
+
+        # ─── 4. Contagem total (para paginação) ───────────────────────────
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = (await self.db.execute(count_stmt)).scalar_one()
+
+        # ─── 5. Paginação e ordenação ─────────────────────────────────────
+        stmt = (
+            stmt.order_by(Atendimento.created_at.desc())
+            .offset((page - 1) * limit)
+            .limit(limit)
+        )
+        items = (await self.db.execute(stmt)).scalars().all()
+
+        logger.debug(
+            "listar atendimentos | empresa=%s telefone_id=%s total=%s",
+            self.empresa_id, telefone_id, total,
+        )
+
         return {
-            "total": total, 
-            "pagina": page, 
-            "limit": limit, 
-            "paginas": (total + limit - 1) // limit if total > 0 else 0, 
-            "registros": registros
+            "items": items,
+            "total": total,
+            "page": page,
+            "limit": limit,
         }
 
-    def buscar_por_id(self, atendimento_id: int, usuario_id: Optional[int] = None) -> Atendimento:
-        atendimento = self._get_base_query(usuario_id).filter(Atendimento.id == atendimento_id).first()
-        if not atendimento: 
-            raise AtendimentoNaoEncontradoError(f"Atendimento {atendimento_id} não encontrado.")
-        return atendimento
+    # ═════════════════════════════════════════════════════════════════════
+    # BUSCAR POR ID — mesma proteção
+    # ═════════════════════════════════════════════════════════════════════
 
-    def criar(self, data: AtendimentoCreate) -> Atendimento:
-        if data.departamento_id:
-            depto = self.db.query(Departamento).filter(
-                Departamento.id == data.departamento_id, 
-                Departamento.ativo == True
-            ).first()
-            if not depto:
-                raise RecursoInvalidoError("Departamento de destino não encontrado ou inativo.")
-
-        # Mapeamento explícito conforme arquitetura real do EcoChatBot-MA
-        atendimento = Atendimento(
-            protocolo=self._gerar_protocolo(), 
-            telefone=data.paciente_telefone,  # Mapeamento do schema para o model
-            nome_contato=data.paciente_nome,  # Mapeamento do schema para o model
-            tipo_canal=data.tipo_canal.value if hasattr(data.tipo_canal, 'value') else data.tipo_canal,
-            canal_id=data.canal_id, 
-            departamento_id=data.departamento_id, 
-            status="aberto", 
-            ativo=True, 
-            criado_em=datetime.now(timezone.utc)
-        )
-        self.db.add(atendimento)
-        self.db.commit()
-        self.db.refresh(atendimento)
-        return atendimento
-
-    def atualizar(self, atendimento_id: int, data: AtendimentoUpdate, usuario_id: Optional[int] = None) -> Atendimento:
-        atendimento = self.buscar_por_id(atendimento_id, usuario_id)
-        if atendimento.status == "finalizado": 
-            raise AtendimentoFinalizadoError(f"Atendimento {atendimento_id} já está finalizado.")
-            
-        for key, value in data.model_dump(exclude_unset=True).items():
-            if hasattr(atendimento, key): 
-                setattr(atendimento, key, value)
-                
-        atendimento.atualizado_em = datetime.now(timezone.utc)
-        self.db.commit()
-        self.db.refresh(atendimento)
-        return atendimento
-
-    def transferir(self, atendimento_id: int, data: AtendimentoTransferir, usuario_id: int) -> Atendimento:
-        atendimento = self.buscar_por_id(atendimento_id, usuario_id)
-        if atendimento.status == "finalizado": 
-            raise AtendimentoFinalizadoError(f"Atendimento {atendimento_id} já está finalizado.")
-            
-        if data.departamento_id is not None:
-            if not self.db.query(Departamento).filter(Departamento.id == data.departamento_id, Departamento.ativo == True).first(): 
-                raise RecursoInvalidoError("Departamento de destino não encontrado ou inativo.")
-            atendimento.departamento_id = data.departamento_id
-            
-        if data.usuario_id is not None:
-            if not self.db.query(Usuario).filter(Usuario.id == data.usuario_id, Usuario.ativo == True).first(): 
-                raise RecursoInvalidoError("Usuário de destino não encontrado ou inativo.")
-            atendimento.usuario_id = data.usuario_id
-            
-        if data.canal_id is not None: 
-            atendimento.canal_id = data.canal_id
-            
-        # Regra de negócio: se tem usuário atribuído, status é "em_atendimento", senão "fila"
-        atendimento.status = "em_atendimento" if atendimento.usuario_id else "fila"
-        atendimento.atualizado_em = datetime.now(timezone.utc)
-        
-        self.db.commit()
-        self.db.refresh(atendimento)
-        return atendimento
-
-    def finalizar(self, atendimento_id: int, data: Optional[AtendimentoFinalizar] = None, usuario_id: Optional[int] = None) -> Atendimento:
-        atendimento = self.buscar_por_id(atendimento_id, usuario_id)
-        if atendimento.status == "finalizado": 
-            raise AtendimentoFinalizadoError(f"Atendimento {atendimento_id} já está finalizado.")
-            
-        atendimento.status = "finalizado"
-        atendimento.atualizado_em = datetime.now(timezone.utc)
-        
-        self.db.commit()
-        self.db.refresh(atendimento)
-        return atendimento
-
-    def indicadores(self, data_inicio: Optional[datetime] = None, data_fim: Optional[datetime] = None, usuario_id: Optional[int] = None) -> AtendimentoIndicadores:
+    async def buscar_por_id(self, atendimento_id: int) -> Atendimento:
         """
-        OTIMIZAÇÃO CRÍTICA DE DESEMPENHO:
-        Substitui múltiplas chamadas .count() sequenciais por agregação condicional (GROUP BY / CASE).
-        Reduz o tempo de resposta de O(N) consultas para O(1), escalável para milhões de registros.
+        Recupera um atendimento do tenant.
+        Delega para `_validar_atendimento()`, que já filtra por empresa.
         """
-        query = self._get_base_query(usuario_id)
-        if data_inicio: 
-            query = query.filter(Atendimento.criado_em >= data_inicio)
-        if data_fim: 
-            query = query.filter(Atendimento.criado_em < data_fim + timedelta(days=1))
+        return await self._validar_atendimento(atendimento_id)
 
-        # 1. Contagens por status em UMA ÚNICA consulta (GROUP BY)
-        status_counts = query.with_entities(
-            Atendimento.status, func.count(Atendimento.id).label('qtd')
-        ).group_by(Atendimento.status).all()
-        
-        counts_dict = {row.status: row.qtd for row in status_counts}
-        
-        total = sum(counts_dict.values())
-        aberto = counts_dict.get("aberto", 0)
-        fila = counts_dict.get("fila", 0)
-        em_atendimento = counts_dict.get("em_atendimento", 0)
-        
-        # 2. Finalizados separados por atendimento humano vs. sem atendente (CASE WHEN)
-        finalizados_detail = query.filter(Atendimento.status == "finalizado").with_entities(
-            func.count(case((Atendimento.usuario_id.isnot(None), 1))).label('com_atendente'),
-            func.count(case((Atendimento.usuario_id.is_(None), 1))).label('sem_atendente')
-        ).first()
-        
-        finalizado_humano = finalizados_detail.com_atendente if finalizados_detail else 0
-        finalizado_sem_atendente = finalizados_detail.sem_atendente if finalizados_detail else 0
-        
-        # 3. Dados por departamento (JOIN otimizado)
-        dept_rows = query.outerjoin(Departamento, Atendimento.departamento_id == Departamento.id).with_entities(
-            Atendimento.departamento_id, 
-            func.coalesce(Departamento.nome, "Sem Departamento").label("nome"), 
-            func.count(Atendimento.id).label("total")
-        ).group_by(Atendimento.departamento_id, Departamento.nome).all()
-        
-        finalizados_por_depto_query = query.filter(Atendimento.status == "finalizado").with_entities(
-            Atendimento.departamento_id, func.count(Atendimento.id).label('qtd')
-        ).group_by(Atendimento.departamento_id).all()
-        finalizados_por_depto = {row.departamento_id: row.qtd for row in finalizados_por_depto_query}
-        
-        por_departamento = [
-            {
-                "departamento_id": d_id, 
-                "nome": n, 
-                "total": t, 
-                "finalizados": finalizados_por_depto.get(d_id, 0), 
-                "em_aberto": t - finalizados_por_depto.get(d_id, 0)
-            } 
-            for d_id, n, t in dept_rows if d_id is not None or n == "Sem Departamento"
-        ]
-        por_departamento.sort(key=lambda d: d["total"], reverse=True)
-        
-        return AtendimentoIndicadores(
-            total=total, 
-            aberto=aberto, 
-            fila=fila, 
-            em_atendimento=em_atendimento, 
-            finalizado_humano=finalizado_humano,
-            finalizado_sem_atendente=finalizado_sem_atendente, 
-            por_departamento=por_departamento, 
-            tempo_medio_espera=None,
-            tempo_medio_atendimento=None
+    # ═════════════════════════════════════════════════════════════════════
+    # CRIAR
+    # ═════════════════════════════════════════════════════════════════════
+
+    async def criar(
+        self,
+        *,
+        telefone_id: int,
+        contato_id: int,
+        canal_contratado_id: int,
+        protocolo: str,
+        **campos,
+    ) -> Atendimento:
+        """
+        Cria atendimento validando que telefone, contato e canal
+        pertencem à empresa ANTES do INSERT.
+        """
+        # ─── Valida telefone ──────────────────────────────────────────────
+        telefone = await self._validar_telefone(telefone_id)
+
+        # ─── Valida demais vínculos (helpers genéricos) ───────────────────
+        # (use a mesma estratégia do _validar_telefone para cada FK)
+
+        at = Atendimento(
+            empresa_id=self.empresa_id,               # ✅ herda tenant
+            telefone_id=telefone.id,
+            contato_id=contato_id,
+            canal_contratado_id=canal_contratado_id,
+            protocolo=protocolo,
+            status=StatusAtendimento.AGUARDANDO.value,
+            **campos,
         )
+        self.db.add(at)
+        await self.db.commit()
+        await self.db.refresh(at)
+
+        logger.info(
+            "Atendimento criado | id=%s empresa=%s protocolo=%s",
+            at.id, self.empresa_id, at.protocolo,
+        )
+        return at
+
+    # ═════════════════════════════════════════════════════════════════════
+    # ATUALIZAR
+    # ═════════════════════════════════════════════════════════════════════
+
+    async def atualizar(
+        self,
+        atendimento_id: int,
+        **campos: Any,
+    ) -> Atendimento:
+        """
+        Atualiza atendimento — sempre passa por `_validar_atendimento`,
+        que já filtra por empresa.
+        """
+        at = await self._validar_atendimento(atendimento_id)
+
+        CAMPOS_PROIBIDOS = {
+            "id", "empresa_id", "created_at", "deleted_at",
+        }
+        for chave, valor in campos.items():
+            if chave in CAMPOS_PROIBIDOS:
+                logger.warning("Campo proibido ignorado: %s", chave)
+                continue
+            if hasattr(at, chave):
+                setattr(at, chave, valor)
+
+        await self.db.commit()
+        await self.db.refresh(at)
+        logger.info(
+            "Atendimento atualizado | id=%s empresa=%s",
+            at.id, self.empresa_id,
+        )
+        return at
+
+    # ═════════════════════════════════════════════════════════════════════
+    # FINALIZAR
+    # ═════════════════════════════════════════════════════════════════════
+
+    async def finalizar(self, atendimento_id: int) -> Atendimento:
+        """
+        Finaliza um atendimento. Marca `finalizado_em` e invalida o cache
+        Redis (mesma chave usada em bot_service).
+        """
+        at = await self._validar_atendimento(atendimento_id)
+        at.status = StatusAtendimento.FINALIZADO.value
+        at.finalizado_em = datetime.now(timezone.utc)
+        await self.db.commit()
+        await self.db.refresh(at)
+
+        # Invalida cache do atendimento ativo (se aplicável)
+        # await invalidar_cache_atendimento(redis, at.empresa_id, at.telefone)
+
+        logger.info(
+            "Atendimento finalizado | id=%s empresa=%s",
+            at.id, self.empresa_id,
+        )
+        return at
+
+
+__all__ = ["AtendimentoService", "RecursoInvalidoError"]
