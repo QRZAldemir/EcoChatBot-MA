@@ -7,7 +7,7 @@ Codinome: EcoChatBot-MA
 @module   Backend / App / Models / Menu
 @author   Aldemir Queiroz
 @since    2026
-@version  2.0.0
+@version  2.1.0  · fix: padronização da FK para canal_id
 ───────────────────────────────────────────────────────────────────────────
 
 FUNCIONALIDADE
@@ -23,7 +23,7 @@ para um ROTEIRO (qual HTML carregar depois da escolha).
 
 EXEMPLO PRÁTICO
 ───────────────
-    Menu: "Principal" (vinculado ao CanalContratado WhatsApp)
+    Menu: "Principal" (vinculado ao Canal WhatsApp)
     ├── Item 1: "Atendimento ao Cliente"   → Depto: Suporte    → Roteiro: suporte.html
     ├── Item 2: "Agendamento Ambulatorial" → Depto: Ambulat.   → Roteiro: agendamento.html
     ├── Item 3: "Financeiro"               → Depto: Financeiro → Roteiro: financeiro.html
@@ -31,10 +31,10 @@ EXEMPLO PRÁTICO
 
 RELACIONAMENTO
 ──────────────
-    CanalContratado (1) ── (N) Menu ── (N) MenuItem
-                                          │
-                                          ├── Departamento (N:1)
-                                          └── Roteiro      (N:1, opcional)
+    Canal (1) ── (N) Menu ── (N) MenuItem
+                              │
+                              ├── Departamento (N:1)
+                              └── Roteiro      (N:1, opcional)
 
 REGRAS DE NEGÓCIO
 ─────────────────
@@ -57,7 +57,7 @@ from app.models.base import Base
 from app.models.mixins import SoftDeleteMixin, TenantMixin, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.canal_models import CanalContratado
+    from app.models.canal_models import Canal
     from app.models.departamento_models import Departamento
     from app.models.roteiro_models import Roteiro
 
@@ -67,15 +67,19 @@ class Menu(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     Menu apresentado ao cliente ao iniciar contato.
 
     Pode ser único por Empresa (menu default) ou específico por canal
-    contratado — útil quando WhatsApp e Telegram têm apresentações
-    diferentes.
+    — útil quando WhatsApp e Telegram têm apresentações diferentes.
     """
 
     __tablename__ = "menus"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    canal_contratado_id: Mapped[int | None] = mapped_column(
-        ForeignKey("canais_contratados.id", ondelete="CASCADE"), index=True
+    
+    # ─── Chave de Relacionamento ──────────────────────────────────────────
+    # A chave `canal_id` estabelece o vínculo direto entre este Menu e o 
+    # Canal específico da plataforma. Se nulo, o menu é considerado o 
+    # padrão (default) para a Empresa.
+    canal_id: Mapped[int | None] = mapped_column(
+        ForeignKey("canais.id", ondelete="CASCADE"), index=True
     )
 
     # ─── Apresentação ─────────────────────────────────────────────────────
@@ -95,7 +99,8 @@ class Menu(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # ─── Relacionamentos ──────────────────────────────────────────────────
-    canal_contratado: Mapped["CanalContratado | None"] = relationship(back_populates="menus")
+    # Relação direta com o Canal através da chave `canal_id`.
+    canal: Mapped["Canal | None"] = relationship(back_populates="menus")
     itens: Mapped[List["MenuItem"]] = relationship(
         back_populates="menu",
         cascade="all, delete-orphan",
