@@ -148,4 +148,79 @@ async def criar_atendimento(
     response_model=AtendimentoResponse,
     summary="Atualizar dados cadastrais do atendimento"
 )
-async
+async def atualizar_atendimento(
+    atendimento_id: int,
+    payload: AtendimentoUpdate,
+    db: AsyncSession = Depends(get_db),
+    empresa: CurrentEmpresa = Depends(),
+) -> AtendimentoResponse:
+    """Atualização parcial. O service garante que o atendimento pertença à empresa."""
+    service = AtendimentoService(db, empresa_id=empresa.id)
+    atendimento_atualizado = await service.atualizar(
+        atendimento_id, 
+        **payload.model_dump(exclude_unset=True)
+    )
+    
+    if not atendimento_atualizado:
+        raise RecursoNaoEncontradoError(f"Atendimento {atendimento_id} não encontrado.")
+        
+    return AtendimentoResponse.model_validate(atendimento_atualizado)
+
+
+@router.post(
+    "/{atendimento_id}/transferir", 
+    response_model=AtendimentoResponse,
+    summary="Transferir atendimento (Suporte a URA/Ramal e Departamentos)"
+)
+async def transferir_atendimento(
+    atendimento_id: int,
+    payload: AtendimentoTransferir,
+    db: AsyncSession = Depends(get_db),
+    empresa: CurrentEmpresa = Depends(),
+) -> AtendimentoResponse:
+    """
+    Transfere o atendimento. 
+    Este endpoint é poderoso: utiliza o schema AtendimentoTransferir, que suporta
+    nativamente a lógica de telefonia (ramal_destino) e rastreamento de URA (menu_item_id),
+    além de exigir o registro de auditoria (motivo, departamento_origem_id).
+    """
+    service = AtendimentoService(db, empresa_id=empresa.id)
+    
+    atendimento = await service.transferir(
+        atendimento_id=atendimento_id,
+        transferencia_data=payload.model_dump()
+    )
+    
+    if not atendimento:
+        raise RecursoNaoEncontradoError(f"Atendimento {atendimento_id} não encontrado.")
+        
+    return AtendimentoResponse.model_validate(atendimento)
+
+
+@router.post(
+    "/{atendimento_id}/finalizar", 
+    response_model=AtendimentoResponse,
+    summary="Finalizar atendimento com avaliação"
+)
+async def finalizar_atendimento(
+    atendimento_id: int,
+    payload: AtendimentoFinalizar,
+    db: AsyncSession = Depends(get_db),
+    empresa: CurrentEmpresa = Depends(),
+) -> AtendimentoResponse:
+    """
+    Encerra o atendimento, registrando opcionalmente a avaliação (1-5) e o feedback.
+    O service deve orquestrar o envio da mensagem de despedida via canal apropriado.
+    """
+    service = AtendimentoService(db, empresa_id=empresa.id)
+    
+    atendimento_encerrado = await service.finalizar(
+        atendimento_id=atendimento_id,
+        avaliacao=payload.avaliacao,
+        feedback=payload.feedback
+    )
+    
+    if not atendimento_encerrado:
+        raise RecursoNaoEncontradoError(f"Atendimento {atendimento_id} não encontrado.")
+        
+    return AtendimentoResponse.model_validate(atendimento_encerrado)

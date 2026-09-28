@@ -86,3 +86,7 @@ class UsuarioCanal(TimestampMixin, Base):
 
     usuario: Mapped["Usuario"] = relationship(back_populates="vinculos_canal")
     canal: Mapped["CanalContratado"] = relationship(back_populates="vinculos_usuario")
+
+# Deveria ser:
+from app.models.canal_contratado_models import CanalContratado   # 
+

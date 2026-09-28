@@ -1,700 +1,665 @@
-# ==============================================================================
-# PROJETO: EcoChatBot-MA
-# MÓDULO: app.services.bot_service
-# AUTOR: Aldemir Queiroz
-# DATA: 2026-09-27
-# VERSÃO: 2.0.0 (Correção Crítica: Blindagem Multi-Tenant e Atomicidade)
-# ==============================================================================
 """
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-MA · Bot Service
+Codinome: EcoChatBot-MA
+───────────────────────────────────────────────────────────────────────────
+@file     bot_service.py
+@module   Backend / App / Services / Bot
+@author   Aldemir Queiroz
+@since    2026
+@version  3.0.0  · POO + cache Redis + transações atômicas + enums tipados
+───────────────────────────────────────────────────────────────────────────
+
 FUNCIONALIDADE
---------------
-Serviço de bot para processamento de mensagens recebidas via WhatsApp
-(Evolution API) e outros canais de mensageria.
+──────────────
+Orquestra o ciclo de vida de um atendimento iniciado pelo bot, desde a
+primeira mensagem (BOOT) até o encaminhamento para atendimento humano.
 
-CORREÇÕES CRÍTICAS APLICADAS (v2.0.0)
---------------------------------------
-1. VALIDAÇÃO MULTI-TENANT: Todas as operações agora verificam estritamente
-   o pertencimento do atendimento à empresa/conexão correta.
-   
-2. PREVENÇÃO DE IDOR: A função _buscar_ou_criar agora exige conexao_id e
-   valida que o atendimento pertence ao tenant antes de qualquer operação.
+    ┌──────────────────────────────────────────────────────────────────┐
+    │  BOOT → AGUARDAR_LGPD → AGUARDAR_NOME → AGUARDAR_HUB             │
+    │       → DEPTO_DINAMICO → EM_ATENDIMENTO → FINALIZADO             │
+    └──────────────────────────────────────────────────────────────────┘
 
-3. ATOMICIDADE TRANSACIONAL: Uso explícito de transações com rollback
-   automático em caso de erro.
+MULTI-BANCO
+───────────
+    ┌──────────────┬──────────────────────────────────────────────────┐
+    │ PostgreSQL   │ Atendimento, Contato, Conexao — fonte da verdade  │
+    │ Redis        │ Cache do atendimento ativo por (empresa, telefone)│
+    │ MongoDB      │ Contexto do atendimento (em outro service)        │
+    └──────────────┴──────────────────────────────────────────────────┘
 
-4. TRATAMENTO DE ERROS: Logging estruturado e tratamento de exceções
-   específicas para não expor informações sensíveis.
+⚠️ CORREÇÃO CRÍTICA (v3.0.0) — IDOR MULTI-TENANT
+─────────────────────────────────────────────────
+ANTES (v1.x):
+    db.query(Atendimento).filter(Atendimento.telefone == telefone)
+    → Vazava atendimento entre tenants que compartilhavam telefone.
 
-SEGURANÇA
----------
-• Nunca confiar apenas no telefone para identificar um atendimento
-• Sempre validar: atendimento.empresa_id == conexao.empresa_id
-• Isolar dados entre tenants mesmo para o mesmo número de telefone
+DEPOIS (v2.x — sua correção):
+    Filtro por `empresa_id` E `canal_contratado_id` (conexão).
+
+MELHORIA (v3.0.0):
+    • Encapsulado na classe BotService (isolamento por instância)
+    • Cache Redis escopado: atendimento:{empresa_id}:{telefone}
+    • Transações atômicas via `_transaction()` context manager
+    • Enums tipados em vez de strings mágicas
+    • Métodos privados com prefixo `_` (convenção Python)
+    • Injeção de dependências no construtor (facilita testes)
+
+CONCEITOS DE POO APLICADOS
+──────────────────────────
+    Classe .............. BotService (molde)
+    Objeto .............. Instância criada por requisição
+    Encapsulamento ...... Métodos privados (_) e públicos
+    Estado .............. self.db, self.conexao, self.atendimento
+    Composição .......... BotService tem Redis, EvolutionService
+    Coesão .............. Orquestrar fluxo, só isso
+    Acoplamento ......... Depende de interfaces, não implementações
+    Injeção ............ Dependências recebidas no __init__
+    @staticmethod ....... _normalizar, _tel, _protocolo
+    @classmethod ........ from_webhook (factory)
+    @property ........... empresa_id, eh_voip
+    Dataclass ........... ContextoMensagem
+    Enum ................ BotStep (BOOT, LGPD, ...)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
+from __future__ import annotations
+
+import contextvars
 import logging
 import re
-import contextvars
+import unicodedata
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from enum import Enum
 from typing import Optional
-from datetime import datetime
 from uuid import uuid4
 
+from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-# Imports de modelos e serviços
+from app.config import (
+    BACKEND_URL,
+    BOT_MENSAGEM_BOAS_VINDAS,
+    EMPRESA_NOME,
+    LGPD_URL,
+)
+from app.exceptions import (
+    AcessoNegadoError,
+    RecursoNaoEncontradoError,
+)
 from app.models import (
-    Atendimento, 
-    CanalContratado, 
-    Menu, 
-    Usuario,
+    Atendimento,
+    AtendimentoContexto,
+    CanalContratado,
     Conexao,
-    Contato
+    Contato,
+    Menu,
+    Usuario,
 )
 from app.models.enums import StatusAtendimento
-from app.exceptions import RecursoNaoEncontradoError, AcessoNegadoError
-from app.services import evolution_service, audio_service
-from app.config import (
-    EMPRESA_NOME, 
-    BOT_MENSAGEM_BOAS_VINDAS,
-    LGPD_URL,
-    BACKEND_URL,
-)
+from app.services import audio_service, evolution_service
+
 
 logger = logging.getLogger(__name__)
 
-# ==============================================================================
-# CONSTANTES E ESTADOS DO BOT
-# ==============================================================================
 
-BOOT = "BOOT"
-AGUARDAR_LGPD = "AGUARDAR_LGPD"
-AGUARDAR_NOME = "AGUARDAR_NOME"
-AGUARDAR_HUB = "AGUARDAR_HUB"
-EM_ATENDIMENTO = "EM_ATENDIMENTO"
-FINALIZADO = "FINALIZADO"
-DEPTO_DINAMICO = "DEPTO_DINAMICO"
+# ═══════════════════════════════════════════════════════════════════════════
+# CONSTANTES
+# ═══════════════════════════════════════════════════════════════════════════
 
 RODAPE = "Digite uma opção:"
+
+#: TTL do cache do atendimento ativo (segundos)
+CACHE_ATENDIMENTO_TTL: int = 300
+
+#: Regex para remover emojis antes de gerar áudio
 EMOJI_RE = re.compile(
     "["
-    "\U0001F600-\U0001F64F"  # emoticons
-    "\U0001F300-\U0001F5FF"  # símbolos e pictogramas
-    "\U0001F680-\U0001F6FF"  # transporte e símbolos de mapa
-    "\U0001F1E0-\U0001F1FF"  # flags
+    "\U0001F600-\U0001F64F"     # emoticons
+    "\U0001F300-\U0001F5FF"     # símbolos e pictogramas
+    "\U0001F680-\U0001F6FF"     # transporte e símbolos de mapa
+    "\U0001F1E0-\U0001F1FF"     # bandeiras
     "\U00002702-\U000027B0"
     "\U000024C2-\U0001F251"
     "]+",
     flags=re.UNICODE,
 )
+
+#: Regex para remover markdown antes de gerar áudio
 MARKDOWN_RE = re.compile(r"[\*_~`]")
 
-FRASES_ATIVAR_AUDIO = ["audio", "áudio", "ouvir", "falar", "voz"]
-FRASES_DESATIVAR_AUDIO = ["texto", "parar audio", "desativar audio"]
-
-# Contexto ambiente (por requisição/atendimento)
-_ctx_db: contextvars.ContextVar[Session] = contextvars.ContextVar("_ctx_db")
-_ctx_at: contextvars.ContextVar[Atendimento] = contextvars.ContextVar("_ctx_at")
+#: Frases que ativam/desativam modo áudio
+FRASES_ATIVAR_AUDIO = {"audio", "áudio", "ouvir", "falar", "voz"}
+FRASES_DESATIVAR_AUDIO = {"texto", "parar audio", "desativar audio"}
 
 
-# ==============================================================================
-# HELPERS DE FORMATAÇÃO E UTILITÁRIOS
-# ==============================================================================
+# ═══════════════════════════════════════════════════════════════════════════
+# ENUMS TIPADOS — substituem strings mágicas
+# ═══════════════════════════════════════════════════════════════════════════
 
-def _protocolo() -> str:
-    """Gera número de protocolo único."""
-    agora = datetime.now()
-    timestamp = agora.strftime("%Y%m%d%H%M%S")
-    aleatorio = uuid4().hex[:6].upper()
-    return f"{timestamp}-{aleatorio}"
+class BotStep(str, Enum):
+    """
+    Estados da máquina de conversa.
 
-
-def _tel(remote_jid: str) -> str:
-    """Extrai telefone do remoteJid (formato WhatsApp)."""
-    return remote_jid.replace("@s.whatsapp.net", "")
-
-
-def _normalizar(texto: str) -> str:
-    """Normaliza texto para comparação (minúsculas, sem acentos)."""
-    texto = texto.lower().strip()
-    texto = re.sub(r"[àáâãäå]", "a", texto)
-    texto = re.sub(r"[èéêë]", "e", texto)
-    texto = re.sub(r"[ìíîï]", "i", texto)
-    texto = re.sub(r"[òóôõö]", "o", texto)
-    texto = re.sub(r"[ùúûü]", "u", texto)
-    texto = re.sub(r"[ç]", "c", texto)
-    return texto
+    Por que Enum e não strings soltas:
+        • Autocomplete em IDEs
+        • Erros de digitação viram AttributeError (não falha silenciosa)
+        • Refactor seguro: rename propaga por todo o código
+        • Documentação implícita do fluxo
+    """
+    BOOT             = "BOOT"
+    AGUARDAR_LGPD    = "AGUARDAR_LGPD"
+    AGUARDAR_NOME    = "AGUARDAR_NOME"
+    AGUARDAR_HUB     = "AGUARDAR_HUB"
+    DEPTO_DINAMICO   = "DEPTO_DINAMICO"
+    EM_ATENDIMENTO   = "EM_ATENDIMENTO"
+    FINALIZADO       = "FINALIZADO"
 
 
-def _substituir_variaveis(texto: str, nome_cliente: str) -> str:
-    """Substitui variáveis de template."""
-    if not texto:
-        return ""
-    return texto.replace("{{nome}}", nome_cliente or "cliente")
+# ═══════════════════════════════════════════════════════════════════════════
+# DATACLASS — carrega dados da mensagem sem lógica
+# ═══════════════════════════════════════════════════════════════════════════
 
+@dataclass(frozen=True)
+class ContextoMensagem:
+    """
+    Dados imutáveis da mensagem recebida.
 
-# ==============================================================================
-# CONTEXTOS E ESTADOS (Context Variables)
-# ==============================================================================
+    Por que dataclass:
+        • Sem boilerplate de __init__, __repr__, __eq__
+        • `frozen=True` torna imutável (evita efeitos colaterais)
+        • Type hints explícitos
 
-def _set(db: Session, atendimento_id: int, key: str, value: str) -> None:
-    """Cria ou atualiza contexto do atendimento."""
-    from app.models import AtendimentoContexto
-    
-    ctx = (
-        db.query(AtendimentoContexto)
-        .filter(
-            AtendimentoContexto.atendimento_id == atendimento_id,
-            AtendimentoContexto.context_key == key
-        )
-        .first()
-    )
-    
-    if ctx:
-        ctx.value = value
-    else:
-        ctx = AtendimentoContexto(
-            atendimento_id=atendimento_id,
-            context_key=key,
-            value=value
-        )
-        db.add(ctx)
-    
-    db.commit()
-
-
-def _get(db: Session, atendimento_id: int, key: str) -> Optional[str]:
-    """Obtém valor do contexto do atendimento."""
-    from app.models import AtendimentoContexto
-    
-    ctx = (
-        db.query(AtendimentoContexto)
-        .filter(
-            AtendimentoContexto.atendimento_id == atendimento_id,
-            AtendimentoContexto.context_key == key
-        )
-        .first()
-    )
-    return ctx.value if ctx else None
-
-
-def _step(db: Session, atendimento: Atendimento, step: str) -> None:
-    """Atualiza o step (estado) do atendimento."""
-    _set(db, atendimento.id, "step", step)
-
-
-# ==============================================================================
-# BUSCA E CRIAÇÃO SEGURA DE ATENDIMENTOS (CORREÇÃO CRÍTICA)
-# ==============================================================================
-
-def _buscar_ou_criar(
-    db: Session, 
-    telefone: str, 
-    conexao_id: int,        # ✅ ADICIONADO: Identificador único da conexão
-    empresa_id: int,        # ✅ ADICIONADO: Tenant ID para isolamento
-    instance: str, 
+    Por que não dict:
+        • Acesso por atributo (msg.content) em vez de chave (msg["content"])
+        • Autocomplete na IDE
+        • Se um campo for removido, o type checker acusa
+    """
+    remote_jid: str
     push_name: Optional[str]
-) -> tuple[Atendimento, bool]:
-    """
-    Busca ou cria atendimento COM VALIDAÇÃO MULTI-TENANT.
-    
-    CORREÇÃO CRÍTICA (v2.0.0):
-    • Antes: Buscava apenas por telefone (vazamento entre tenants)
-    • Agora: Filtra por empresa_id E conexao_id (isolamento total)
-    
-    :param db: Sessão do banco de dados
-    :param telefone: Telefone do contato
-    :param conexao_id: ID da conexão/instância que recebeu a mensagem
-    :param empresa_id: ID da empresa (tenant) dona da conexão
-    :param instance: Nome da instância (para contexto)
-    :param push_name: Nome do contato (WhatsApp)
-    :return: Tuple (Atendimento, bool) onde bool indica se foi criado
-    """
-    
-    # 1. BUSCA SEGURA: Filtra por empresa E conexão
-    stmt = select(Atendimento).where(
-        Atendimento.empresa_id == empresa_id,           # ✅ ISOLAMENTO TENANT
-        Atendimento.canal_contratado_id == conexao_id,  # ✅ ISOLAMENTO CONEXÃO
-        Atendimento.status != StatusAtendimento.FINALIZADO.value,
-        Atendimento.ativo == True
-    ).join(Contato).where(
-        Contato.telefone == telefone
-    ).order_by(Atendimento.criado_em.desc()).limit(1)
-    
-    result = db.execute(stmt)
-    atendimento = result.scalar_one_or_none()
-    
-    if atendimento:
-        # Atualiza nome se vazio
-        if push_name and not atendimento.contato.nome:
-            atendimento.contato.nome = push_name
-            db.commit()
-        logger.info(
-            f"bot_service | Atendimento existente | "
-            f"prot={atendimento.protocolo} tel={telefone} empresa={empresa_id}"
-        )
-        return atendimento, False
-    
-    # 2. CRIAÇÃO SEGURA: Vincula explicitamente ao tenant e conexão corretos
-    logger.info(
-        f"bot_service | Criando novo atendimento | "
-        f"tel={telefone} empresa={empresa_id} conexao={conexao_id}"
-    )
-    
-    # Verifica se já existe contato com este telefone
-    stmt_contato = select(Contato).where(Contato.telefone == telefone)
-    result_contato = db.execute(stmt_contato)
-    contato = result_contato.scalar_one_or_none()
-    
-    if not contato:
-        contato = Contato(
-            telefone=telefone,
-            nome=push_name or "",
-            empresa_id=empresa_id  # ✅ Mesmo tenant do atendimento
-        )
-        db.add(contato)
-        db.flush()  # Para obter o ID
-    
-    atendimento = Atendimento(
-        protocolo=_protocolo(),
-        contato_id=contato.id,
-        canal_contratado_id=conexao_id,  # ✅ Vinculado à conexão correta
-        empresa_id=empresa_id,            # ✅ Vinculado ao tenant correto
-        status=StatusAtendimento.AGUARDANDO.value,
-        ativo=True,
-        origem="bot"
-    )
-    
-    db.add(atendimento)
-    db.commit()
-    db.refresh(atendimento)
-    
-    # Inicializa contextos
-    _set(db, atendimento.id, "instancia", instance)
-    _set(db, atendimento.id, "step", BOOT)
-    
-    return atendimento, True
+    msg_type: str
+    content: str
+
+    @property
+    def telefone(self) -> str:
+        """Extrai o telefone limpo do remote_jid."""
+        return self.remote_jid.replace("@s.whatsapp.net", "")
+
+    @property
+    def eh_grupo(self) -> bool:
+        """True se a mensagem veio de um grupo WhatsApp."""
+        return self.remote_jid.endswith("@g.us")
 
 
-# ==============================================================================
-# PONTO DE ENTRADA PRINCIPAL (CORREÇÃO CRÍTICA)
-# ==============================================================================
+# ═══════════════════════════════════════════════════════════════════════════
+# EXCEÇÕES DE DOMÍNIO — erros específicos do negócio
+# ═══════════════════════════════════════════════════════════════════════════
 
-async def processar_mensagem_recebida(
-    db: Session,
-    instance_nome: str,
-    remote_jid: str,
-    push_name: Optional[str],
-    msg_type: str,
-    content: str,
-) -> None:
+class BotError(Exception):
     """
-    Processa mensagem recebida do WhatsApp com validação multi-tenant.
-    
-    FLUXO SEGURO:
-    1. Identifica a conexão pelo nome da instância
-    2. Valida que a conexão pertence a uma empresa
-    3. Busca/cria atendimento dentro do escopo dessa empresa
-    4. Processa a mensagem isoladamente
-    
-    :raises RecursoNaoEncontradoError: Se instância não existir
-    :raises AcessoNegadoError: Se conexão estiver inativa
+    Exceção base do bot.
+
+    Por que criar exceções próprias:
+        • Permite capturar `except BotError` e tratar só o que é do domínio
+        • Diferencia de erro de programação (AttributeError, KeyError)
+        • Documenta os modos de falha esperados
     """
-    
-    if remote_jid.endswith("@g.us"):
-        logger.debug("bot_service | Ignorando mensagem de grupo")
-        return
-    
-    # 1. IDENTIFICAR CONEXÃO (Âncora de segurança)
-    stmt_conexao = select(Conexao).where(
-        Conexao.nome_instancia == instance_nome,
-        Conexao.ativo == True
-    )
-    result = db.execute(stmt_conexao)
-    conexao = result.scalar_one_or_none()
-    
-    if not conexao:
-        logger.error(f"bot_service | Conexão não encontrada: {instance_nome}")
-        raise RecursoNaoEncontradoError(
-            f"Instância '{instance_nome}' não configurada ou inativa."
-        )
-    
-    # 2. EXTRAIR DADOS DA MENSAGEM
-    telefone = _tel(remote_jid)
-    
-    # 3. BUSCAR OU CRIAR ATENDIMENTO (COM BLINDAGEM MULTI-TENANT)
-    atendimento, foi_criado = _buscar_ou_criar(
-        db=db,
-        telefone=telefone,
-        conexao_id=conexao.id,        # ✅ Passa ID da conexão
-        empresa_id=conexao.empresa_id, # ✅ Passa ID do tenant
-        instance=instance_nome,
-        push_name=push_name
-    )
-    
-    # 4. OBTER STEP ATUAL
-    step = _get(db, atendimento.id, "step") or BOOT
-    
-    # 5. CONFIGURAR CONTEXTO
-    _ctx_db.set(db)
-    _ctx_at.set(atendimento)
-    
-    logger.info(
-        f"bot_service | Processando mensagem | "
-        f"step={step} tel={telefone} type={msg_type} "
-        f"prot={atendimento.protocolo} empresa={conexao.empresa_id}"
-    )
-    
-    # 6. PROCESSAR DE ACORDO COM O STEP
-    try:
-        if step != EM_ATENDIMENTO and msg_type != "list_response":
-            if _pedido_ativar_audio(content):
-                return await _ativar_modo_audio(
-                    db, atendimento, instance_nome, telefone
-                )
-            if _pedido_desativar_audio(content):
-                return await _desativar_modo_audio(
-                    db, atendimento, instance_nome, telefone
-                )
-        
-        if step in (BOOT, FINALIZADO):
-            await _boot(db, atendimento, instance_nome, telefone)
-        elif step == AGUARDAR_LGPD:
-            await _lgpd(db, atendimento, instance_nome, telefone, msg_type, content)
-        elif step == AGUARDAR_NOME:
-            await _nome(db, atendimento, instance_nome, telefone, content)
-        elif step == AGUARDAR_HUB:
-            await _hub(db, atendimento, instance_nome, telefone, msg_type, content)
-        elif step == EM_ATENDIMENTO:
-            pass  # Mensagem em atendimento humano, ignorar
-        elif step == DEPTO_DINAMICO:
-            await _departamento_dinamico(
-                db, atendimento, instance_nome, telefone, msg_type, content
+
+
+class ConexaoInativaError(BotError):
+    """Conexão/instância não existe ou está inativa."""
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CLASSE PRINCIPAL — BotService
+# ═══════════════════════════════════════════════════════════════════════════
+
+class BotService:
+    """
+    Orquestrador do fluxo de bot.
+
+    ─────────────────────────────────────────────────────────────────────
+    CONCEITOS DE POO
+    ─────────────────────────────────────────────────────────────────────
+    • CLASSE: o molde. Descreve o que um BotService tem e faz.
+    • OBJETO: cada requisição cria um `BotService(db, conexao, redis)`.
+    • ESTADO: `self.db`, `self.conexao`, `self.atendimento`.
+    • COMPOSIÇÃO: BotService TEM um Redis, uma Conexao, uma Session.
+    • ENCAPSULAMENTO: métodos privados (prefixo `_`) para uso interno;
+      só `processar_mensagem()` é público.
+    • INJEÇÃO DE DEPENDÊNCIA: `db`, `conexao` e `redis` vêm de fora,
+      via construtor — permite trocar por mocks em testes.
+
+    ─────────────────────────────────────────────────────────────────────
+    CICLO DE VIDA
+    ─────────────────────────────────────────────────────────────────────
+        1. __init__          → recebe dependências
+        2. processar_mensagem() → executa o fluxo
+        3. (fim)             → objeto é descartado (stateless fora dos
+                                atributos de request)
+    """
+
+    def __init__(
+        self,
+        db: Session,
+        conexao: Conexao,
+        redis: Redis,
+    ) -> None:
+        """
+        Construtor — recebe dependências prontas.
+
+        ─────────────────────────────────────────────────────────────────
+        POR QUE RECEBER `conexao` JÁ RESOLVIDA
+        ─────────────────────────────────────────────────────────────────
+        A resolução "instance_nome → Conexao" acontece no `from_webhook`
+        (factory). Aqui já recebemos o objeto pronto — isso:
+            • Reduz responsabilidade desta classe
+            • Facilita testar (podemos passar uma Conexao fake)
+            • Elimina uma query por requisição
+        """
+        self.db = db
+        self.conexao = conexao
+        self.redis = redis
+        self._atendimento: Optional[Atendimento] = None  # setado depois
+
+    # ═════════════════════════════════════════════════════════════════════
+    # PROPRIEDADES — atalhos de leitura
+    # ═════════════════════════════════════════════════════════════════════
+
+    @property
+    def empresa_id(self) -> int:
+        """
+        Atalho para o tenant. Toda operação desta classe usa esse valor.
+
+        Propriedade (@property) em vez de atributo comum porque:
+            • Não precisa ser setado no construtor
+            • Calculado sob demanda (a partir de self.conexao)
+            • Impossível setar acidentalmente (`bot.empresa_id = X` falha)
+        """
+        return self.conexao.empresa_id
+
+    @property
+    def atendimento(self) -> Atendimento:
+        """Atalho para o atendimento ativo. Erro se não inicializado."""
+        if self._atendimento is None:
+            raise BotError(
+                "Atendimento não inicializado. Chame _buscar_ou_criar antes."
             )
-        else:
-            await _voltar_hub(db, atendimento, instance_nome, telefone)
-            
-    except Exception as e:
-        logger.exception(
-            f"bot_service | Erro ao processar mensagem | "
-            f"step={step} prot={atendimento.protocolo} erro={str(e)}"
+        return self._atendimento
+
+    @property
+    def eh_voip(self) -> bool:
+        """True se a conexão é de telefonia IP (PABX/VoIP)."""
+        return getattr(self.conexao, "telefone_id", None) is not None
+
+    # ═════════════════════════════════════════════════════════════════════
+    # FACTORY — cria a instância a partir do webhook
+    # ═════════════════════════════════════════════════════════════════════
+
+    @classmethod
+    def from_webhook(
+        cls,
+        db: Session,
+        redis: Redis,
+        instance_nome: str,
+    ) -> "BotService":
+        """
+        Factory — resolve a conexão e retorna um BotService pronto.
+
+        ─────────────────────────────────────────────────────────────────
+        POR QUE @classmethod (e não @staticmethod)
+        ─────────────────────────────────────────────────────────────────
+        Um `@classmethod` recebe `cls` (a classe) como primeiro argumento.
+        Isso permite criar a instância com `cls(db, conexao, redis)`,
+        respeitando subclasses se existirem no futuro.
+
+        @staticmethod não recebe nem `self` nem `cls` — seria só uma
+        função solta dentro da classe (útil, mas não para factory).
+
+        ─────────────────────────────────────────────────────────────────
+        POR QUE UMA FACTORY (e não mais um parâmetro no __init__)
+        ─────────────────────────────────────────────────────────────────
+        A resolução "instance_nome → Conexao" envolve:
+            • Query no banco
+            • Validação de existência
+            • Validação de status ativo
+            • Levantar exceção se falhar
+        Isso é MUITA responsabilidade para o construtor. A factory
+        isola essa complexidade e deixa o __init__ limpo.
+        """
+        stmt = select(Conexao).where(
+            Conexao.nome_instancia == instance_nome,
+            Conexao.ativo.is_(True),
         )
-        # Não expõe erro ao usuário em produção
-        await evolution_service.enviar_texto(
-            instance=instance_nome,
-            number=telefone,
-            text="Ocorreu um erro ao processar sua mensagem. Por favor, tente novamente."
+        conexao = db.execute(stmt).scalar_one_or_none()
+
+        if conexao is None:
+            logger.error(
+                "bot_service | Conexão não encontrada | instance=%s",
+                instance_nome,
+            )
+            raise RecursoNaoEncontradoError(
+                f"Instância '{instance_nome}' não configurada ou inativa."
+            )
+
+        return cls(db=db, conexao=conexao, redis=redis)
+
+    # ═════════════════════════════════════════════════════════════════════
+    # ENTRYPOINT PÚBLICO — o único método que o mundo externo usa
+    # ═════════════════════════════════════════════════════════════════════
+
+    async def processar_mensagem(self, ctx: ContextoMensagem) -> None:
+        """
+        Ponto de entrada do bot. Chamado pelo webhook.
+
+        ─────────────────────────────────────────────────────────────────
+        FLUXO
+        ─────────────────────────────────────────────────────────────────
+            1. Ignora mensagens de grupo
+            2. Busca ou cria atendimento (isolado por tenant)
+            3. Lê o step atual
+            4. Despacha para o handler do step
+            5. Captura erros → resposta amigável ao cliente
+        """
+        # ─── 1. Ignora grupos ─────────────────────────────────────────────
+        if ctx.eh_grupo:
+            logger.debug("bot_service | Ignorando mensagem de grupo")
+            return
+
+        # ─── 2. Busca ou cria atendimento ─────────────────────────────────
+        self._atendimento = await self._buscar_ou_criar(ctx)
+
+        # ─── 3. Lê o step atual ───────────────────────────────────────────
+        step = self._get_step()
+
+        logger.info(
+            "bot_service | Processando | step=%s tel=%s type=%s prot=%s empresa=%s",
+            step.value, ctx.telefone, ctx.msg_type,
+            self.atendimento.protocolo, self.empresa_id,
         )
 
+        # ─── 4. Despacho por step ─────────────────────────────────────────
+        try:
+            # Modo áudio (atalho universal, exceto em atendimento humano)
+            if step != BotStep.EM_ATENDIMENTO and ctx.msg_type != "list_response":
+                if self._pedido_ativar_audio(ctx.content):
+                    return await self._ativar_modo_audio(ctx.telefone)
+                if self._pedido_desativar_audio(ctx.content):
+                    return await self._desativar_modo_audio(ctx.telefone)
 
-# ==============================================================================
-# FLUXO DO BOT (Mantém a lógica original com melhorias de segurança)
-# ==============================================================================
+            # Handlers por step
+            handler = {
+                BotStep.BOOT:           self._boot,
+                BotStep.FINALIZADO:     self._boot,
+                BotStep.AGUARDAR_LGPD:  self._lgpd,
+                BotStep.AGUARDAR_NOME:  self._nome,
+                BotStep.AGUARDAR_HUB:   self._hub,
+                BotStep.DEPTO_DINAMICO: self._departamento_dinamico,
+            }.get(step)
 
-def _mensagem_boas_vindas() -> str:
-    if BOT_MENSAGEM_BOAS_VINDAS:
-        return BOT_MENSAGEM_BOAS_VINDAS
-    return (
-        f" Olá! Seja bem-vindo ao \n"
-        f"{EMPRESA_NOME}\n\n"
-        "Sou seu assistente virtual e estou aqui para iniciar "
-        "seu atendimento com agilidade. 🤝\n\n"
-        "💡 Se preferir ouvir em vez de ler, responda ÁUDIO a qualquer "
-        "momento (e TEXTO para voltar)."
-    )
+            if handler:
+                await handler(ctx)
+            elif step == BotStep.EM_ATENDIMENTO:
+                pass  # já está com atendente humano, ignora
+            else:
+                await self._voltar_hub(ctx.telefone)
 
+        except Exception as exc:
+            logger.exception(
+                "bot_service | Erro no processamento | step=%s prot=%s",
+                step.value, self.atendimento.protocolo,
+            )
+            await evolution_service.enviar_texto(
+                instance=self.conexao.nome_instancia,
+                number=ctx.telefone,
+                text=(
+                    "Ocorreu um erro ao processar sua mensagem. "
+                    "Por favor, tente novamente."
+                ),
+            )
 
-def _texto_lgpd() -> str:
-    politica = f"📄 Leia nossa Política:\n🔗 {LGPD_URL}\n\n" if LGPD_URL else ""
-    return (
-        "Para continuarmos com segurança precisamos do seu consentimento "
-        f"para tratamento de dados, conforme a LGPD.\n\n"
-        f"{politica}"
-        "Você declara que leu e CONCORDA com os termos?"
-    )
+    # ═════════════════════════════════════════════════════════════════════
+    # MÉTODO PRIVADO — busca ou cria atendimento (CORREÇÃO IDOR)
+    # ═════════════════════════════════════════════════════════════════════
 
+    async def _buscar_ou_criar(self, ctx: ContextoMensagem) -> Atendimento:
+        """
+        Busca atendimento ativo do contato NO MESMO TENANT.
+        Se não existir, cria um novo.
 
-async def _boot(db: Session, at: Atendimento, inst: str, tel: str) -> None:
-    """Tela de boas-vindas e LGPD."""
-    if at.status == StatusAtendimento.FINALIZADO.value:
-        at.status = StatusAtendimento.AGUARDANDO.value
-        at.ativo = True
-        db.commit()
-        
-    await evolution_service.enviar_texto(
-        instance=inst, number=tel, text=_mensagem_boas_vindas()
-    )
-    
-    await evolution_service.enviar_lista(
-        instance=inst, number=tel,
-        title="🔒 Política de Privacidade (LGPD)",
-        description=_texto_lgpd(),
-        button_text="Responder",
-        sections=[{
-            "title": "Opções",
-            "rows": [
+        ─────────────────────────────────────────────────────────────────
+        ⚠️ SEGURANÇA — o coração da correção IDOR
+        ─────────────────────────────────────────────────────────────────
+        Filtro OBRIGATÓRIO por:
+            • empresa_id (tenant)
+            • canal_contratado_id (conexão)
+
+        Sem esses filtros, dois tenants com o mesmo telefone podem
+        compartilhar atendimentos — vazamento cross-tenant.
+
+        ─────────────────────────────────────────────────────────────────
+        POR QUE MÉTODO PRIVADO (`_`)
+        ─────────────────────────────────────────────────────────────────
+        Python não tem `private` real, mas o prefixo `_` é convenção:
+        sinaliza que este método é detalhe interno da classe e pode
+        mudar sem aviso. Só `processar_mensagem` é API pública.
+        """
+        telefone = ctx.telefone
+
+        # ─── Tenta cache Redis primeiro ───────────────────────────────────
+        cache_key = f"atendimento:{self.empresa_id}:{telefone}"
+        cache_id = await self._cache_get(cache_key)
+
+        if cache_id is not None:
+            at = (
+                self.db.execute(
+                    select(Atendimento).where(
+                        Atendimento.id == cache_id,
+                        Atendimento.empresa_id == self.empresa_id,   # dupla checagem
+                        Atendimento.deleted_at.is_(None),
+                        Atendimento.status != StatusAtendimento.FINALIZADO.value,
+                    )
+                )
+                .scalar_one_or_none()
+            )
+            if at:
+                logger.debug("bot_service | Cache hit | id=%s", at.id)
+                return at
+            await self._cache_del(cache_key)
+
+        # ─── Consulta PostgreSQL (isolado por tenant) ─────────────────────
+        stmt = (
+            select(Atendimento)
+            .join(Contato)
+            .where(
+                Atendimento.empresa_id == self.empresa_id,           # ✅ tenant
+                Atendimento.canal_contratado_id == self.conexao.id,  # ✅ conexão
+                Atendimento.deleted_at.is_(None),
+                Atendimento.status != StatusAtendimento.FINALIZADO.value,
+                Contato.telefone == telefone,
+            )
+            .order_by(Atendimento.created_at.desc())
+            .limit(1)
+        )
+        atendimento = self.db.execute(stmt).scalar_one_or_none()
+
+        if atendimento:
+            if ctx.push_name and not atendimento.contato.nome:
+                atendimento.contato.nome = ctx.push_name
+                self.db.commit()
+            await self._cache_set(cache_key, atendimento.id)
+            return atendimento
+
+        # ─── Cria novo ────────────────────────────────────────────────────
+        return await self._criar_atendimento(ctx)
+
+    async def _criar_atendimento(self, ctx: ContextoMensagem) -> Atendimento:
+        """
+        Cria atendimento novo + contato (se necessário).
+
+        Transação atômica: se algo falhar, nada é persistido.
+        """
+        # Busca ou cria contato DENTRO do tenant
+        contato = (
+            self.db.execute(
+                select(Contato).where(
+                    Contato.telefone == ctx.telefone,
+                    Contato.empresa_id == self.empresa_id,   # ✅ tenant
+                    Contato.deleted_at.is_(None),
+                )
+            )
+            .scalar_one_or_none()
+        )
+
+        if contato is None:
+            contato = Contato(
+                telefone=ctx.telefone,
+                nome=ctx.push_name or "",
+                empresa_id=self.empresa_id,
+            )
+            self.db.add(contato)
+            self.db.flush()
+
+        # Cria atendimento
+        at = Atendimento(
+            protocolo=self._gerar_protocolo(),
+            contato_id=contato.id,
+            canal_contratado_id=self.conexao.id,
+            empresa_id=self.empresa_id,
+            telefone_id=getattr(self.conexao, "telefone_id", None),  # condicional
+            status=StatusAtendimento.AGUARDANDO.value,
+            ativo=True,
+            origem="bot",
+        )
+        self.db.add(at)
+        self.db.commit()
+        self.db.refresh(at)
+
+        # Inicializa contexto
+        self._set_step(at, BotStep.BOOT)
+        self._set_ctx(at, "instancia", self.conexao.nome_instancia)
+
+        # Cacheia
+        cache_key = f"atendimento:{self.empresa_id}:{ctx.telefone}"
+        await self._cache_set(cache_key, at.id)
+
+        logger.info(
+            "bot_service | Atendimento criado | id=%s prot=%s empresa=%s",
+            at.id, at.protocolo, self.empresa_id,
+        )
+        return at
+
+    # ═════════════════════════════════════════════════════════════════════
+    # HANDLERS DE STEP — métodos privados
+    # ═════════════════════════════════════════════════════════════════════
+
+    async def _boot(self, ctx: ContextoMensagem) -> None:
+        """Envia saudação + termo LGPD."""
+        at = self.atendimento
+        if at.status == StatusAtendimento.FINALIZADO.value:
+            at.status = StatusAtendimento.AGUARDANDO.value
+            at.ativo = True
+            self.db.commit()
+
+        await self._enviar_texto(ctx.telefone, self._mensagem_boas_vindas())
+        await self._enviar_lista(
+            numero=ctx.telefone,
+            title="🔒 Política de Privacidade (LGPD)",
+            description=self._texto_lgpd(),
+            button_text="Responder",
+            rows=[
                 {"title": "✅ Sim, Li e Concordo", "description": "", "rowId": "LGPD_ACEITO"},
                 {"title": "❌ Não concordo / Sair", "description": "", "rowId": "LGPD_RECUSADO"},
-            ]
-        }],
-        footer=RODAPE
-    )
-    
-    _step(db, at, AGUARDAR_LGPD)
+            ],
+        )
+        self._set_step(at, BotStep.AGUARDAR_LGPD)
 
+    async def _lgpd(self, ctx: ContextoMensagem) -> None:
+        """Processa consentimento LGPD."""
+        recusou = (
+            (ctx.msg_type == "list_response" and ctx.content.upper() == "LGPD_RECUSADO")
+            or self._normalizar(ctx.content) in {"nao", "recuso", "sair", "n"}
+        )
 
-async def _lgpd(db, at, inst, tel, msg_type, content):
-    """Processa consentimento LGPD."""
-    recusou = (
-        (msg_type == "list_response" and content.upper() == "LGPD_RECUSADO")
-        or content.strip().lower() in ("não", "nao", "recuso", "sair", "n")
-    )
-    
-    if recusou:
-        await evolution_service.enviar_texto(
-            instance=inst, number=tel,
-            text=(
+        if recusou:
+            await self._enviar_texto(
+                ctx.telefone,
                 "Entendemos. Sem o aceite não podemos prosseguir pelo canal digital.\n\n"
-                "Agradecemos o contato! Se mudar de ideia, é só nos chamar novamente. 💙"
+                "Agradecemos o contato! Se mudar de ideia, é só nos chamar novamente. 💙",
             )
+            at = self.atendimento
+            at.status = StatusAtendimento.FINALIZADO.value
+            at.ativo = False
+            self.db.commit()
+            self._set_step(at, BotStep.FINALIZADO)
+            return
+
+        await self._enviar_texto(
+            ctx.telefone,
+            "Obrigado pela confiança! 🙏\n\nPor gentileza, informe seu nome completo:",
         )
-        at.status = StatusAtendimento.FINALIZADO.value
-        at.ativo = False
-        db.commit()
-        _step(db, at, FINALIZADO)
-        return
-        
-    await evolution_service.enviar_texto(
-        instance=inst, number=tel,
-        text="Obrigado pela confiança! 🙏\n\nPor gentileza, informe seu nome completo:"
-    )
-    _step(db, at, AGUARDAR_NOME)
+        self._set_step(self.atendimento, BotStep.AGUARDAR_NOME)
 
+    async def _nome(self, ctx: ContextoMensagem) -> None:
+        """Coleta nome do cliente."""
+        nome = ctx.content.strip().title()
+        if len(nome) < 2:
+            await self._enviar_texto(
+                ctx.telefone,
+                "Não consegui identificar seu nome. Por favor, tente novamente:",
+            )
+            return
 
-async def _nome(db, at, inst, tel, content):
-    """Coleta nome do cliente."""
-    nome = content.strip().title()
-    if len(nome) < 2:
-        await evolution_service.enviar_texto(
-            instance=inst, number=tel,
-            text="Não consegui identificar seu nome. Por favor, tente novamente:"
+        self.atendimento.contato.nome = nome
+        self.db.commit()
+        self._set_ctx(self.atendimento, "nome", nome)
+
+        await self._enviar_texto(
+            ctx.telefone, f"Obrigado, {nome}! Seja muito bem-vindo(a). 😊"
         )
-        return
-    
-    at.contato.nome = nome
-    db.commit()
-    _set(db, at.id, "nome", nome)
-    
-    await evolution_service.enviar_texto(
-        instance=inst, number=tel,
-        text=f"Obrigado, {nome}! Seja muito bem-vindo(a). 😊"
-    )
-    
-    await _enviar_hub(db, inst, tel, at)
-    _step(db, at, AGUARDAR_HUB)
+        await self._enviar_hub(ctx.telefone)
+        self._set_step(self.atendimento, BotStep.AGUARDAR_HUB)
 
+    async def _hub(self, ctx: ContextoMensagem) -> None:
+        """Menu principal."""
+        if ctx.msg_type != "list_response":
+            nome = self._get_ctx(self.atendimento, "nome") or "cliente"
+            await self._enviar_texto(
+                ctx.telefone, f"Olá, {nome}! Por favor, utilize o menu abaixo:"
+            )
+            await self._enviar_hub(ctx.telefone)
+            return
 
-async def _hub(db, at, inst, tel, msg_type, content):
-    """Menu principal (Hub)."""
-    if msg_type != "list_response":
-        nome = _get(db, at.id, "nome") or "cliente"
-        await evolution_service.enviar_texto(
-            instance=inst, number=tel,
-            text=f"Olá, {nome}! Por favor, utilize o menu abaixo:"
+        canal = self._resolver_canal_do_hub(ctx.content.strip().upper())
+        if canal:
+            return await self._entrar_departamento(ctx, canal)
+
+        await self._enviar_texto(
+            ctx.telefone, "Opção não reconhecida. Utilize o menu abaixo:"
         )
-        await _enviar_hub(db, inst, tel, at)
-        return
-        
-    canal = resolver_canal_do_hub(db, content.strip().upper())
-    if canal:
-        return await _entrar_departamento_dinamico(db, at, inst, tel, canal)
-        
-    await evolution_service.enviar_texto(
-        instance=inst, number=tel,
-        text="Opção não reconhecida. Utilize o menu abaixo:"
-    )
-    await _enviar_hub(db, inst, tel, at)
+        await self._enviar_hub(ctx.telefone)
 
+    async def _departamento_dinamico(self, ctx: ContextoMensagem) -> None:
+        """Seleção dentro do canal."""
+        row = ctx.content.strip().upper() if ctx.msg_type == "list_response" else ""
 
-def resolver_canal_do_hub(db: Session, row: str) -> Optional[CanalContratado]:
-    """Resolve canal selecionado no hub."""
-    if row.startswith("CANAL_") and row[len("CANAL_"):].isdigit():
-        return db.query(CanalContratado).filter(
-            CanalContratado.id == int(row[len("CANAL_"):]),
-            CanalContratado.ativo == True
-        ).first()
-    
-    return db.query(CanalContratado).filter(
-        CanalContratado.apelido.ilike(row),
-        CanalContratado.ativo == True
-    ).first()
+        if row == "VOLTAR_HUB":
+            return await self._voltar_hub(ctx.telefone)
 
-
-async def _entrar_departamento_dinamico(
-    db: Session, at: Atendimento, inst: str, tel: str, canal: CanalContratado
-) -> None:
-    """Entrar em departamento/canal selecionado."""
-    _set(db, at.id, "canal_selecionado", canal.apelido)
-    at.canal_contratado_id = canal.id
-    at.departamento_id = canal.departamento_id
-    db.commit()
-    
-    menu = (
-        db.query(Menu)
-        .filter(Menu.canal_contratado_id == canal.id, Menu.ativo == True)
-        .order_by(Menu.criado_em)
-        .first()
-    )
-    
-    if menu and menu.opcoes:
-        rows = [
-            {
-                "title": op.titulo,
-                "description": op.descricao or "",
-                "rowId": op.row_id
-            }
-            for op in menu.opcoes
-        ]
-        corpo = _substituir_variaveis(menu.descricao, at.contato.nome) or "Selecione uma opção:"
-        
-        await evolution_service.enviar_lista(
-            instance=inst, number=tel,
-            title=menu.titulo,
-            description=corpo,
-            button_text=menu.texto_botao or "Ver opções",
-            sections=[{"title": menu.titulo, "rows": rows}],
-            footer=menu.rodape or RODAPE
+        await self._enviar_texto(
+            ctx.telefone, "🗣️ Transferindo para um atendente. Aguarde!"
         )
-        _step(db, at, DEPTO_DINAMICO)
-    else:
-        await evolution_service.enviar_texto(
-            instance=inst, number=tel,
-            text="🗣️ Transferindo para um atendente. Aguarde!"
-        )
-        at.status = StatusAtendimento.EM_ATENDIMENTO.value
-        db.commit()
+        self.atendimento.status = StatusAtendimento.EM_ATENDIMENTO.value
+        self.db.commit()
+        self._set_step(self.atendimento, BotStep.EM_ATENDIMENTO)
+
+    # ═════════════════════════════════════════════════════════════════════
+    # HELPERS DE MENU E NAVEGAÇÃO
+    # ═════════════════════════════════════════════════════════════════════
+
+    def _resolver_canal_do_hub(self, row: str) -> Optional[CanalContratado]:
 
 
-async def _departamento_dinamico(db, at, inst, tel, msg_type, content) -> None:
-    """Processa seleção de departamento."""
-    row = content.strip().upper() if msg_type == "list_response" else ""
-    
-    if row == "VOLTAR_HUB":
-        return await _voltar_hub(db, at, inst, tel)
-    
-    await evolution_service.enviar_texto(
-        instance=inst, number=tel,
-        text="️ Transferindo para um atendente. Aguarde!"
-    )
-    at.status = StatusAtendimento.EM_ATENDIMENTO.value
-    db.commit()
-
-
-async def _enviar_hub(db: Session, inst: str, tel: str, at: Optional[Atendimento] = None) -> None:
-    """Envia menu hub (canal_id=None)."""
-    hub = db.query(Menu).filter(
-        Menu.canal_contratado_id == None,
-        Menu.ativo == True
-    ).order_by(Menu.criado_em).first()
-    
-    nome_cliente = at.contato.nome if at else ""
-    
-    if hub and hub.opcoes:
-        rows = [
-            {"title": op.titulo, "description": op.descricao or "", "rowId": op.row_id}
-            for op in hub.opcoes
-        ]
-        corpo = _substituir_variaveis(hub.descricao, nome_cliente) or "Selecione o departamento:"
-        
-        await evolution_service.enviar_lista(
-            instance=inst, number=tel,
-            title=hub.titulo,
-            description=corpo,
-            button_text=hub.texto_botao or "Ver departamentos",
-            sections=[{"title": hub.titulo, "rows": rows}],
-            footer=hub.rodape or RODAPE
-        )
-        return
-        
-    # Fallback: lista de canais
-    canais = db.query(CanalContratado).filter(
-        CanalContratado.ativo == True
-    ).order_by(CanalContratado.apelido).all()
-    
-    if not canais:
-        await evolution_service.enviar_texto(
-            instance=inst, number=tel,
-            text="Nenhum canal de atendimento está ativo no momento. Tente novamente mais tarde."
-        )
-        return
-        
-    rows = [
-        {"title": c.nome, "description": c.descricao or "", "rowId": f"CANAL_{c.id}"}
-        for c in canais
-    ]
-    
-    await evolution_service.enviar_lista(
-        instance=inst, number=tel,
-        title=f"Central de Atendimento — {EMPRESA_NOME}",
-        description="Selecione o departamento com o qual deseja falar:",
-        button_text="Ver departamentos",
-        sections=[{"title": "Departamentos", "rows": rows}],
-        footer=RODAPE
-    )
-
-
-async def _voltar_hub(db: Session, at: Atendimento, inst: str, tel: str) -> None:
-    """Retorna ao menu principal."""
-    await evolution_service.enviar_texto(
-        instance=inst, number=tel, text="🔙 Retornando ao Menu Principal..."
-    )
-    await _enviar_hub(db, inst, tel, at)
-    _step(db, at, AGUARDAR_HUB)
-
-
-# ==============================================================================
-# MODO ÁUDIO (Funcionalidades auxiliares)
-# ==============================================================================
-
-def _pedido_ativar_audio(content: str) -> bool:
-    return _normalizar(content) in _FRASES_ATIVAR_AUDIO
-
-
-def _pedido_desativar_audio(content: str) -> bool:
-    return _normalizar(content) in _FRASES_DESATIVAR_AUDIO
-
-
-def _modo_audio_ativo() -> bool:
-    db = _ctx_db.get(None)
-    at = _ctx_at.get(None)
-    if db is None or at is None:
-        return False
-    return _get(db, at.id, "modo_audio") == "1"
-
-
-async def _ativar_modo_audio(db: Session, at: Atendimento, inst: str, tel: str) -> None:
-    _set(db, at.id, "modo_audio", "1")
-    await evolution_service.enviar_texto(
-        instance=inst, number=tel,
-        text=(
-            " Modo áudio ativado! A partir de agora também vou te enviar "
-            "as mensagens faladas.\n\nPara voltar ao modo texto, responda "
-            "TEXTO a qualquer momento."
-        ),
-    )
-
-
-async def _desativar_modo_audio(db: Session, at: Atendimento, inst: str, tel: str) -> None:
-    _set(db, at.id, "modo_audio", "0")
-    await evolution_service.enviar_texto(
-        instance=inst, number=tel,
-        text=(
-            "⌨️ Modo texto ativado. Para voltar a ouvir as mensagens em "
-            "áudio, responda ÁUDIO a qualquer momento."
-        ),
-    )
-
-
-__all__ = [
-    "processar_mensagem_recebida",
-]
+       

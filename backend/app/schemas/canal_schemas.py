@@ -1,37 +1,30 @@
 """
-================================================================================
-MÓDULO: app/schemas/canal_schemas.py
-AUTOR: Aldemir Queiroz
-DATA: 2026-09-26
-VERSÃO: 3.0.0
-OBJETIVO: Schemas Pydantic do canal CONTRATADO — a unidade de canal do EcoChatBot.
-PASTA: backend/app/schemas/
-================================================================================
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-MA · Schemas do Canal (Pydantic v2)
+Codinome: EcoChatBot-MA
+───────────────────────────────────────────────────────────────────────────
+@file     canal_schemas.py
+@module   Backend / App / Schemas / Canal
+@author   Aldemir Queiroz
+@since    2026
+@version  4.0.0
+───────────────────────────────────────────────────────────────────────────
 
-O QUE MUDOU NESTA VERSÃO (3.0.0)
--------------------------------
-    Antes o schema era `Canal*` e o canal era um registro solto da empresa.
-    Agora o canal é um ITEM DO CONTRATO: `CanalContratado`.
+FUNCIONALIDADE
+──────────────
+Validação de entrada/saída do recurso `Canal` (ponto de entrada de mensagens).
 
-    • `telefone_id` passou a ser OBRIGATÓRIO. Todo canal é sustentado por um
-      telefone. É por isso que a empresa pode ter vários WhatsApps: cada um
-      fica amarrado a um telefone diferente.
-    • `nome` virou `apelido` (apelido é o nomeAmigável; `tipo` é o tipo técnico).
-    • `departamento_id` saiu: quem atende é o MENU (MenuItem.departamento_id),
-      não o canal.
-    • `identificador` e `configuracao` passaram a viver em `credenciais`, que é
-      o JSON do canal. As VALIDAÇÕES por tipo foram preservadas — só mudou o
-      lugar onde o valor é guardado.
-    • A OFUSCAÇÃO de identificador na resposta foi preservada: é o que impede
-      o token do Telegram de vazar em um log ou resposta de API.
-
-REGRAS QUE VALEM PARA TODOS OS TIPOS
-------------------------------------
-    • 1 tipo por telefone — o banco garante com `uq_canais_contratados_telefone_tipo`
-    • canal sem telefone → sistema recusa com 403
-    • webhook só é aceito se o `webhook_token` da URL bater
-================================================================================
+PONTOS DE ATENÇÃO
+─────────────────
+• `empresa_id` NUNCA aparece em Create/Update — vem do token (Anti-IDOR).
+• `identificador` é campo "virtual" do Create: o service o converte em
+  `credenciais[CHAVE_IDENTIFICADOR[tipo]]` antes de persistir.
+• A resposta SEMPRE ofusca segredos (`bot_token`, `phone_number`, etc.).
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
+
+from __future__ import annotations
+
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
@@ -39,12 +32,9 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-# ==============================================================================
-# ENUMS DE TIPOS DE CANAL
-# ==============================================================================
-# O model `CanalContratado.tipo` é String(20) livre — o tipo é uma ESCOLHA da
-# empresa compradora, e o Literal é só a lista do que o front-known. Um tipo
-# novo (ex.: "signal", "matrix") não exige migration: basta somar aqui.
+# ══════════════════════════════════════════════════════════════════════════
+# ENUMS / LITERAIS
+# ══════════════════════════════════════════════════════════════════════════
 TipoCanal = Literal[
     "whatsapp",
     "telegram",
@@ -57,132 +47,103 @@ TipoCanal = Literal[
     "chat_web",
 ]
 
-StatusCanal = Literal["ativo", "inativo", "pendente_configuracao", "erro_conexao"]
+StatusCanal = Literal[
+    "ativo",
+    "inativo",
+    "pendente_configuracao",
+    "erro_conexao",
+]
 
 #: Chave usada dentro de `credenciais` para o identificador de cada tipo.
 CHAVE_IDENTIFICADOR: Dict[str, str] = {
-    "whatsapp": "phone_number",
-    "telegram": "bot_token",
+    "whatsapp":  "phone_number",
+    "telegram":  "bot_token",
     "instagram": "page_id",
-    "facebook": "page_id",
-    "discord": "bot_token",
-    "email": "endereco",
+    "facebook":  "page_id",
+    "discord":   "bot_token",
+    "email":     "endereco",
+    "pabx":      "ramal",
+    "voip_telefonia": "ramal",
+    "chat_web":  "widget_id",
 }
 
 
-# ==============================================================================
-# SCHEMAS DO CANAL CONTRATADO
-# ==============================================================================
-class CanalContratadoBase(BaseModel):
-    """
-    Campos comuns de criação e atualização de um canal contratado.
+# ══════════════════════════════════════════════════════════════════════════
+# BASE
+# ══════════════════════════════════════════════════════════════════════════
+class CanalBase(BaseModel):
+    """Campos comuns de criação e atualização."""
 
-    `telefone_id` é obrigatório porque o canal é um ITEM DO CONTRATO amarrado
-    a um telefone: é aconstraint que impede a empresa de ter dois WhatsApp no
-    mesmo número e, ao mesmo tempo, permite ter vários em números diferentes.
-    """
-
-    tipo: TipoCanal = Field(
-        ...,
-        description="Tipo do canal de comunicação",
-        examples=["whatsapp", "telegram", "pabx"],
-    )
+    tipo: TipoCanal = Field(..., description="Tipo do canal de comunicação")
     telefone_id: int = Field(
-        ...,
-        description="Telefone que sustenta este canal — eixo da contratação",
-        examples=[1, 2, 3],
+        ..., gt=0,
+        description="Telefone que sustenta este canal (obrigatório)",
     )
     apelido: Optional[str] = Field(
-        None,
-        min_length=3,
-        max_length=80,
-        description="Nome amigável do canal (ex: WhatsApp Comercial)",
-        examples=["WhatsApp Comercial", "Telegram Suporte"],
+        None, min_length=3, max_length=80,
+        description='Nome amigável (ex.: "WhatsApp Comercial")',
     )
     credenciais: Optional[Dict[str, Any]] = Field(
         None,
-        description=(
-            "Credenciais e identificador técnico do canal, em JSON. "
-            "Ex.: {\"phone_number\": \"556734167800\"} ou "
-            "{\"bot_token\": \"123456:ABC-DEF\"}"
-        ),
+        description="Credenciais em JSON. Preferir usar `identificador` no Create.",
     )
-    webhook_token: Optional[str] = Field(
-        None, max_length=120, description="Valida a origem do webhook recebido"
-    )
-    webhook_url: Optional[str] = Field(
-        None, max_length=300, description="URL cadastrada no provedor (Meta, Telegram)"
-    )
-    horario_inicio: Optional[str] = Field(
-        None, pattern=r"^\d{2}:\d{2}$", description="Expediente — início (ex: 08:00)"
-    )
-    horario_fim: Optional[str] = Field(
-        None, pattern=r"^\d{2}:\d{2}$", description="Expediente — fim (ex: 18:00)"
-    )
-    dias_semana: Optional[str] = Field(
-        None, max_length=20, description="Dias de atendimento, ex: 1,2,3,4,5"
-    )
-    ativo: bool = Field(True, description="Status de ativação do canal")
+    webhook_token: Optional[str] = Field(None, max_length=120)
+    webhook_url: Optional[str] = Field(None, max_length=300)
+    horario_inicio: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")
+    horario_fim: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")
+    dias_semana: Optional[str] = Field(None, max_length=20)
+    ativo: bool = Field(True)
 
     @field_validator("horario_inicio", "horario_fim")
     @classmethod
     def validar_horario(cls, v: Optional[str]) -> Optional[str]:
-        """Garante HH:MM dentro da faixa válida."""
         if v is None:
             return None
         hora, _, minuto = v.partition(":")
         if not (0 <= int(hora) <= 23 and 0 <= int(minuto) <= 59):
-            raise ValueError(f"Horário inválido: {v}. Use o formato HH:MM")
+            raise ValueError(f"Horário inválido: {v}. Use HH:MM.")
         return v
 
     @field_validator("dias_semana")
     @classmethod
     def validar_dias(cls, v: Optional[str]) -> Optional[str]:
-        """Garante que os dias são 1..7 (1=segunda ... 7=domingo)."""
         if v is None or not v.strip():
             return None
         dias = [int(d) for d in v.replace(" ", "").split(",") if d]
         fora = [d for d in dias if not 1 <= d <= 7]
         if fora:
-            raise ValueError(f"Dia(s) inválido(s): {fora}. Use 1 a 7 (1=segunda)")
+            raise ValueError(f"Dia(s) inválido(s): {fora}. Use 1 a 7 (1=segunda).")
         return ",".join(str(d) for d in dias)
 
 
-class CanalContratadoCreate(CanalContratadoBase):
+# ══════════════════════════════════════════════════════════════════════════
+# CREATE
+# ══════════════════════════════════════════════════════════════════════════
+class CanalCreate(CanalBase):
     """
-    Criação de canal contratado.
+    Payload de criação.
 
-    `empresa_id` NÃO é campo deste schema, de propósito. O tenant vem do token
-    (`get_current_empresa`) e o serviço ignora qualquer valor vindo do corpo.
-    Exigir o campo no request só faria o cliente mandar um dado descartado —
-    e creates a ilusão de que o corpo escolhe o tenant, que é exatamente o
-    que não deve acontecer. `identificador` é validado por tipo e guardado
-    dentro de `credenciais` pelo serviço.
+    🔒 `empresa_id` é PROIBIDO — `extra="forbid"` rejeita o request
+       caso o cliente tente enviá-lo (defesa anti-IDOR na entrada).
     """
 
     identificador: Optional[str] = Field(
-        None,
-        min_length=3,
-        max_length=255,
+        None, min_length=3, max_length=255,
         description=(
             "Identificador técnico do canal no provedor. Vira "
-            "`credenciais[%s]`. WhatsApp: só dígitos (556734167800). "
-            "Telegram: ID:HASH. Instagram/Facebook: page_id numérico."
-        )
-        % "phone_number | bot_token | page_id",
+            "`credenciais[CHAVE_IDENTIFICADOR[tipo]]`. "
+            "WhatsApp: só dígitos. Telegram: ID:HASH. "
+            "Instagram/Facebook: page_id numérico."
+        ),
     )
+
+    model_config = ConfigDict(extra="forbid")
 
     @field_validator("identificador")
     @classmethod
-    def validar_identificador(cls, v: Optional[str], info) -> Optional[str]:
-        """
-        Valida o identificador de acordo com o tipo do canal.
-
-        - WhatsApp: só dígitos, 10 a 13 (DDI + número)
-        - Telegram:  ID:HASH
-        - Instagram/Facebook: page_id numérico
-        - email:      endereço com @
-        """
+    def validar_identificador(
+        cls, v: Optional[str], info,
+    ) -> Optional[str]:
         if v is None or not str(v).strip():
             return None
         tipo = info.data.get("tipo")
@@ -191,32 +152,35 @@ class CanalContratadoCreate(CanalContratadoBase):
         if tipo == "whatsapp":
             numeros = re.sub(r"\D", "", v)
             if not 10 <= len(numeros) <= 13:
-                raise ValueError("Número WhatsApp inválido. Use formato: 556734167800")
+                raise ValueError("Número WhatsApp inválido. Ex.: 556734167800")
             return numeros
 
-        if tipo == "telegram":
-            if not re.match(r"^\d+:[A-Za-z0-9_-]+$", v):
-                raise ValueError("Token Telegram inválido. Formato esperado: ID:HASH")
+        if tipo in ("telegram", "discord"):
+            if not re.match(r"^[A-Za-z0-9_:-]{3,}$", v):
+                raise ValueError("Token inválido. Formato esperado: ID:HASH")
             return v
 
         if tipo in ("instagram", "facebook"):
             if not v.isdigit():
-                raise ValueError("Page ID deve conter apenas números")
+                raise ValueError("Page ID deve conter apenas números.")
             return v
 
         if tipo == "email":
             if "@" not in v or "." not in v.split("@")[-1]:
-                raise ValueError("Endereço de e-mail inválido")
+                raise ValueError("Endereço de e-mail inválido.")
             return v.lower()
 
         return v
 
 
-class CanalContratadoUpdate(BaseModel):
-    """Atualização parcial. Só o que for enviado muda."""
+# ══════════════════════════════════════════════════════════════════════════
+# UPDATE
+# ══════════════════════════════════════════════════════════════════════════
+class CanalUpdate(BaseModel):
+    """Atualização parcial — só o que for enviado muda."""
 
     tipo: Optional[TipoCanal] = None
-    telefone_id: Optional[int] = None
+    telefone_id: Optional[int] = Field(None, gt=0)
     apelido: Optional[str] = Field(None, min_length=3, max_length=80)
     credenciais: Optional[Dict[str, Any]] = None
     webhook_token: Optional[str] = Field(None, max_length=120)
@@ -226,13 +190,24 @@ class CanalContratadoUpdate(BaseModel):
     dias_semana: Optional[str] = Field(None, max_length=20)
     ativo: Optional[bool] = None
 
-    _validar_horario = field_validator("horario_inicio", "horario_fim")(
-        CanalContratadoBase.validar_horario.__func__
-    )
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("horario_inicio", "horario_fim")
+    @classmethod
+    def validar_horario(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        hora, _, minuto = v.partition(":")
+        if not (0 <= int(hora) <= 23 and 0 <= int(minuto) <= 59):
+            raise ValueError(f"Horário inválido: {v}. Use HH:MM.")
+        return v
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# RESPONSE
+# ══════════════════════════════════════════════════════════════════════════
 def _ofuscar(valor: str) -> str:
-    """5511999999999 → 5511****9999 | 123456:ABCDEF... → 1234****W11u"""
+    """5511999999999 → 5511****9999 | 123456:ABCDEF → 1234****EF"""
     if ":" in valor:
         inicio, _, resto = valor.partition(":")
         if len(resto) > 8:
@@ -242,34 +217,29 @@ def _ofuscar(valor: str) -> str:
     return valor
 
 
-class CanalContratadoResponse(CanalContratadoBase):
-    """Resposta de leitura. NUNCA devolve o identificador em claro."""
+class CanalResponse(CanalBase):
+    """Resposta de leitura — NUNCA devolve o identificador em claro."""
 
     id: int
     empresa_id: int
     criado_em: datetime
     atualizado_em: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
 
-    # Campo calculado: o identificador vem sempre ofuscado.
     identificador: Optional[str] = Field(
-        None, description="Identificador do canal, ofuscado por segurança"
+        None, description="Identificador do canal, ofuscado por segurança",
     )
     status_conexao: Optional[str] = Field(
-        None, description="Status da conexão com a API externa"
+        None, description="Status da conexão com a API externa",
     )
 
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator("credenciais", mode="after")
     @classmethod
-    def ofuscar_credenciais(cls, v: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-        """
-        Ofusca os segredos na RESPOSTA.
-
-        O banco guarda o valor real (o serviço precisa dele para falar com o
-        provedor), mas nada disso pode voltar para o navegador: nem o token do
-        bot, nem o número do WhatsApp. Este é o ponto onde isso é garantido.
-        """
+    def ofuscar_credenciais(
+        cls, v: Optional[Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
         if not v:
             return v
         CHAVES_SENSIVEIS = {
@@ -287,103 +257,72 @@ class CanalContratadoResponse(CanalContratadoBase):
         return saida
 
 
-class CanalContratadoDetalhado(CanalContratadoResponse):
-    """Canal contratado com métricas de atendimento."""
+class CanalDetalhado(CanalResponse):
+    """Canal com métricas."""
 
-    total_atendimentos: int = Field(0, description="Total de atendimentos no canal")
-    atendimentos_ativos: int = Field(0, description="Atendimentos em aberto agora")
-    ultima_mensagem: Optional[datetime] = Field(
-        None, description="Data da última mensagem recebida/enviada"
-    )
+    total_atendimentos: int = Field(0)
+    atendimentos_ativos: int = Field(0)
+    ultima_mensagem: Optional[datetime] = None
 
 
 class CanalListaResponse(BaseModel):
-    """Listagem paginada de canais contratados."""
+    """Listagem paginada."""
 
     total: int
     page: int
     limit: int
     total_pages: int
-    canais: List[CanalContratadoResponse]
+    canais: List[CanalResponse]
 
 
-# ==============================================================================
-# SCHEMAS ESPECÍFICOS POR TIPO DE CANAL
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════
+# CONFIG POR TIPO
+# ══════════════════════════════════════════════════════════════════════════
 class CanalWhatsAppConfig(BaseModel):
-    """Configurações específicas para canal WhatsApp."""
-
-    waba_id: Optional[str] = Field(None, description="WhatsApp Business Account ID")
-    phone_number_id: Optional[str] = Field(None, description="Phone Number ID (Meta)")
-    business_account_id: Optional[str] = Field(None, description="Business Account ID")
-    template_namespace: Optional[str] = Field(None, description="Namespace de templates")
-    usar_api_oficial: bool = Field(
-        True, description="Usar Meta Cloud API (True) ou Evolution (False)"
-    )
+    waba_id: Optional[str] = None
+    phone_number_id: Optional[str] = None
+    business_account_id: Optional[str] = None
+    template_namespace: Optional[str] = None
+    usar_api_oficial: bool = True
 
 
 class CanalTelegramConfig(BaseModel):
-    """Configurações específicas para canal Telegram."""
-
-    bot_username: Optional[str] = Field(None, description="Username do bot (@meubot)")
+    bot_username: Optional[str] = None
     allowed_updates: List[str] = Field(
-        default_factory=lambda: ["message", "callback_query"],
-        description="Tipos de atualizações permitidas",
+        default_factory=lambda: ["message", "callback_query"]
     )
-    timeout: int = Field(30, description="Timeout em segundos para requests")
+    timeout: int = 30
 
 
 class CanalVoIPConfig(BaseModel):
-    """Configurações específicas para canal VoIP/Telefonia/PABX."""
-
-    pabx_type: str = Field(
-        ..., description="asterisk_ari, 3cx, intelbras, generic_rest"
-    )
-    api_base_url: str = Field(..., description="URL da API do PABX")
-    api_user: str = Field(..., description="Usuário da API do PABX")
-    api_secret: str = Field(..., description="Senha ou Token da API do PABX")
-    trunk_outbound: str = Field(
-        ..., description="Tronco SIP para chamadas externas (ex: SIP/Vivo)"
-    )
-    context_ura: str = Field(
-        default="eco_ura_entrada", description="Contexto do Dialplan para a URA do Bot"
-    )
-    stt_provider: str = Field(default="openai", description="Provedor de Speech-to-Text")
-    tts_provider: str = Field(default="openai", description="Provedor de Text-to-Speech")
+    pabx_type: str
+    api_base_url: str
+    api_user: str
+    api_secret: str
+    trunk_outbound: str
+    context_ura: str = "eco_ura_entrada"
+    stt_provider: str = "openai"
+    tts_provider: str = "openai"
 
 
-# ==============================================================================
-# SCHEMAS DE WEBHOOK
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════
+# WEBHOOK
+# ══════════════════════════════════════════════════════════════════════════
 class WebhookVerifyRequest(BaseModel):
-    """Verificação de webhook (Meta/Telegram)."""
-
-    mode: str = Field(..., description="Mode de verificação")
-    token: str = Field(..., description="Token de verificação")
-    challenge: str = Field(..., description="Challenge para validação")
+    mode: str
+    token: str
+    challenge: str
 
 
 class WebhookMetaRequest(BaseModel):
-    """Webhook da Meta (WhatsApp/Instagram/Facebook)."""
-
     object: str
     entry: List[Dict[str, Any]]
 
 
-# ==============================================================================
-# SCHEMAS DE MÉTRICAS
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════
+# MÉTRICAS
+# ══════════════════════════════════════════════════════════════════════════
 class CanalMetricasResumo(BaseModel):
-    """
-    Resumo de métricas do canal para o dashboard.
-
-    Os campos batem 1:1 com o dicionário devolvido por
-    `CanalService.obter_metricas_canal` — se um mudar, o outro avisa.
-
-    Repare que NÃO há "mensagens_enviadas/recebidas": as mensagens vivem no
-    MongoDB e não são contadas aqui. O que existe é contagem de ATENDIMENTOS.
-    """
-
     canal_id: int
     canal_apelido: Optional[str] = None
     tipo: str
@@ -392,29 +331,26 @@ class CanalMetricasResumo(BaseModel):
     atendimentos_ativos: int = 0
     atendimentos_com_atendente_hoje: int = 0
     tempo_medio_primeira_resposta_min: Optional[float] = None
-    proximo: Optional[str] = Field(
-        None, description="Observação sobre a origem destes números"
-    )
+    proximo: Optional[str] = None
 
 
-# ==============================================================================
-# COMPATIBILIDADE
-# Os nomes `Canal*` apontam para `CanalContratado*`. ATENÇÃO: são aliases com a
-# assinatura nova — `telefone_id` passou a ser obrigatório. Código que ainda
-# usa `CanalCreate(nome=..., cliente_id=...)` vai falhar na validação, que é
-# exatamente o sinal de que precisa migrar.
-# ==============================================================================
-CanalBase = CanalContratadoBase
-CanalCreate = CanalContratadoCreate
-CanalUpdate = CanalContratadoUpdate
-CanalResponse = CanalContratadoResponse
-CanalDetalhado = CanalContratadoDetalhado
+# ══════════════════════════════════════════════════════════════════════════
+# ALIASES DE COMPATIBILIDADE (código antigo que ainda usa Canal*)
+# ══════════════════════════════════════════════════════════════════════════
+CanalContratadoBase = CanalBase
+CanalContratadoCreate = CanalCreate
+CanalContratadoUpdate = CanalUpdate
+CanalContratadoResponse = CanalResponse
+CanalContratadoDetalhado = CanalDetalhado
+
 
 __all__ = [
-    "CanalContratadoBase", "CanalContratadoCreate", "CanalContratadoUpdate",
-    "CanalContratadoResponse", "CanalContratadoDetalhado", "CanalListaResponse",
+    "TipoCanal", "StatusCanal", "CHAVE_IDENTIFICADOR",
+    "CanalBase", "CanalCreate", "CanalUpdate",
+    "CanalResponse", "CanalDetalhado", "CanalListaResponse",
     "CanalWhatsAppConfig", "CanalTelegramConfig", "CanalVoIPConfig",
     "WebhookVerifyRequest", "WebhookMetaRequest", "CanalMetricasResumo",
-    "TipoCanal", "StatusCanal", "CHAVE_IDENTIFICADOR",
-    "CanalBase", "CanalCreate", "CanalUpdate", "CanalResponse", "CanalDetalhado",
+    # compat
+    "CanalContratadoBase", "CanalContratadoCreate", "CanalContratadoUpdate",
+    "CanalContratadoResponse", "CanalContratadoDetalhado",
 ]

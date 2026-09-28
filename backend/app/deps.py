@@ -276,3 +276,60 @@ __all__ = [
     "DBSession", "MongoDB", "RedisClient", "TokenPayload",
     "CurrentEmpresa", "CurrentCliente", "CurrentUser",
 ]
+
+"""
+Adicionar ao final de backend/app/deps.py
+"""
+
+from app.models.empresa_models import Empresa
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# EMPRESA ATUAL — resolve e injeta o tenant
+# ═══════════════════════════════════════════════════════════════════════════
+
+async def get_current_empresa(
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_user),
+) -> Empresa:
+    """
+    Empresa do usuário autenticado — ESTE é o filtro de multi-tenant.
+
+    ─────────────────────────────────────────────────────────────────────
+    POR QUE ESTA DEPENDÊNCIA EXISTE
+    ─────────────────────────────────────────────────────────────────────
+    Antes, cada endpoint lia `user.empresa_id` manualmente — fácil de
+    esquecer e difícil de auditar. Agora, o endpoint declara:
+
+        empresa: CurrentEmpresa = Depends()
+
+    E o FastAPI injeta automaticamente. Se o usuário não tiver empresa
+    ativa, a própria dependência barra com 403 ANTES de chegar no service.
+
+    ─────────────────────────────────────────────────────────────────────
+    REGRA
+    ─────────────────────────────────────────────────────────────────────
+    Este é o ÚNICO lugar autorizado a resolver a empresa do usuário.
+    Nenhum endpoint deve ler `user.empresa_id` diretamente.
+    """
+    if user.empresa_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Usuário não vinculado a uma empresa ativa.",
+        )
+
+    stmt = select(Empresa).where(
+        Empresa.id == user.empresa_id,
+        Empresa.deleted_at.is_(None),
+    )
+    empresa = (await db.execute(stmt)).scalar_one_or_none()
+    if empresa is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Empresa do usuário não encontrada ou removida.",
+        )
+    return empresa
+
+
+# Aliases
+CurrentEmpresa = Annotated[Empresa, Depends(get_current_empresa)]
