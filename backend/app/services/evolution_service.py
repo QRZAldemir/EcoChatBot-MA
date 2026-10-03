@@ -218,3 +218,23 @@ def _detectar_mediatype(url: str) -> str:
     if any(u.endswith(e) for e in (".mp3", ".ogg", ".aac")):
         return "audio"
     return "document"
+    # evolution_service.py (Refatorado)
+from .evolution_adapter import EvolutionAdapter, EvolutionApiAdapter
+
+class EvolutionService:
+    def __init__(self, adapter: EvolutionAdapter):
+        self.adapter = adapter
+    
+    async def enviar_texto(self, instance: str, number: str, text: str) -> dict:
+        return await self.adapter.send_message(
+            instance,
+            number,
+            {"type": "text", "content": text}
+        )
+    
+    async def enviar_midia(self, instance: str, number: str, media_url: str, **kwargs) -> dict:
+        return await self.adapter.send_message(
+            instance,
+            number,
+            {"type": "media", "url": media_url, **kwargs}
+        )

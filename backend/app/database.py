@@ -229,3 +229,35 @@ async def close_db() -> None:
 # deste módulo se chama `get_db`. É a mesma dependência FastAPI: só o nome
 # divergia. O alias evita duplicar a lógica de sessão.
 get_async_session = get_db
+# -*- coding: utf-8 -*-
+"""
+Aldemir Queiroz da Silva
+Data de Criação: 2023-11-20
+Descrição: Configuração central de banco de dados do aplicativo
+Funcionalidade: Gerencia a conexão com os bancos de dados (PostgreSQL e MongoDB)
+Classes Relacionadas: 
+    - Conecta com app/mongodb.py para configuração do MongoDB
+    - Utiliza as configurações do PostgreSQL existentes
+    - Integra com app/main.py para inicialização e shutdown
+"""
+
+from fastapi import FastAPI
+from app.mongodb import get_mongo, init_mongodb, close_mongodb
+
+def configure_database(app: FastAPI):
+    """
+    Configura os bancos de dados para o aplicativo
+    Args:
+        app: Instância do FastAPI
+    """
+    @app.on_event("startup")
+    async def startup_event():
+        # Inicializa o PostgreSQL (código existente)
+        # ...
+        await init_mongodb()  # Inicializa o MongoDB
+
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        # Fecha conexão com PostgreSQL (código existente)
+        # ...
+        await close_mongodb()  # Fecha a conexão MongoDB
