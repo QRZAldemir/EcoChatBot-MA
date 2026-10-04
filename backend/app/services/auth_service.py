@@ -39,7 +39,7 @@ from fastapi import HTTPException, status
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-from app.config import settings
+from app.core.config import settings
 
 # Carrega variáveis de ambiente
 load_dotenv()

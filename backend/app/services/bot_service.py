@@ -72,19 +72,15 @@ import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.config import (
-    BACKEND_URL,
-    BOT_MENSAGEM_BOAS_VINDAS,
-    EMPRESA_NOME,
-    LGPD_URL,
-)
+from app.adapters import BaseMessageAdapter, get_adapter
+from app.core.config import settings
 from app.exceptions import (
     AcessoNegadoError,
     RecursoNaoEncontradoError,
@@ -99,7 +95,7 @@ from app.models import (
     Usuario,
 )
 from app.models.enums import StatusAtendimento
-from app.services import audio_service, evolution_service
+from app.services import audio_service
 
 
 logger = logging.getLogger(__name__)
@@ -246,6 +242,7 @@ class BotService:
         db: Session,
         conexao: Conexao,
         redis: Redis,
+        adapter: Optional[BaseMessageAdapter] = None,
     ) -> None:
         """
         Construtor — recebe dependências prontas.
@@ -258,11 +255,47 @@ class BotService:
             • Reduz responsabilidade desta classe
             • Facilita testar (podemos passar uma Conexao fake)
             • Elimina uma query por requisição
+
+        ─────────────────────────────────────────────────────────────────
+        POR QUE `adapter` É INJETADO
+        ─────────────────────────────────────────────────────────────────
+        Esta classe orchestra o fluxo do bot, não fala com provedor. Todo
+        envio passa por `self.adapter`, um `BaseMessageAdapter`:
+
+            • Acoplamento: o bot desconhece Evolution, Meta, Telegram e PABX
+            • Polimorfismo: trocar de provedor não altera uma linha daqui
+            • Testabilidade: passa-se um adaptador fake, sem HTTP
+
+        Se `adapter` vier `None`, a fábrica escolhe pelo tipo do canal —
+        assim o chamador não precisa saber qual adaptador usar.
         """
         self.db = db
         self.conexao = conexao
         self.redis = redis
+        self.adapter = adapter if adapter is not None else self._criar_adapter()
         self._atendimento: Optional[Atendimento] = None  # setado depois
+
+    def _criar_adapter(self) -> BaseMessageAdapter:
+        """
+        Resolve o adaptador a partir do canal da conexão.
+
+        ─────────────────────────────────────────────────────────────────
+        POR QUE NÃO RESOLVER NO MÓDULO
+        ─────────────────────────────────────────────────────────────────
+        A escolha do adaptador depende do `Canal.tipo` e do provedor, dados
+        que só existem depois da query da Conexao. Deixar a resolução
+        dentro da instância mantém a decisão junto de quem tem o contexto.
+        """
+        canal = getattr(self.conexao, "canal", None)
+        tipo = getattr(canal, "tipo", None) or "whatsapp"
+        provedor = getattr(canal, "provedor", None)
+
+        adapter = get_adapter(tipo, provedor)
+        logger.info(
+            "bot_service | Adaptador resolvido | canal=%s provedor=%s adapter=%s",
+            tipo, provedor, type(adapter).__name__,
+        )
+        return adapter
 
     # ═════════════════════════════════════════════════════════════════════
     # PROPRIEDADES — atalhos de leitura
@@ -411,10 +444,9 @@ class BotService:
                 "bot_service | Erro no processamento | step=%s prot=%s",
                 step.value, self.atendimento.protocolo,
             )
-            await evolution_service.enviar_texto(
-                instance=self.conexao.nome_instancia,
-                number=ctx.telefone,
-                text=(
+            await self._enviar_texto(
+                ctx.telefone,
+                (
                     "Ocorreu um erro ao processar sua mensagem. "
                     "Por favor, tente novamente."
                 ),
@@ -660,6 +692,408 @@ class BotService:
     # ═════════════════════════════════════════════════════════════════════
 
     def _resolver_canal_do_hub(self, row: str) -> Optional[CanalContratado]:
+        """
+        Resolve o canal do hub a partir do `rowId` escolhido pelo cliente.
+
+        ─────────────────────────────────────────────────────────────────
+        ISOLAMENTO POR TENANT
+        ─────────────────────────────────────────────────────────────────
+        O filtro por `empresa_id` é obrigatório: sem ele, um cliente de uma
+        empresa poderia acionar o canal de outra empresa pela lista do hub.
+        """
+        if not row:
+            return None
+
+        return (
+            self.db.execute(
+                select(CanalContratado).where(
+                    CanalContratado.empresa_id == self.empresa_id,
+                    CanalContratado.ativo.is_(True),
+                    CanalContratado.apelido.ilike(f"%{row}%"),
+                )
+            )
+            .scalars()
+            .first()
+        )
+
+    async def _entrar_departamento(
+        self,
+        ctx: ContextoMensagem,
+        canal: CanalContratado,
+    ) -> None:
+        """
+        Entra no menu de um canal específico.
+
+        O `rowId` do hub carrega o sufixo do canal; dentro do canal as
+        opções passam a ser os itens do `Menu` correspondente.
+        """
+        menu = (
+            self.db.execute(
+                select(Menu).where(
+                    Menu.canal_contratado_id == canal.id,
+                    Menu.ativo.is_(True),
+                )
+            )
+            .scalars()
+            .first()
+        )
+
+        if menu is None:
+            await self._enviar_texto(
+                ctx.telefone,
+                "Este atendimento ainda não está disponível. "
+                "Vou transferir você para um atendente.",
+            )
+            await self._transferir_atendente(ctx.telefone)
+            return
+
+        itens = (
+            self.db.execute(
+                select(MenuItem)
+                .where(MenuItem.menu_id == menu.id, MenuItem.ativo.is_(True))
+                .order_by(MenuItem.ordem)
+            )
+            .scalars()
+            .all()
+        )
+
+        if not itens:
+            await self._enviar_texto(ctx.telefone, "Nenhuma opção disponível no momento.")
+            await self._voltar_hub(ctx.telefone)
+            return
+
+        if menu.saudacao:
+            await self._enviar_texto(ctx.telefone, menu.saudacao)
+
+        await self._enviar_lista(
+            numero=ctx.telefone,
+            title=getattr(canal, "apelido", None) or "Atendimento",
+            description="Selecione a opção desejada:",
+            button_text="Ver opções",
+            rows=[
+                {
+                    "title": item.titulo,
+                    "description": (item.descricao or "")[:72],
+                    "rowId": item.atalho or str(item.id),
+                }
+                for item in itens
+            ],
+            footer=menu.rodape or RODAPE,
+        )
+
+        self._set_ctx(self.atendimento, "canal_id", str(canal.id))
+        self._set_ctx(self.atendimento, "menu_id", str(menu.id))
+        self._set_step(self.atendimento, BotStep.DEPTO_DINAMICO)
+
+    async def _transferir_atendente(self, telefone: str) -> None:
+        """Encaminha a conversa para a fila humana."""
+        self.atendimento.status = StatusAtendimento.EM_ATENDIMENTO.value
+        self.db.commit()
+        self._set_step(self.atendimento, BotStep.EM_ATENDIMENTO)
+        logger.info("bot_service | Transferido para atendente | prot=%s", self.atendimento.protocolo)
+
+    async def _voltar_hub(self, telefone: str) -> None:
+        """Limpa o contexto do canal e reenvia o menu principal."""
+        for chave in ("canal_id", "menu_id"):
+            self._set_ctx(self.atendimento, chave, None)
+
+        await self._enviar_texto(telefone, "🏠 Retornando ao menu principal...")
+        await self._enviar_hub(telefone)
+        self._set_step(self.atendimento, BotStep.AGUARDAR_HUB)
+
+    # ═════════════════════════════════════════════════════════════════════
+    # SAÍDA — única porta para o provedor, via BaseMessageAdapter
+    # ═════════════════════════════════════════════════════════════════════
+    #
+    # Nenhum handler chama o provedor diretamente. Todos passam por aqui,
+    # o que garante que uma troca de provedor (Evolution → Meta → PABX)
+    # não exige alteração em nenhum handler.
+
+    async def _enviar_texto(self, telefone: str, texto: str) -> Any:
+        """Envia texto pelo adaptador do canal."""
+        try:
+            return await self.adapter.send_text(
+                chat_id=telefone,
+                text=texto,
+                instance=self.conexao.nome_instancia,
+            )
+        except Exception:
+            logger.exception("bot_service | Falha ao enviar texto | prot=%s", self.atendimento.protocolo)
+            return None
+
+    async def _enviar_lista(
+        self,
+        numero: str,
+        title: str,
+        description: str,
+        button_text: str,
+        rows: List[Dict[str, Any]],
+        footer: Optional[str] = None,
+    ) -> Any:
+        """
+        Envia um menu interativo pelo adaptador do canal.
+
+        O contrato do adaptador é `send_list(..., sections=...)`, mas o
+        Evolution API e o PABX recebem `rows`. A conversão para `sections`
+        fica nesta camada, então cada adaptador deals com o formato nativo
+        do seu provedor.
+        """
+        sections = [{"title": title, "rows": rows}]
+        try:
+            return await self.adapter.send_list(
+                chat_id=numero,
+                title=title,
+                description=description,
+                button_text=button_text,
+                sections=sections,
+                footer=footer or RODAPE,
+                instance=self.conexao.nome_instancia,
+            )
+        except Exception:
+            logger.exception("bot_service | Falha ao enviar lista | prot=%s", self.atendimento.protocolo)
+            return None
+
+    async def _enviar_hub(self, telefone: str) -> Any:
+        """Envia o menu principal com os canais ativos do tenant."""
+        canais = (
+            self.db.execute(
+                select(CanalContratado)
+                .where(
+                    CanalContratado.empresa_id == self.empresa_id,
+                    CanalContratado.ativo.is_(True),
+                )
+                .order_by(CanalContratado.apelido)
+            )
+            .scalars()
+            .all()
+        )
+
+        rows = [
+            {
+                "title": c.apelido or f"Canal {c.id}",
+                "description": "",
+                "rowId": (c.apelido or str(c.id)).upper().replace(" ", "_"),
+            }
+            for c in canais
+        ]
+
+        if not rows:
+            return await self._enviar_texto(
+                telefone, "Nenhum canal de atendimento disponível no momento."
+            )
+
+        return await self._enviar_lista(
+            numero=telefone,
+            title="Menu Principal",
+            description="Escolha o assunto do seu atendimento:",
+            button_text="Ver opções",
+            rows=rows,
+            footer=RODAPE,
+        )
+
+    async def _enviar_audio(self, telefone: str, texto: str) -> Any:
+        """Envia a mensagem como áudio (modo áudio do cliente)."""
+        try:
+            gerado = await audio_service.gerar_audio(texto)
+        except Exception:
+            logger.exception("bot_service | Falha ao gerar áudio")
+            return await self._enviar_texto(telefone, texto)
+
+        url = f"{getattr(settings, 'BACKEND_URL', '').rstrip('/')}/api/audio/audios/{gerado['arquivo']}"
+        try:
+            return await self.adapter.send_media(
+                chat_id=telefone,
+                media_url=url,
+                media_type="audio",
+                instance=self.conexao.nome_instancia,
+            )
+        except Exception:
+            logger.exception("bot_service | Falha ao enviar áudio")
+            return None
+
+    # ═════════════════════════════════════════════════════════════════════
+    # MODO ÁUDIO — atalhos por frase, independentes do step
+    # ═════════════════════════════════════════════════════════════════════
+
+    def _pedido_ativar_audio(self, texto: str) -> bool:
+        """True se o cliente pediu para ouvir em vez de ler."""
+        return self._normalizar(texto) in FRASES_ATIVAR_AUDIO
+
+    def _pedido_desativar_audio(self, texto: str) -> bool:
+        """True se o cliente pediu para voltar ao modo texto."""
+        return self._normalizar(texto) in FRASES_DESATIVAR_AUDIO
+
+    async def _ativar_modo_audio(self, telefone: str) -> None:
+        self._set_ctx(self.atendimento, "modo_audio", "1")
+        await self._enviar_audio(telefone, "Modo áudio ativado. Fale ou digite normalmente.")
+
+    async def _desativar_modo_audio(self, telefone: str) -> None:
+        self._set_ctx(self.atendimento, "modo_audio", "0")
+        await self._enviar_texto(telefone, "Modo texto ativado.")
+
+    # ═════════════════════════════════════════════════════════════════════
+    # TEXTO — templates
+    # ═════════════════════════════════════════════════════════════════════
+
+    def _mensagem_boas_vindas(self) -> str:
+        """Saudação inicial. Usa a configurada; senão, monta com a empresa."""
+        configurada = getattr(settings, "BOT_MENSAGEM_BOAS_VINDAS", "") or ""
+        if configurada:
+            return configurada
+
+        empresa = getattr(settings, "EMPRESA_NOME", "") or "nossa equipe"
+        return (
+            f"Olá! Bem-vindo(a) ao atendimento do {empresa}. 💙\n\n"
+            "Para iniciarmos, precisamos do seu aceite de privacidade."
+        )
+
+    def _texto_lgpd(self) -> str:
+        """Termo de privacidade exibido no aceite."""
+        lgpd_url = getattr(settings, "LGPD_URL", "") or ""
+        empresa = getattr(settings, "EMPRESA_NOME", "") or "a empresa"
+
+        texto = (
+            f"Usamos seus dados apenas para identificar e melhorar o "
+            f"atendimento do {empresa}, conforme a LGPD (Lei 13.709/2018).\n\n"
+            "Você pode solicitar acesso, correção ou exclusão a qualquer momento."
+        )
+        if lgpd_url:
+            texto += f"\n\nPolítica completa: {lgpd_url}"
+        return texto
+
+    # ═════════════════════════════════════════════════════════════════════
+    # ESTADO DO ATENDIMENTO — step e contexto persistidos
+    # ═════════════════════════════════════════════════════════════════════
+
+    def _set_step(self, at: Atendimento, step: BotStep) -> None:
+        """Grava o step do atendimento. `_get_step` faz a leitura."""
+        self._set_ctx(at, "step", step.value)
+
+    def _get_step(self) -> BotStep:
+        """
+        Lê o step atual.
+
+        Um valor ausente ou desconhecido volta para BOOT: melhor recomeçar
+        o fluxo do que travar o cliente num step que não existe mais.
+        """
+        bruto = self._get_ctx(self.atendimento, "step")
+        try:
+            return BotStep(bruto)
+        except ValueError:
+            return BotStep.BOOT
+
+    def _set_ctx(
+        self,
+        at: Atendimento,
+        chave: str,
+        valor: Optional[str],
+    ) -> None:
+        """
+        Upsert de uma chave no contexto do atendimento.
+
+        ─────────────────────────────────────────────────────────────────
+        POR QUE UPSERT E NÃO INSERT
+        ─────────────────────────────────────────────────────────────────
+        `_set_step` é chamado a cada transição e sempre na mesma chave.
+        Sem o upsert, a segunda chamada criaria linha duplicada e a leitura
+        passaria a depender da ordem de inserção.
+        """
+        if valor is None:
+            self.db.execute(
+                delete(AtendimentoContexto).where(
+                    AtendimentoContexto.atendimento_id == at.id,
+                    AtendimentoContexto.chave == chave,
+                )
+            )
+            self.db.commit()
+            return
+
+        linha = (
+            self.db.execute(
+                select(AtendimentoContexto).where(
+                    AtendimentoContexto.atendimento_id == at.id,
+                    AtendimentoContexto.chave == chave,
+                )
+            )
+            .scalars()
+            .first()
+        )
+
+        if linha is None:
+            linha = AtendimentoContexto(atendimento_id=at.id, chave=chave)
+            self.db.add(linha)
+
+        linha.valor = str(valor)
+        self.db.commit()
+
+    def _get_ctx(self, at: Atendimento, chave: str) -> Optional[str]:
+        """Lê uma chave do contexto. `None` se nunca foi gravada."""
+        return (
+            self.db.execute(
+                select(AtendimentoContexto.valor).where(
+                    AtendimentoContexto.atendimento_id == at.id,
+                    AtendimentoContexto.chave == chave,
+                )
+            )
+            .scalars()
+            .first()
+        )
+
+    # ═════════════════════════════════════════════════════════════════════
+    # CACHE REDIS — atendimento ativo por (tenant, telefone)
+    # ═════════════════════════════════════════════════════════════════════
+
+    async def _cache_get(self, chave: str) -> Optional[int]:
+        """Lê do Redis. Falha de Redis degrada para None, nunca quebra o bot."""
+        try:
+            bruto = await self.redis.get(chave)
+        except Exception:
+            logger.warning("bot_service | Cache indisponível | get %s", chave)
+            return None
+        return int(bruto) if bruto is not None else None
+
+    async def _cache_set(self, chave: str, valor: int, ttl: int = CACHE_ATENDIMENTO_TTL) -> None:
+        """Grava no Redis com TTL. Falha de Redis é logada, não propagada."""
+        try:
+            await self.redis.set(chave, valor, ex=ttl)
+        except Exception:
+            logger.warning("bot_service | Cache indisponível | set %s", chave)
+
+    async def _cache_del(self, chave: str) -> None:
+        """Remove do Redis. Falha de Redis é logada, não propagada."""
+        try:
+            await self.redis.delete(chave)
+        except Exception:
+            logger.warning("bot_service | Cache indisponível | del %s", chave)
+
+    # ═════════════════════════════════════════════════════════════════════
+    # UTILITÁRIOS
+    # ═════════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _normalizar(texto: Optional[str]) -> str:
+        """
+        Minúsculas, sem acento e sem pontuação.
+
+        "Não  Concordo!" e "nao concordo" precisam casar com a mesma
+        entrada do conjunto de frases; sem isso, o atalho de áudio e a
+        comparação do LGPD falhariam por causa de um acento.
+        """
+        if not texto:
+            return ""
+        limpo = unicodedata.normalize("NFKD", str(texto))
+        limpo = "".join(c for c in limpo if not unicodedata.combining(c))
+        return re.sub(r"[^\w\s]", "", limpo.lower()).strip()
+
+    @staticmethod
+    def _gerar_protocolo() -> str:
+        """
+        Protocolo legível e ordenável por data.
+
+        `PROT-AAAAMMDD-XXXXXX`: o prefixo permite indexar e o sufixo
+        curto reduz a chance de colisão no dia.
+        """
+        return f"PROT-{datetime.now(timezone.utc):%Y%m%d}-{uuid4().hex[:6].upper()}"
 
 
        

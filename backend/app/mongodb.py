@@ -72,7 +72,7 @@ from typing import Optional
 from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
-from app.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -237,3 +237,59 @@ async def close_mongodb() -> None:
 # função deste módulo se chama `get_database`. É a mesma dependência: só o
 # nome divergia.
 get_mongo_db = get_database
+# -*- coding: utf-8 -*-
+"""
+Aldemir Queiroz da Silva
+Data de Criação: 2023-11-20
+Descrição: Configuração e gerenciamento da conexão com o MongoDB
+Funcionalidade: Estabelece e gerencia a conexão assíncrona com o MongoDB
+Classes Relacionadas:
+    - Utiliza motor Motor do MongoDB
+    - Conecta com app/database.py para inicialização
+    - Utilizado por app/models_mongo/webhook_logs.py para operações de banco
+"""
+
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from pymongo import MongoClient
+from typing import Optional
+import os
+
+# Variáveis de ambiente
+MONGO_HOST = os.getenv("MONGO_HOST", "localhost")
+MONGO_PORT = int(os.getenv("MONGO_PORT", 27017))
+MONGO_DATABASE = os.getenv("MONGO_DATABASE", "ecochatbot_logs")
+
+# Clientes globais
+mongo_client: Optional[AsyncIOMotorClient] = None
+mongo_db: Optional[AsyncIOMotorDatabase] = None
+
+async def get_mongo() -> AsyncIOMotorDatabase:
+    """
+    Retorna a instância do banco de dados MongoDB
+    Returns:
+        AsyncIOMotorDatabase: Instância do banco de dados
+    """
+    if mongo_db is None:
+        raise Exception("MongoDB não inicializado")
+    return mongo_db
+
+async def init_mongodb():
+    """
+    Inicializa a conexão com o MongoDB
+    """
+    global mongo_client, mongo_db
+    mongo_client = AsyncIOMotorClient(
+        host=MONGO_HOST,
+        port=MONGO_PORT,
+        maxPoolSize=10,
+        minPoolSize=5
+    )
+    mongo_db = mongo_client[MONGO_DATABASE]
+
+async def close_mongodb():
+    """
+    Fecha a conexão com o MongoDB
+    """
+    if mongo_client:
+        mongo_client.close()
+

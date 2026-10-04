@@ -319,4 +319,44 @@ async def evolution_webhook(
         background_tasks.add_task(_processar_conexao, instance, payload)
 
     # 5. Resposta Imediata
-    return {"status": "ok"}
+    return {"status": "ok"}# -*- coding: utf-8 -*-
+"""
+Aldemir Queiroz da Silva
+Data de Criação: 2023-11-20
+Descrição: Rotas para endpoints de webhook
+Funcionalidade: Define os endpoints REST para recebimento de webhooks
+Classes Relacionadas:
+    - Utiliza app/services/webhook_log_service.py para operações de serviço
+    - Conecta com app/main.py para registro das rotas
+"""
+
+from fastapi import APIRouter, HTTPException
+from app.services.webhook_log_service import WebhookLogService
+
+router = APIRouter()
+webhook_log_service = WebhookLogService()
+
+@router.post("/webhook/{canal}")
+async def receive_webhook(canal: str, payload: dict):
+    """
+    Recebe e processa um webhook
+    Args:
+        canal: Canal de origem do webhook
+        payload: Dados recebidos no webhook
+    Returns:
+        dict: Confirmação de recebimento
+    """
+    try:
+        # Salva o payload bruto no MongoDB
+        await webhook_log_service.save_log(
+            canal=canal,
+            msg_id=payload.get("id", ""),
+            payload=payload
+        )
+        
+        # Processamento do webhook (existente)
+        await _processar_status(canal, payload)
+        
+        return {"status": "received", "canal": canal}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

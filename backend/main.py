@@ -37,6 +37,9 @@ load_dotenv()
 # O padrão DRY (Don't Repeat Yourself) é aplicado via lista de tuplas.
 # Os módulos seguem a convenção `*_routers.py`. O alias à direita preserva o
 # nome usado em `ROUTERS_CONFIG`, que é o nome do domínio, não do arquivo.
+# Em app/main.py
+from app.models_mongo.webhook_logs import WebhookLog
+await init_mongodb(document_models=[WebhookLog])
 from app.routers import auths_routers as auth
 from app.routers import empresas_routers as empresas
 from app.routers import usuario_routers as usuarios

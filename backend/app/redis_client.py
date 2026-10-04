@@ -13,7 +13,7 @@ import logging
 
 from redis.asyncio import Redis, from_url
 
-from app.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

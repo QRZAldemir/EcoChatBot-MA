@@ -1,14 +1,15 @@
+# backend/app/models/base.py
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EcoChatBot-MA · Base Declarativa do ORM
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
 @file     base.py
-@module   Backend / App / Models / Base
+@module   Backend / App / Models
 @author   Aldemir Queiroz
 @since    2026
 @version  2.0.0
-───────────────────────────────────────────────────────────────────────────
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 FUNCIONALIDADE
 ──────────────
@@ -55,11 +56,10 @@ USO
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from sqlalchemy import MetaData
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
 
 # ─── Convenção determinística de nomes (Alembic-friendly) ─────────────────
 NAMING_CONVENTION: dict[str, str] = {
@@ -69,7 +69,6 @@ NAMING_CONVENTION: dict[str, str] = {
     "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
     "pk": "pk_%(table_name)s",
 }
-
 
 class Base(DeclarativeBase):
     """
@@ -84,7 +83,6 @@ class Base(DeclarativeBase):
         created_at: Timestamp automático de criação
         updated_at: Timestamp automático de atualização
     """
-
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
     # ─── Timestamps automáticos ─────────────────────────────────────────────
@@ -97,7 +95,7 @@ class Base(DeclarativeBase):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
         nullable=False,
-        comment="Registro de quando o registro foi atualizado pela última vez"
+        comment="Registro de quando o registro foi atualizada pela última vez"
     )
 
     def __repr__(self) -> str:  # pragma: no cover
@@ -140,6 +138,5 @@ class Base(DeclarativeBase):
             self.created_at = datetime.utcnow()
         if not self.updated_at:
             self.updated_at = datetime.utcnow()
-
 
 __all__ = ["Base", "NAMING_CONVENTION"]
