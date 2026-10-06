@@ -304,7 +304,7 @@ export const getResponseBody = <T>(response: HttpResponse<T>): T | undefined =>
 /**
  * Converte uma resposta HTTP bem-sucedida para o formato padrão ApiResult
  */
-const toApiResult = <T>(response: HttpResponse<T>, url: string): ApiResult => {
+export const toApiResult = <T>(response: HttpResponse<T>, url: string): ApiResult => {
   const responseBody = getResponseBody(response);
   const responseHeader = getResponseHeader(response, undefined);
   return {
@@ -319,7 +319,7 @@ const toApiResult = <T>(response: HttpResponse<T>, url: string): ApiResult => {
 /**
  * Converte um erro HTTP para o formato padrão ApiResult
  */
-const toApiResultFromError = (error: HttpErrorResponse, url: string): ApiResult => {
+export const toApiResultFromError = (error: HttpErrorResponse, url: string): ApiResult => {
   return {
     url,
     ok:         error.ok,

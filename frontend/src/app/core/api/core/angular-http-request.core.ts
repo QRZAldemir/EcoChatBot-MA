@@ -41,6 +41,7 @@ import { HttpClient } from '@angular/common/http';
 import type { Observable } from 'rxjs';
 
 import type { ApiRequestOptions } from './api-request-options.core';
+
 import { BaseHttpRequest } from './base-http-request.core';
 import type { OpenAPIConfig } from './open-api.core';
 import { OpenAPI } from './open-api.core';
