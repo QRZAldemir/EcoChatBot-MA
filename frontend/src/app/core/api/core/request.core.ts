@@ -12,31 +12,65 @@ Codinome: EcoChatBot-MA
             3. Serializar body / form-data (ex.: upload de anexos do bot).
             4. Enviar via Angular HttpClient (observe: 'response').
             5. Normalizar resposta para `ApiResult`.
-            6. Mapear códigos HTTP de erro para `ApiError`.
+            6. Mapear códigos HTTP de erro para `ApiError'.
 @author   Aldemir Queiroz
 @since    2026
 @version  2.0.0  · ref: pipeline RxJS otimizado, type guards corrigidos
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-*/
-import { HttpClient, HttpHeaders, HttpResponse, HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, of, throwError, Observable } from 'rxjs';
-import { catchError, map, switchMap } from 'rxjs/operators';
+ */
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. IMPORTAÇÕES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+import {
+  HttpClient,
+  HttpHeaders,
+  HttpResponse,
+  HttpErrorResponse
+} from '@angular/common/http';
+
+import {
+  forkJoin,
+  of,
+  throwError,
+  Observable
+} from 'rxjs';
+
+import {
+  catchError,
+  map,
+  switchMap
+} from 'rxjs/operators';
 
 import { ApiError } from './api-error.core';
 import type { ApiRequestOptions } from './api-request-options.core';
-import type { ApiResult }         from './api-result.core';
-import type { OpenAPIConfig }     from './open-api.core';
+import type { ApiResult } from './api-result.core';
+import type { OpenAPIConfig } from './open-api.core';
 
-/* ─────────────────────────── Type Guards ─────────────────────────── */
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. TYPE GUARDS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/**
+ * Verifica se um valor está definido (não é null nem undefined)
+ */
 export const isDefined = <T>(value: T | null | undefined): value is Exclude<T, null | undefined> =>
   value !== undefined && value !== null;
 
+/**
+ * Verifica se um valor é uma string
+ */
 export const isString = (value: unknown): value is string =>
   typeof value === 'string';
 
+/**
+ * Verifica se um valor é uma string não vazia
+ */
 export const isStringWithValue = (value: unknown): value is string =>
   isString(value) && value !== '';
 
+/**
+ * Verifica se um valor é um Blob
+ */
 export const isBlob = (value: unknown): value is Blob => {
   return (
     typeof value === 'object' &&
@@ -48,10 +82,18 @@ export const isBlob = (value: unknown): value is Blob => {
     /^(Blob|File)$/.test((value as Blob).constructor.name) );
 };
 
+/**
+ * Verifica se um valor é um FormData
+ */
 export const isFormData = (value: unknown): value is FormData =>
   value instanceof FormData;
 
-/* ─────────────────────────── Helpers ─────────────────────────── */
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. HELPERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/**
+ * Converte uma string para base64
+ */
 export const base64 = (str: string): string => {
   try {
     return btoa(str);
@@ -61,6 +103,9 @@ export const base64 = (str: string): string => {
   }
 };
 
+/**
+ * Gera uma string de query parameters a partir de um objeto
+ */
 export const getQueryString = (params: Record<string, unknown>): string => {
   const qs: string[] = [];
   
@@ -83,6 +128,9 @@ export const getQueryString = (params: Record<string, unknown>): string => {
   return qs.length ? `?${qs.join('&')}` : '';
 };
 
+/**
+ * Monta a URL completa com base na configuração e opções da requisição
+ */
 const getUrl = (config: OpenAPIConfig, options: ApiRequestOptions): string => {
   const encoder = config.ENCODE_PATH || encodeURI;
   const path = options.url
@@ -98,6 +146,9 @@ const getUrl = (config: OpenAPIConfig, options: ApiRequestOptions): string => {
   return options.query ? `${url}${getQueryString(options.query as Record<string, unknown>)}` : url;
 };
 
+/**
+ * Prepara os dados de formulário para envio
+ */
 export const getFormData = (options: ApiRequestOptions): FormData | undefined => {
   if (!options.formData) return undefined;
   
@@ -120,8 +171,14 @@ export const getFormData = (options: ApiRequestOptions): FormData | undefined =>
   return formData;
 };
 
+/**
+ * Tipo para funções de resolução assíncrona
+ */
 type Resolver<T> = (options: ApiRequestOptions) => Promise<T>;
 
+/**
+ * Resolve um valor ou função assíncrona
+ */
 export const resolve = async <T>(
   options: ApiRequestOptions,
   resolver?: T | Resolver<T>
@@ -132,6 +189,12 @@ export const resolve = async <T>(
   return resolver;
 };
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. HTTP REQUEST BUILDERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/**
+ * Monta os headers da requisição, incluindo autenticação
+ */
 export const getHeaders = (
   config: OpenAPIConfig,
   options: ApiRequestOptions
@@ -154,13 +217,16 @@ export const getHeaders = (
           {}
         );
 
+      // Adiciona header de autenticação Bearer Token
       if (isStringWithValue(token)) {
         headers['Authorization'] = `Bearer ${token}`;
       }
+      // Adiciona header de autenticação Basic Auth
       if (isStringWithValue(username) && isStringWithValue(password)) {
         headers['Authorization'] = `Basic ${base64(`${username}:${password}`)}`;
       }
       
+      // Define o Content-Type apropriado
       if (options.body !== undefined) {
         if (options.mediaType) {
           headers['Content-Type'] = options.mediaType;
@@ -177,6 +243,9 @@ export const getHeaders = (
   );
 };
 
+/**
+ * Prepara o corpo da requisição
+ */
 export const getRequestBody = (options: ApiRequestOptions): unknown => {
   if (!isDefined(options.body)) return undefined;
   if (options.mediaType?.includes('/json')) {
@@ -188,6 +257,9 @@ export const getRequestBody = (options: ApiRequestOptions): unknown => {
   return JSON.stringify(options.body);
 };
 
+/**
+ * Envia a requisição HTTP
+ */
 export const sendRequest = <T>(
   config: OpenAPIConfig,
   options: ApiRequestOptions,
@@ -205,6 +277,12 @@ export const sendRequest = <T>(
   });
 };
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5. RESPONSE HANDLERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/**
+ * Extrai um header específico da resposta
+ */
 export const getResponseHeader = <T>(
   response: HttpResponse<T>,
   responseHeader?: string
@@ -214,12 +292,20 @@ export const getResponseHeader = <T>(
   return isString(value) ? value : undefined;
 };
 
+/**
+ * Extrai o corpo da resposta
+ */
 export const getResponseBody = <T>(response: HttpResponse<T>): T | undefined =>
   response.status !== 204 && response.body !== null ? response.body : undefined;
 
-/* ─────────────────── Normalização e Tratamento de Erros ─────────────────── */
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 6. ERROR HANDLING
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/**
+ * Converte uma resposta HTTP bem-sucedida para o formato padrão ApiResult
+ */
 const toApiResult = <T>(response: HttpResponse<T>, url: string): ApiResult => {
-  const responseBody   = getResponseBody(response);
+  const responseBody = getResponseBody(response);
   const responseHeader = getResponseHeader(response, undefined);
   return {
     url,
@@ -230,6 +316,9 @@ const toApiResult = <T>(response: HttpResponse<T>, url: string): ApiResult => {
   };
 };
 
+/**
+ * Converte um erro HTTP para o formato padrão ApiResult
+ */
 const toApiResultFromError = (error: HttpErrorResponse, url: string): ApiResult => {
   return {
     url,
@@ -240,24 +329,26 @@ const toApiResultFromError = (error: HttpErrorResponse, url: string): ApiResult 
   };
 };
 
+/**
+ * Trata códigos de erro HTTP conhecidos
+ */
 export const catchErrorCodes = (options: ApiRequestOptions, result: ApiResult): void => {
   const errors: Record<number, string> = {
-    400: 'Bad Request',
-    401: 'Unauthorized',
-    403: 'Forbidden',
-    404: 'Not Found',
-    500: 'Internal Server Error',
-    502: 'Bad Gateway',
-    503: 'Service Unavailable',
-    ...options.errors,
+    400: 'Requisição Inválida',
+    401: 'Não Autorizado',
+    403: 'Acesso Negado',
+    404: 'Não Encontrado',
+    500: 'Erro Interno do Servidor',
+    502: 'Gateway Ruim',
+    503: 'Serviço Indisponível'
   };
 
   const error = errors[result.status];
   if (error) throw new ApiError(options, result, error);
 
   if (!result.ok) {
-    const errorStatus     = result.status     ?? 'unknown';
-    const errorStatusText = result.statusText ?? 'unknown';
+    const errorStatus     = result.status     ?? 'desconhecido';
+    const errorStatusText = result.statusText ?? 'desconhecido';
     const errorBody = (() => {
       try { return JSON.stringify(result.body, null, 2); }
       catch { return undefined; }
@@ -266,22 +357,26 @@ export const catchErrorCodes = (options: ApiRequestOptions, result: ApiResult): 
     throw new ApiError(
       options,
       result,
-      `Generic Error: status: ${errorStatus}; status text: ${errorStatusText}; body: ${errorBody}`
+      `Erro Genérico: status: ${errorStatus}; status text: ${errorStatusText}; body: ${errorBody}`
     );
   }
 };
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 7. PIPELINE PRINCIPAL
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 /**
- * Pipeline principal — executado por `AngularHttpRequest`.
+ * Pipeline principal de requisições HTTP
+ * Responsável por orquestrar todas as etapas do ciclo de vida da requisição
  */
 export const request = <T>(
   config: OpenAPIConfig,
   http: HttpClient,
   options: ApiRequestOptions
 ): Observable<T> => {
-  const url      = getUrl(config, options);
+  const url = getUrl(config, options);
   const formData = getFormData(options);
-  const body     = getRequestBody(options);
+  const body = getRequestBody(options);
 
   return getHeaders(config, options).pipe(
     switchMap(headers => 

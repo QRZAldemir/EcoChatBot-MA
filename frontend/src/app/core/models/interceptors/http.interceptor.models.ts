@@ -1,52 +1,36 @@
-// ============================================================================
-// INTERCEPTOR HTTP — Autenticação + Tratamento de Erros (Angular 17)
-// ============================================================================
-//
-// @file    http.interceptor.ts
-// @author  Aldemir Queiroz
-// @since   2024
-// @angular 17.x
-// @pattern Functional HttpInterceptorFn + inject() + RxJS
-//
-// ----------------------------------------------------------------------------
-// O QUE É UM INTERCEPTOR HTTP?
-// ----------------------------------------------------------------------------
-// Um interceptor é como um "pedágio" por onde TODA requisição HTTP passa.
-// Ele pode:
-//   1. MODIFICAR a requisição antes de sair (ex: adicionar token de auth)
-//   2. MODIFICAR a resposta antes de chegar ao componente (ex: tratar erro)
-//   3. CANCELAR ou REDIRECIONAR conforme necessário (ex: 401 → /login)
-//
-// No Angular 17 usamos a forma FUNCIONAL (HttpInterceptorFn), que é uma
-// função simples — não mais uma classe que implementa HttpInterceptor.
-// A forma funcional tem ordem de execução mais previsível e é o padrão
-// recomendado oficialmente pelo time do Angular.
-// ============================================================================
+/**
+ * EcoChatBot - Sistema de Atendimento
+ * 
+ * Arquivo: http.interceptor.models.ts
+ * Descricao: Define o interceptor HTTP funcional para autenticacao e tratamento de erros.
+ * Este arquivo contem a implementacao do HttpInterceptorFn (padrao Angular 17) para:
+ * - Adicionar token JWT nas requisicoes (Authorization: Bearer)
+ * - Tratar erros HTTP (401, 403, 404, 500, etc.) com mensagens amigaveis
+ * - Redirecionar para /login em caso de sessao expirada (401)
+ * - Log estruturado de erros para debug
+ * 
+ * Autor: Aldemir Querioz
+ * Data: 2026-10-05
+ * Versao: 2.0.0
+ * 
+ * NOTA TECNICA:
+ * - Usa a forma FUNCIONAL (HttpInterceptorFn) - padrao Angular 17+
+ * - Usa inject() para injecao de dependencias (Router)
+ * - Usa RxJS para manipulacao de Observables (catchError, throwError)
+ * - Compativel com backend FastAPI (trata error.error.detail)
+ */
 
-// ----------------------------------------------------------------------------
-// IMPORTS
-// ----------------------------------------------------------------------------
 import {
-  HttpInterceptorFn,   // Tipo da função interceptora (Angular 17 — forma funcional)
-  HttpErrorResponse,   // Tipo do erro HTTP retornado pelo Angular (tem .status, .error, .message)
-  HttpRequest,         // Tipo da requisição HTTP que trafega pela aplicação
-  HttpHandlerFn,       // Tipo do "próximo da fila" — quem realmente envia a requisição
+  HttpInterceptorFn,
+  HttpErrorResponse,
+  HttpRequest,
+  HttpHandlerFn,
 } from '@angular/common/http';
 
 import { inject } from '@angular/core';
-// ↑ inject() substitui o construtor. Padrão Angular 17: injeção fora do construtor,
-//   funcionando até em funções puras (que é o caso de um interceptor funcional).
-
 import { Router } from '@angular/router';
-// ↑ Necessário para redirecionar para /login quando a sessão expirar (HTTP 401).
-
 import { catchError, throwError } from 'rxjs';
-// ↑ catchError: intercepta erros no fluxo RxJS.
-//   throwError: repropaga o erro (agora enriquecido) para quem chamou.
 
-// ----------------------------------------------------------------------------
-// CONSTANTES DE CONFIGURAÇÃO
-// ----------------------------------------------------------------------------
 
 /** Chave usada para ler/gravar o token no storage. Centralizada para evitar
  *  "números mágicos" — se um dia mudar para 'access_token', muda em 1 só lugar. */
@@ -66,9 +50,6 @@ const STATUS_MESSAGES: Record<number, string> = {
   503: 'Serviço temporariamente indisponível.',
 };
 
-// ----------------------------------------------------------------------------
-// INTERFACE ESTENDIDA — AppHttpError
-// ----------------------------------------------------------------------------
 /**
  * Estende o HttpErrorResponse original (herda .status, .error, .message...)
  * e adiciona o campo `userMessage` com a mensagem amigável que o componente
@@ -82,9 +63,6 @@ export interface AppHttpError extends HttpErrorResponse {
   userMessage: string;
 }
 
-// ----------------------------------------------------------------------------
-// FUNÇÃO AUXILIAR 1 — enrichRequest (clonar e enriquecer a requisição)
-// ----------------------------------------------------------------------------
 /**
  * Clona a requisição adicionando os headers apropriados:
  *   - Authorization: Bearer <token>  (se houver token)
@@ -126,9 +104,6 @@ function enrichRequest(
   return req.clone({ setHeaders: headers });
 }
 
-// ----------------------------------------------------------------------------
-// FUNÇÃO AUXILIAR 2 — resolveUserMessage (mensagem amigável ao usuário)
-// ----------------------------------------------------------------------------
 /**
  * Resolve a mensagem amigável a ser exibida com base no status HTTP e no
  * corpo da resposta.
@@ -152,9 +127,6 @@ function resolveUserMessage(error: HttpErrorResponse): string {
   return STATUS_MESSAGES[error.status] ?? 'Ocorreu um erro inesperado no servidor.';
 }
 
-// ----------------------------------------------------------------------------
-// FUNÇÃO AUXILIAR 3 — handleUnauthorized (tratamento de 401)
-// ----------------------------------------------------------------------------
 /**
  * Trata sessão expirada (HTTP 401):
  *   1. Remove o token inválido do storage.
@@ -170,9 +142,6 @@ function handleUnauthorized(router: Router): void {
   void router.navigate(['/login']);
 }
 
-// ----------------------------------------------------------------------------
-// O INTERCEPTOR EM SI — httpInterceptor (função exportada)
-// ----------------------------------------------------------------------------
 /**
  * Interceptor HTTP funcional (padrão Angular 17).
  *
