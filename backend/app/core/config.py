@@ -1,13 +1,19 @@
 # backend/app/core/config.py
 """
+<<<<<<< HEAD
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EcoChatBot-MA · Configurações Centrais
+=======
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-MA · Config Façade
+>>>>>>> 4dc5a57f0e55ee824d4b630f87e17e1e7a2e6354
 Codinome: EcoChatBot-MA
-───────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────
 @file     config.py
 @module   Backend / App / Core
 @author   Aldemir Queiroz
 @since    2026
+<<<<<<< HEAD
 @version  2.0.0
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -25,10 +31,29 @@ IMPORTANTE
     • Validação automática de tipos e valores
     • Suporte a variáveis de ambiente (.env)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+=======
+@version  1.1.0
+────────────────────────────────────────────────────────────────────────────
+
+FUNCIONALIDADE
+──────────────
+Façade que reexporta `Settings` e `settings` a partir de `app.config`.
+
+Por que este façade existe?
+• Convenção de projeto: módulos de "core" ficam em `app.core.*`.
+• Evita quebrar os 37+ módulos que já importam de `app.core.config`.
+• Permite refatorar `app/config.py` no futuro sem impacto nos consumidores.
+
+REGRAS DE NEGÓCIO
+─────────────────
+• NUNCA adicione lógica, classes ou validações aqui.
+• A fonte única de verdade é `app.config`.
+>>>>>>> 4dc5a57f0e55ee824d4b630f87e17e1e7a2e6354
 """
 
 from __future__ import annotations
 
+<<<<<<< HEAD
 from typing import Optional
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
@@ -110,3 +135,44 @@ class Settings(BaseSettings):
 
 # Instância global das configurações
 settings = Settings()
+=======
+import logging
+from typing import TYPE_CHECKING
+
+# ==============================================================================
+# VALIDAÇÃO DE DEPENDÊNCIA (Fail-Fast)
+# ==============================================================================
+try:
+    from app.config import Settings as _Settings
+    from app.config import settings as _settings
+except ImportError as exc:
+    raise ImportError(
+        "Falha crítica: Não foi possível importar Settings de app.config. "
+        "Verifique se o arquivo backend/app/config.py existe e está válido. "
+        f"Erro original: {exc}"
+    ) from exc
+
+# ==============================================================================
+# TYPE HINTS PARA IDEs (Autocomplete)
+# ==============================================================================
+if TYPE_CHECKING:
+    from app.config import Settings as SettingsType
+    from app.config import settings as settingsType
+
+# ==============================================================================
+# REEXPORTAÇÃO PÚBLICA
+# ==============================================================================
+Settings: type = _Settings
+settings: object = _settings
+
+__all__ = ["Settings", "settings"]
+
+# ==============================================================================
+# LOG DE INICIALIZAÇÃO
+# ==============================================================================
+_logger = logging.getLogger(__name__)
+_logger.debug(
+    "app.core.config carregado (façade) | environment=%s",
+    getattr(_settings, "environment", "desconhecido"),
+)
+>>>>>>> 4dc5a57f0e55ee824d4b630f87e17e1e7a2e6354

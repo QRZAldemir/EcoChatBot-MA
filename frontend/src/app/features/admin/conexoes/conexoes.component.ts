@@ -177,3 +177,38 @@ export class ConexoesComponent implements OnInit {
     setTimeout(() => this.alerta = null, 4000);
   }
 }
+
+// conexoes.component.ts
+import { interval } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
+
+export class ConexoesComponent {
+  private pollingInterval = 5000; // 5 segundos
+  
+  monitorarConexao(conexaoId: number) {
+    interval(this.pollingInterval)
+      .pipe(
+        switchMap(() => this.http.get<ConexaoStatusResponse>(
+          `/api/v1/conexoes/${conexaoId}/status`
+        ))
+      )
+      .subscribe(status => {
+        this.statusConexao = status;
+        
+        if (status.status === 'aguardando_qrcode') {
+          this.qrCode = status.qr_code;
+        } else if (status.status === 'conectado') {
+          this.mostrarNotificacao('WhatsApp conectado!');
+        }
+      });
+  }
+  
+  reconectar(conexaoId: number) {
+    this.http.post<ConexaoReconectarResponse>(
+      `/api/v1/conexoes/${conexaoId}/reconectar`,
+      {}
+    ).subscribe(response => {
+      this.mostrarNotificacao(response.mensagem);
+    });
+  }
+}

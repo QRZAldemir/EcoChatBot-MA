@@ -14,7 +14,7 @@ Funcionalidades:
 - parse_incoming_webhook: Processa payloads de interações ou mensagens do Discord.
 """
 
-import httpx
+import http
 from .base import BaseChannelIntegration
 from app.core.config import settings
 from typing import Dict, Any

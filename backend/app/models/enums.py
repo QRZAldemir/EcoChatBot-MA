@@ -304,6 +304,17 @@ class TipoTransferencia(BaseStrEnum):
     RAMAL     = "ramal"
     SISTEMA   = "sistema"
 
+    from enum import Enum
+
+
+class StatusConexao(str, Enum):
+    """Estados de conexão com canais de mensagens."""
+    DESCONECTADO = "desconectado"
+    CONECTANDO = "conectando"
+    CONECTADO = "conectado"
+    AGUARDANDO_QRCODE = "aguardando_qrcode"
+    ERRO = "erro"
+
 
 __all__ = [
     "BaseStrEnum",

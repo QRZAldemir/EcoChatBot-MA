@@ -7,7 +7,7 @@ Codinome: EcoChatBot-MA
 @module   Backend / App / Models / Atendimento
 @author   Aldemir Queiroz
 @since    2026
-@version  3.0.0  · fix: telefone_id condicional + índices multi-tenant
+@version  3.1.0  · fix: padronização da FK para canal_id e limpeza de código
 ───────────────────────────────────────────────────────────────────────────
 
 FUNCIONALIDADE
@@ -20,8 +20,8 @@ FLUXO
     1. Cliente envia mensagem (WhatsApp, Telegram, VoIP, ...)
     2. Sistema apresenta menu
     3. Cliente escolhe opção → cria Atendimento com:
-         • canal_contratado (WhatsApp, Telegram, PABX...)
-         • telefone_id (APENAS se o canal contratado for VoIP)
+         • canal (WhatsApp, Telegram, PABX...)
+         • telefone_id (APENAS se o canal for VoIP)
          • menu_item escolhido
          • departamento destino
     4. Roteiro é carregado → respostas em AtendimentoContexto
@@ -55,7 +55,7 @@ REGRAS INVIOLÁVEIS
 ──────────────────
     • `empresa_id` (do TenantMixin) é NOT NULL e indexado
     • `telefone_id` é NULLABLE — só preenchido para canais VoIP
-    • `canal_contratado_id` determina se `telefone_id` deve existir
+    • `canal_id` determina se `telefone_id` deve existir
       (validação é feita no service, não no banco)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
@@ -78,7 +78,7 @@ from app.models.mixins import SoftDeleteMixin, TenantMixin, TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.atendimento_context_models import AtendimentoContexto
-    from app.models.canal_contratado_models import CanalContratado
+    from app.models.canal_models import Canal
     from app.models.chamada_pabx_models import ChamadaPABX
     from app.models.contato_models import Contato
     from app.models.departamento_models import Departamento
@@ -90,10 +90,10 @@ if TYPE_CHECKING:
 
 class Atendimento(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     """
-    Conversa entre cliente e empresa em um canal contratado.
+    Conversa entre cliente e empresa em um canal específico.
 
     `empresa_id` (do TenantMixin) é a chave de isolamento multi-tenant.
-    `telefone_id` é opcional — depende do canal contratado ser VoIP.
+    `telefone_id` é opcional — depende do canal ser VoIP.
     """
 
     __tablename__ = "atendimentos"
@@ -113,31 +113,35 @@ class Atendimento(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
             "ix_atendimentos_empresa_status",
             "empresa_id", "status",
         ),
-        # Índice para o filtro por canal contratado.
+        # Índice para o filtro por canal (atualizado para canal_id).
         Index(
             "ix_atendimentos_empresa_canal",
-            "empresa_id", "canal_contratado_id",
+            "empresa_id", "canal_id",
         ),
     )
 
     # ─── Chave primária ───────────────────────────────────────────────────
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    # ─── FKs de contexto ──────────────────────────────────────────────────
+    # ─── Chaves de Relacionamento e Contexto ──────────────────────────────
+    # A chave `contato_id` vincula o atendimento ao cliente (Contato).
     contato_id: Mapped[int] = mapped_column(
         ForeignKey("contatos.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    canal_contratado_id: Mapped[int] = mapped_column(
-        ForeignKey("canais_contratados.id", ondelete="RESTRICT"),
+    
+    # A chave `canal_id` vincula este Atendimento ao Canal específico 
+    # através do qual a conversa foi iniciada (ex: WhatsApp, Telegram, VoIP).
+    canal_id: Mapped[int] = mapped_column(
+        ForeignKey("canais.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
 
     # ─── Telefone VoIP (CONDICIONAL — nullable) ───────────────────────────
-    # Só é preenchido quando o canal contratado é de telefonia IP
-    # (PABX/VoIP). Para WhatsApp/Telegram/Instagram/etc., fica NULL.
+    # Só é preenchido quando o canal é de telefonia IP (PABX/VoIP).
+    # Para WhatsApp/Telegram/Instagram/etc., fica NULL.
     telefone_id: Mapped[int | None] = mapped_column(
         ForeignKey("telefones.id", ondelete="SET NULL"),
         nullable=True,
@@ -201,9 +205,10 @@ class Atendimento(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     # ─── Relacionamentos ──────────────────────────────────────────────────
     empresa: Mapped["Empresa"] = relationship()
     contato: Mapped["Contato"] = relationship(back_populates="atendimentos")
-    canal_contratado: Mapped["CanalContratado"] = relationship(
-        back_populates="atendimentos",
-    )
+    
+    # Relação direta com o Canal através da chave `canal_id`.
+    canal: Mapped["Canal"] = relationship(back_populates="atendimentos")
+    
     telefone: Mapped["Telefone | None"] = relationship()
     menu_item: Mapped["MenuItem | None"] = relationship()
     departamento: Mapped["Departamento | None"] = relationship(
@@ -235,18 +240,3 @@ class Atendimento(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
 
 
 __all__ = ["Atendimento"]
-
-# backend/app/models/atendimento_models.py
-class Atendimento(Base):
-    __tablename__ = "atendimentos"
-    
-    id = Column(Integer, primary_key=True)
-    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True) # OBRIGATÓRIO
-    conexao_id = Column(Integer, ForeignKey("conexoes.id"), nullable=False, index=True) # OBRIGATÓRIO
-    contato_id = Column(Integer, ForeignKey("contatos.id"), nullable=False)
-    
-    # ... outros campos ...
-
-    empresa = relationship("Empresa")
-    conexao = relationship("Conexao")
-    contato = relationship("Contato")
