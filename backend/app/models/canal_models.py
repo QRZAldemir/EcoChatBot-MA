@@ -1,13 +1,13 @@
 """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-MA · Canal
+EcoChatBot-MA · CanalContratado
 Codinome: EcoChatBot-MA
 ───────────────────────────────────────────────────────────────────────────
-@file     canal.py
-@module   Backend / App / Models / Canal
+@file     canal_models.py
+@module   Backend / App / Models / CanalContratado
 @author   Aldemir Queiroz
 @since    2026
-@version  3.0.0
+@version  4.0.0  · align ao ESTUDO_DE_CASO_CONTRATO_DE_CANAIS
 ───────────────────────────────────────────────────────────────────────────
 
 FUNCIONALIDADE
@@ -28,18 +28,33 @@ com a EMPRESA que comprou o EcoChatBot-MA.
 
 EXEMPLO PRÁTICO
 ───────────────
-    Empresa: Mackenzie Hospital
+    Empresa: Clinica Exemplo
     ├── Telefone("556734167800")
-    │     ├── Canal(tipo="whatsapp",  apelido="WhatsApp Recepção")
-    │     └── Canal(tipo="telegram",  apelido="Telegram Suporte")
+    │     ├── CanalContratado(tipo="whatsapp",  apelido="WhatsApp Recepção")
+    │     └── CanalContratado(tipo="telegram",  apelido="Telegram Suporte")
     ├── Telefone("5567992469894")
-    │     └── Canal(tipo="whatsapp",  apelido="WhatsApp Agendamento")
-    └── Canal(tipo="pabx",            apelido="URA do PABX")
+    │     └── CanalContratado(tipo="whatsapp",  apelido="WhatsApp Agendamento")
+    └── CanalContratado(tipo="pabx",            apelido="URA do PABX")
+
+    Dois telefones podem ter dois WhatsApp — a mensalidade é duplicada.
+    O mesmo telefone NÃO pode ter dois WhatsApp.
 
     Ao entrar webhook do WhatsApp no telefone "556734167800":
-        → sistema localiza o Canal(telefone_id=1, tipo="whatsapp")
+        → sistema localiza o CanalContratado(telefone_id=1, tipo="whatsapp")
         → carrega o Menu DAQUELE canal
         → cliente escolhe opção → resolve Departamento → abre Atendimento
+
+RELACIONAMENTO
+──────────────
+    Empresa (1) ── (N) Telefone (1) ── (N) CanalContratado
+                                              │
+                                              ├── (N) Conexao
+                                              ├── (N) Menu
+                                              ├── (N) Atendimento
+                                              └── (N) UsuarioCanal
+
+    `CanalContratado` NUNCA aponta para `Departamento`. O destino do
+    atendimento vem do `MenuItem` — ver ESTUDO_DE_CASO secao 2.
 
 REGRAS DE NEGÓCIO
 ─────────────────
@@ -48,6 +63,7 @@ REGRAS DE NEGÓCIO
       (e a mensalidade é duplicada).
     • `telefone_id` é obrigatório — canal sem telefone é recusado com 403.
     • `credenciais` guarda tokens/IDs em JSON (criptografar em produção).
+      É daqui que o adaptador de canal lê a credencial do tenant.
     • `webhook_token` valida a origem do webhook recebido.
     • Soft delete: desativar contrato NÃO apaga histórico de mensagens.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -72,18 +88,19 @@ if TYPE_CHECKING:
     from app.models.usuario_canal_models import UsuarioCanal
 
 
-class Canal(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
+class CanalContratado(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     """
-    Ponto de entrada do cliente final (mesmo conceito de Inbox do Chatwoot).
+    Canal contratado — o produto que a empresa compra, vinculado a um telefone.
 
-    Cada registro representa: "esta empresa recebe mensagens por este canal".
+    Cada registro representa: "esta empresa comprou este canal, para este
+    número". Não é departamento, não é fila, não é tipo de atendimento.
     """
 
-    __tablename__ = "canais"
+    __tablename__ = "canais_contratados"
     __table_args__ = (
         UniqueConstraint(
             "telefone_id", "tipo",
-            name="uq_canais_telefone_tipo",
+            name="uq_canais_contratados_telefone_tipo",
         ),
     )
 
@@ -114,10 +131,17 @@ class Canal(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
         comment='Ex.: "WhatsApp Comercial", "Telegram Suporte"',
     )
 
-    # ─── Credenciais (JSON serializado — criptografar em produção) ────────
+    # ─── Credenciais do canal (JSON serializado — criptografar em produção) ──
+    # É a fonte de verdade por tenant. O adaptador de canal
+    # (`app/adapters`) recebe daqui o que o provedor exige:
+    #     Evolution : {"instance": "...", "api_key": "..."}
+    #     Meta Cloud: {"phone_number_id": "...", "access_token": "..."}
+    #     Telegram  : {"bot_token": "..."}
+    #     PABX/VoIP : {"base_url": "...", "api_key": "...", "auth_type": "bearer"}
+    # Ausente = o adaptador cai nas variáveis de ambiente (tenant único / dev).
     credenciais: Mapped[str | None] = mapped_column(
         Text,
-        comment='Ex.: {"phone_number": "556734167800", "token": "..."}',
+        comment='Ex.: {"instance": "ecochat", "api_key": "..."}',
     )
 
     # ─── Webhook ──────────────────────────────────────────────────────────
@@ -133,28 +157,28 @@ class Canal(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
 
     # ─── Relacionamentos ──────────────────────────────────────────────────
-    empresa: Mapped["Empresa"] = relationship(back_populates="canais")
-    telefone: Mapped["Telefone"] = relationship(back_populates="canais")
+    empresa: Mapped["Empresa"] = relationship(back_populates="canais_contratados")
+    telefone: Mapped["Telefone"] = relationship(back_populates="canais_contratados")
 
     conexoes: Mapped[List["Conexao"]] = relationship(
-        back_populates="canal", cascade="all, delete-orphan"
+        back_populates="canal_contratado", cascade="all, delete-orphan"
     )
     menus: Mapped[List["Menu"]] = relationship(
-        back_populates="canal", cascade="all, delete-orphan"
+        back_populates="canal_contratado", cascade="all, delete-orphan"
     )
     atendimentos: Mapped[List["Atendimento"]] = relationship(
-        back_populates="canal"
+        back_populates="canal_contratado"
     )
     vinculos_usuario: Mapped[List["UsuarioCanal"]] = relationship(
-        back_populates="canal", cascade="all, delete-orphan"
+        back_populates="canal_contratado", cascade="all, delete-orphan"
     )
 
     # ─── Dunder ───────────────────────────────────────────────────────────
     def __repr__(self) -> str:
         return (
-            f"<Canal id={self.id} tipo={self.tipo!r} "
+            f"<CanalContratado id={self.id} tipo={self.tipo!r} "
             f"apelido={self.apelido!r} empresa_id={self.empresa_id}>"
         )
 
 
-__all__ = ["Canal"]
+__all__ = ["CanalContratado"]
