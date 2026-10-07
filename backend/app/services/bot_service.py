@@ -7,7 +7,8 @@ Codinome: EcoChatBot-MA
 @module   Backend / App / Services / Bot
 @author   Aldemir Queiroz
 @since    2026
-@version  3.0.0  · POO + cache Redis + transações atômicas + enums tipados
+@version  3.1.0  · POO + cache Redis + transações atômicas + enums tipados
+                  + isolamento multi-tenant reforçado (defesa em profundidade)
 ───────────────────────────────────────────────────────────────────────────
 
 FUNCIONALIDADE
@@ -28,51 +29,30 @@ MULTI-BANCO
     │ MongoDB      │ Contexto do atendimento (em outro service)        │
     └──────────────┴──────────────────────────────────────────────────┘
 
-⚠️ CORREÇÃO CRÍTICA (v3.0.0) — IDOR MULTI-TENANT
-─────────────────────────────────────────────────
-ANTES (v1.x):
-    db.query(Atendimento).filter(Atendimento.telefone == telefone)
-    → Vazava atendimento entre tenants que compartilhavam telefone.
+⚠️ CORREÇÕES MULTI-TENANT (v3.1.0)
+──────────────────────────────────
+Toda query desta classe carrega, OBRIGATORIAMENTE, o filtro por
+`empresa_id`. Não confie em nenhum id vindo do cliente (WhatsApp):
+o tenant sempre é derivado de `self.conexao.empresa_id`.
 
-DEPOIS (v2.x — sua correção):
-    Filtro por `empresa_id` E `canal_contratado_id` (conexão).
+    • Atendimento ................ empresa_id + canal_contratado_id
+    • Contato .................... empresa_id
+    • CanalContratado (hub) ...... empresa_id + ativo
+    • Menu / MenuItem ............ empresa_id + ativo  [NOVO]
 
-MELHORIA (v3.0.0):
-    • Encapsulado na classe BotService (isolamento por instância)
-    • Cache Redis escopado: atendimento:{empresa_id}:{telefone}
-    • Transações atômicas via `_transaction()` context manager
-    • Enums tipados em vez de strings mágicas
-    • Métodos privados com prefixo `_` (convenção Python)
-    • Injeção de dependências no construtor (facilita testes)
-
-CONCEITOS DE POO APLICADOS
-──────────────────────────
-    Classe .............. BotService (molde)
-    Objeto .............. Instância criada por requisição
-    Encapsulamento ...... Métodos privados (_) e públicos
-    Estado .............. self.db, self.conexao, self.atendimento
-    Composição .......... BotService tem Redis, EvolutionService
-    Coesão .............. Orquestrar fluxo, só isso
-    Acoplamento ......... Depende de interfaces, não implementações
-    Injeção ............ Dependências recebidas no __init__
-    @staticmethod ....... _normalizar, _tel, _protocolo
-    @classmethod ........ from_webhook (factory)
-    @property ........... empresa_id, eh_voip
-    Dataclass ........... ContextoMensagem
-    Enum ................ BotStep (BOOT, LGPD, ...)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
 from __future__ import annotations
 
-import contextvars
 import logging
 import re
 import unicodedata
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 from uuid import uuid4
 
 from redis.asyncio import Redis
@@ -81,10 +61,7 @@ from sqlalchemy.orm import Session
 
 from app.adapters import BaseMessageAdapter, get_adapter
 from app.core.config import settings
-from app.exceptions import (
-    AcessoNegadoError,
-    RecursoNaoEncontradoError,
-)
+from app.exceptions import RecursoNaoEncontradoError
 from app.models import (
     Atendimento,
     AtendimentoContexto,
@@ -92,7 +69,7 @@ from app.models import (
     Conexao,
     Contato,
     Menu,
-    Usuario,
+    MenuItem,           # 🔧 FIX 1: importar MenuItem (antes faltava)
 )
 from app.models.enums import StatusAtendimento
 from app.services import audio_service
@@ -110,13 +87,18 @@ RODAPE = "Digite uma opção:"
 #: TTL do cache do atendimento ativo (segundos)
 CACHE_ATENDIMENTO_TTL: int = 300
 
+#: Prefixo usado no `rowId` dos canais do hub. Usar ID imutável evita
+#: colisão entre apelidos parecidos ("Suporte" x "Suporte VIP") e também
+#: evita que o cliente injete um apelido arbitrário no lugar do ID.
+CANAL_ROW_PREFIX = "CANAL_"
+
 #: Regex para remover emojis antes de gerar áudio
 EMOJI_RE = re.compile(
     "["
-    "\U0001F600-\U0001F64F"     # emoticons
-    "\U0001F300-\U0001F5FF"     # símbolos e pictogramas
-    "\U0001F680-\U0001F6FF"     # transporte e símbolos de mapa
-    "\U0001F1E0-\U0001F1FF"     # bandeiras
+    "\U0001F600-\U0001F64F"
+    "\U0001F300-\U0001F5FF"
+    "\U0001F680-\U0001F6FF"
+    "\U0001F1E0-\U0001F1FF"
     "\U00002702-\U000027B0"
     "\U000024C2-\U0001F251"
     "]+",
@@ -132,19 +114,11 @@ FRASES_DESATIVAR_AUDIO = {"texto", "parar audio", "desativar audio"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# ENUMS TIPADOS — substituem strings mágicas
+# ENUMS TIPADOS
 # ═══════════════════════════════════════════════════════════════════════════
 
 class BotStep(str, Enum):
-    """
-    Estados da máquina de conversa.
-
-    Por que Enum e não strings soltas:
-        • Autocomplete em IDEs
-        • Erros de digitação viram AttributeError (não falha silenciosa)
-        • Refactor seguro: rename propaga por todo o código
-        • Documentação implícita do fluxo
-    """
+    """Estados da máquina de conversa."""
     BOOT             = "BOOT"
     AGUARDAR_LGPD    = "AGUARDAR_LGPD"
     AGUARDAR_NOME    = "AGUARDAR_NOME"
@@ -155,24 +129,12 @@ class BotStep(str, Enum):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# DATACLASS — carrega dados da mensagem sem lógica
+# DATACLASS
 # ═══════════════════════════════════════════════════════════════════════════
 
 @dataclass(frozen=True)
 class ContextoMensagem:
-    """
-    Dados imutáveis da mensagem recebida.
-
-    Por que dataclass:
-        • Sem boilerplate de __init__, __repr__, __eq__
-        • `frozen=True` torna imutável (evita efeitos colaterais)
-        • Type hints explícitos
-
-    Por que não dict:
-        • Acesso por atributo (msg.content) em vez de chave (msg["content"])
-        • Autocomplete na IDE
-        • Se um campo for removido, o type checker acusa
-    """
+    """Dados imutáveis da mensagem recebida."""
     remote_jid: str
     push_name: Optional[str]
     msg_type: str
@@ -180,28 +142,19 @@ class ContextoMensagem:
 
     @property
     def telefone(self) -> str:
-        """Extrai o telefone limpo do remote_jid."""
         return self.remote_jid.replace("@s.whatsapp.net", "")
 
     @property
     def eh_grupo(self) -> bool:
-        """True se a mensagem veio de um grupo WhatsApp."""
         return self.remote_jid.endswith("@g.us")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# EXCEÇÕES DE DOMÍNIO — erros específicos do negócio
+# EXCEÇÕES DE DOMÍNIO
 # ═══════════════════════════════════════════════════════════════════════════
 
 class BotError(Exception):
-    """
-    Exceção base do bot.
-
-    Por que criar exceções próprias:
-        • Permite capturar `except BotError` e tratar só o que é do domínio
-        • Diferencia de erro de programação (AttributeError, KeyError)
-        • Documenta os modos de falha esperados
-    """
+    """Exceção base do bot."""
 
 
 class ConexaoInativaError(BotError):
@@ -209,32 +162,19 @@ class ConexaoInativaError(BotError):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CLASSE PRINCIPAL — BotService
+# CLASSE PRINCIPAL
 # ═══════════════════════════════════════════════════════════════════════════
 
 class BotService:
     """
     Orquestrador do fluxo de bot.
 
-    ─────────────────────────────────────────────────────────────────────
-    CONCEITOS DE POO
-    ─────────────────────────────────────────────────────────────────────
-    • CLASSE: o molde. Descreve o que um BotService tem e faz.
-    • OBJETO: cada requisição cria um `BotService(db, conexao, redis)`.
-    • ESTADO: `self.db`, `self.conexao`, `self.atendimento`.
-    • COMPOSIÇÃO: BotService TEM um Redis, uma Conexao, uma Session.
-    • ENCAPSULAMENTO: métodos privados (prefixo `_`) para uso interno;
-      só `processar_mensagem()` é público.
-    • INJEÇÃO DE DEPENDÊNCIA: `db`, `conexao` e `redis` vêm de fora,
-      via construtor — permite trocar por mocks em testes.
-
-    ─────────────────────────────────────────────────────────────────────
-    CICLO DE VIDA
-    ─────────────────────────────────────────────────────────────────────
-        1. __init__          → recebe dependências
-        2. processar_mensagem() → executa o fluxo
-        3. (fim)             → objeto é descartado (stateless fora dos
-                                atributos de request)
+    REGRA DE OURO DESTA CLASSE
+    ──────────────────────────
+    Nenhuma query pode omitir `empresa_id` (ou chegar a ele via join com
+    uma entidade que já o possua). Todo acesso a dado multi-tenant passa
+    por `self.empresa_id`, que por sua vez vem de `self.conexao` — nunca
+    do payload do cliente.
     """
 
     def __init__(
@@ -244,48 +184,14 @@ class BotService:
         redis: Redis,
         adapter: Optional[BaseMessageAdapter] = None,
     ) -> None:
-        """
-        Construtor — recebe dependências prontas.
-
-        ─────────────────────────────────────────────────────────────────
-        POR QUE RECEBER `conexao` JÁ RESOLVIDA
-        ─────────────────────────────────────────────────────────────────
-        A resolução "instance_nome → Conexao" acontece no `from_webhook`
-        (factory). Aqui já recebemos o objeto pronto — isso:
-            • Reduz responsabilidade desta classe
-            • Facilita testar (podemos passar uma Conexao fake)
-            • Elimina uma query por requisição
-
-        ─────────────────────────────────────────────────────────────────
-        POR QUE `adapter` É INJETADO
-        ─────────────────────────────────────────────────────────────────
-        Esta classe orchestra o fluxo do bot, não fala com provedor. Todo
-        envio passa por `self.adapter`, um `BaseMessageAdapter`:
-
-            • Acoplamento: o bot desconhece Evolution, Meta, Telegram e PABX
-            • Polimorfismo: trocar de provedor não altera uma linha daqui
-            • Testabilidade: passa-se um adaptador fake, sem HTTP
-
-        Se `adapter` vier `None`, a fábrica escolhe pelo tipo do canal —
-        assim o chamador não precisa saber qual adaptador usar.
-        """
         self.db = db
         self.conexao = conexao
         self.redis = redis
         self.adapter = adapter if adapter is not None else self._criar_adapter()
-        self._atendimento: Optional[Atendimento] = None  # setado depois
+        self._atendimento: Optional[Atendimento] = None
 
     def _criar_adapter(self) -> BaseMessageAdapter:
-        """
-        Resolve o adaptador a partir do canal da conexão.
-
-        ─────────────────────────────────────────────────────────────────
-        POR QUE NÃO RESOLVER NO MÓDULO
-        ─────────────────────────────────────────────────────────────────
-        A escolha do adaptador depende do `Canal.tipo` e do provedor, dados
-        que só existem depois da query da Conexao. Deixar a resolução
-        dentro da instância mantém a decisão junto de quem tem o contexto.
-        """
+        """Resolve o adaptador a partir do canal da conexão."""
         canal = getattr(self.conexao, "canal", None)
         tipo = getattr(canal, "tipo", None) or "whatsapp"
         provedor = getattr(canal, "provedor", None)
@@ -298,24 +204,16 @@ class BotService:
         return adapter
 
     # ═════════════════════════════════════════════════════════════════════
-    # PROPRIEDADES — atalhos de leitura
+    # PROPRIEDADES
     # ═════════════════════════════════════════════════════════════════════
 
     @property
     def empresa_id(self) -> int:
-        """
-        Atalho para o tenant. Toda operação desta classe usa esse valor.
-
-        Propriedade (@property) em vez de atributo comum porque:
-            • Não precisa ser setado no construtor
-            • Calculado sob demanda (a partir de self.conexao)
-            • Impossível setar acidentalmente (`bot.empresa_id = X` falha)
-        """
+        """Tenant da conexão. Fonte única de verdade do isolamento."""
         return self.conexao.empresa_id
 
     @property
     def atendimento(self) -> Atendimento:
-        """Atalho para o atendimento ativo. Erro se não inicializado."""
         if self._atendimento is None:
             raise BotError(
                 "Atendimento não inicializado. Chame _buscar_ou_criar antes."
@@ -324,11 +222,34 @@ class BotService:
 
     @property
     def eh_voip(self) -> bool:
-        """True se a conexão é de telefonia IP (PABX/VoIP)."""
         return getattr(self.conexao, "telefone_id", None) is not None
 
     # ═════════════════════════════════════════════════════════════════════
-    # FACTORY — cria a instância a partir do webhook
+    # TRANSAÇÃO ATÔMICA  [🔧 FIX 6 — método citado no docstring mas ausente]
+    # ═════════════════════════════════════════════════════════════════════
+
+    @contextmanager
+    def _transaction(self) -> Iterator[Session]:
+        """
+        Context manager que faz commit/rollback de bloco.
+
+        Uso:
+            with self._transaction():
+                self.db.add(obj1)
+                self.db.add(obj2)
+            # commit automático
+
+        Se algo falhar no bloco, faz rollback e propaga o erro.
+        """
+        try:
+            yield self.db
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
+    # ═════════════════════════════════════════════════════════════════════
+    # FACTORY
     # ═════════════════════════════════════════════════════════════════════
 
     @classmethod
@@ -338,30 +259,6 @@ class BotService:
         redis: Redis,
         instance_nome: str,
     ) -> "BotService":
-        """
-        Factory — resolve a conexão e retorna um BotService pronto.
-
-        ─────────────────────────────────────────────────────────────────
-        POR QUE @classmethod (e não @staticmethod)
-        ─────────────────────────────────────────────────────────────────
-        Um `@classmethod` recebe `cls` (a classe) como primeiro argumento.
-        Isso permite criar a instância com `cls(db, conexao, redis)`,
-        respeitando subclasses se existirem no futuro.
-
-        @staticmethod não recebe nem `self` nem `cls` — seria só uma
-        função solta dentro da classe (útil, mas não para factory).
-
-        ─────────────────────────────────────────────────────────────────
-        POR QUE UMA FACTORY (e não mais um parâmetro no __init__)
-        ─────────────────────────────────────────────────────────────────
-        A resolução "instance_nome → Conexao" envolve:
-            • Query no banco
-            • Validação de existência
-            • Validação de status ativo
-            • Levantar exceção se falhar
-        Isso é MUITA responsabilidade para o construtor. A factory
-        isola essa complexidade e deixa o __init__ limpo.
-        """
         stmt = select(Conexao).where(
             Conexao.nome_instancia == instance_nome,
             Conexao.ativo.is_(True),
@@ -380,31 +277,15 @@ class BotService:
         return cls(db=db, conexao=conexao, redis=redis)
 
     # ═════════════════════════════════════════════════════════════════════
-    # ENTRYPOINT PÚBLICO — o único método que o mundo externo usa
+    # ENTRYPOINT PÚBLICO
     # ═════════════════════════════════════════════════════════════════════
 
     async def processar_mensagem(self, ctx: ContextoMensagem) -> None:
-        """
-        Ponto de entrada do bot. Chamado pelo webhook.
-
-        ─────────────────────────────────────────────────────────────────
-        FLUXO
-        ─────────────────────────────────────────────────────────────────
-            1. Ignora mensagens de grupo
-            2. Busca ou cria atendimento (isolado por tenant)
-            3. Lê o step atual
-            4. Despacha para o handler do step
-            5. Captura erros → resposta amigável ao cliente
-        """
-        # ─── 1. Ignora grupos ─────────────────────────────────────────────
         if ctx.eh_grupo:
             logger.debug("bot_service | Ignorando mensagem de grupo")
             return
 
-        # ─── 2. Busca ou cria atendimento ─────────────────────────────────
         self._atendimento = await self._buscar_ou_criar(ctx)
-
-        # ─── 3. Lê o step atual ───────────────────────────────────────────
         step = self._get_step()
 
         logger.info(
@@ -413,16 +294,13 @@ class BotService:
             self.atendimento.protocolo, self.empresa_id,
         )
 
-        # ─── 4. Despacho por step ─────────────────────────────────────────
         try:
-            # Modo áudio (atalho universal, exceto em atendimento humano)
             if step != BotStep.EM_ATENDIMENTO and ctx.msg_type != "list_response":
                 if self._pedido_ativar_audio(ctx.content):
                     return await self._ativar_modo_audio(ctx.telefone)
                 if self._pedido_desativar_audio(ctx.content):
                     return await self._desativar_modo_audio(ctx.telefone)
 
-            # Handlers por step
             handler = {
                 BotStep.BOOT:           self._boot,
                 BotStep.FINALIZADO:     self._boot,
@@ -435,52 +313,27 @@ class BotService:
             if handler:
                 await handler(ctx)
             elif step == BotStep.EM_ATENDIMENTO:
-                pass  # já está com atendente humano, ignora
+                pass
             else:
                 await self._voltar_hub(ctx.telefone)
 
-        except Exception as exc:
+        except Exception:
             logger.exception(
                 "bot_service | Erro no processamento | step=%s prot=%s",
                 step.value, self.atendimento.protocolo,
             )
             await self._enviar_texto(
                 ctx.telefone,
-                (
-                    "Ocorreu um erro ao processar sua mensagem. "
-                    "Por favor, tente novamente."
-                ),
+                "Ocorreu um erro ao processar sua mensagem. "
+                "Por favor, tente novamente.",
             )
 
     # ═════════════════════════════════════════════════════════════════════
-    # MÉTODO PRIVADO — busca ou cria atendimento (CORREÇÃO IDOR)
+    # BUSCA / CRIA ATENDIMENTO — coração do isolamento multi-tenant
     # ═════════════════════════════════════════════════════════════════════
 
     async def _buscar_ou_criar(self, ctx: ContextoMensagem) -> Atendimento:
-        """
-        Busca atendimento ativo do contato NO MESMO TENANT.
-        Se não existir, cria um novo.
-
-        ─────────────────────────────────────────────────────────────────
-        ⚠️ SEGURANÇA — o coração da correção IDOR
-        ─────────────────────────────────────────────────────────────────
-        Filtro OBRIGATÓRIO por:
-            • empresa_id (tenant)
-            • canal_contratado_id (conexão)
-
-        Sem esses filtros, dois tenants com o mesmo telefone podem
-        compartilhar atendimentos — vazamento cross-tenant.
-
-        ─────────────────────────────────────────────────────────────────
-        POR QUE MÉTODO PRIVADO (`_`)
-        ─────────────────────────────────────────────────────────────────
-        Python não tem `private` real, mas o prefixo `_` é convenção:
-        sinaliza que este método é detalhe interno da classe e pode
-        mudar sem aviso. Só `processar_mensagem` é API pública.
-        """
         telefone = ctx.telefone
-
-        # ─── Tenta cache Redis primeiro ───────────────────────────────────
         cache_key = f"atendimento:{self.empresa_id}:{telefone}"
         cache_id = await self._cache_get(cache_key)
 
@@ -489,7 +342,7 @@ class BotService:
                 self.db.execute(
                     select(Atendimento).where(
                         Atendimento.id == cache_id,
-                        Atendimento.empresa_id == self.empresa_id,   # dupla checagem
+                        Atendimento.empresa_id == self.empresa_id,
                         Atendimento.deleted_at.is_(None),
                         Atendimento.status != StatusAtendimento.FINALIZADO.value,
                     )
@@ -501,16 +354,16 @@ class BotService:
                 return at
             await self._cache_del(cache_key)
 
-        # ─── Consulta PostgreSQL (isolado por tenant) ─────────────────────
         stmt = (
             select(Atendimento)
             .join(Contato)
             .where(
-                Atendimento.empresa_id == self.empresa_id,           # ✅ tenant
-                Atendimento.canal_contratado_id == self.conexao.id,  # ✅ conexão
+                Atendimento.empresa_id == self.empresa_id,
+                Atendimento.canal_contratado_id == self.conexao.id,
                 Atendimento.deleted_at.is_(None),
                 Atendimento.status != StatusAtendimento.FINALIZADO.value,
                 Contato.telefone == telefone,
+                Contato.empresa_id == self.empresa_id,   # 🔧 FIX: trava extra no join
             )
             .order_by(Atendimento.created_at.desc())
             .limit(1)
@@ -524,21 +377,14 @@ class BotService:
             await self._cache_set(cache_key, atendimento.id)
             return atendimento
 
-        # ─── Cria novo ────────────────────────────────────────────────────
         return await self._criar_atendimento(ctx)
 
     async def _criar_atendimento(self, ctx: ContextoMensagem) -> Atendimento:
-        """
-        Cria atendimento novo + contato (se necessário).
-
-        Transação atômica: se algo falhar, nada é persistido.
-        """
-        # Busca ou cria contato DENTRO do tenant
         contato = (
             self.db.execute(
                 select(Contato).where(
                     Contato.telefone == ctx.telefone,
-                    Contato.empresa_id == self.empresa_id,   # ✅ tenant
+                    Contato.empresa_id == self.empresa_id,
                     Contato.deleted_at.is_(None),
                 )
             )
@@ -554,13 +400,12 @@ class BotService:
             self.db.add(contato)
             self.db.flush()
 
-        # Cria atendimento
         at = Atendimento(
             protocolo=self._gerar_protocolo(),
             contato_id=contato.id,
             canal_contratado_id=self.conexao.id,
             empresa_id=self.empresa_id,
-            telefone_id=getattr(self.conexao, "telefone_id", None),  # condicional
+            telefone_id=getattr(self.conexao, "telefone_id", None),
             status=StatusAtendimento.AGUARDANDO.value,
             ativo=True,
             origem="bot",
@@ -569,11 +414,9 @@ class BotService:
         self.db.commit()
         self.db.refresh(at)
 
-        # Inicializa contexto
         self._set_step(at, BotStep.BOOT)
         self._set_ctx(at, "instancia", self.conexao.nome_instancia)
 
-        # Cacheia
         cache_key = f"atendimento:{self.empresa_id}:{ctx.telefone}"
         await self._cache_set(cache_key, at.id)
 
@@ -584,11 +427,10 @@ class BotService:
         return at
 
     # ═════════════════════════════════════════════════════════════════════
-    # HANDLERS DE STEP — métodos privados
+    # HANDLERS DE STEP
     # ═════════════════════════════════════════════════════════════════════
 
     async def _boot(self, ctx: ContextoMensagem) -> None:
-        """Envia saudação + termo LGPD."""
         at = self.atendimento
         if at.status == StatusAtendimento.FINALIZADO.value:
             at.status = StatusAtendimento.AGUARDANDO.value
@@ -609,7 +451,6 @@ class BotService:
         self._set_step(at, BotStep.AGUARDAR_LGPD)
 
     async def _lgpd(self, ctx: ContextoMensagem) -> None:
-        """Processa consentimento LGPD."""
         recusou = (
             (ctx.msg_type == "list_response" and ctx.content.upper() == "LGPD_RECUSADO")
             or self._normalizar(ctx.content) in {"nao", "recuso", "sair", "n"}
@@ -635,7 +476,6 @@ class BotService:
         self._set_step(self.atendimento, BotStep.AGUARDAR_NOME)
 
     async def _nome(self, ctx: ContextoMensagem) -> None:
-        """Coleta nome do cliente."""
         nome = ctx.content.strip().title()
         if len(nome) < 2:
             await self._enviar_texto(
@@ -655,7 +495,6 @@ class BotService:
         self._set_step(self.atendimento, BotStep.AGUARDAR_HUB)
 
     async def _hub(self, ctx: ContextoMensagem) -> None:
-        """Menu principal."""
         if ctx.msg_type != "list_response":
             nome = self._get_ctx(self.atendimento, "nome") or "cliente"
             await self._enviar_texto(
@@ -674,7 +513,6 @@ class BotService:
         await self._enviar_hub(ctx.telefone)
 
     async def _departamento_dinamico(self, ctx: ContextoMensagem) -> None:
-        """Seleção dentro do canal."""
         row = ctx.content.strip().upper() if ctx.msg_type == "list_response" else ""
 
         if row == "VOLTAR_HUB":
@@ -693,27 +531,32 @@ class BotService:
 
     def _resolver_canal_do_hub(self, row: str) -> Optional[CanalContratado]:
         """
-        Resolve o canal do hub a partir do `rowId` escolhido pelo cliente.
+        Resolve o canal a partir do `rowId` escolhido.
 
-        ─────────────────────────────────────────────────────────────────
-        ISOLAMENTO POR TENANT
-        ─────────────────────────────────────────────────────────────────
-        O filtro por `empresa_id` é obrigatório: sem ele, um cliente de uma
-        empresa poderia acionar o canal de outra empresa pela lista do hub.
+        🔧 FIX 3+4: antes usava `apelido.ilike(%ROW%)`, que:
+            • Colidia entre apelidos parecidos ("Suporte" x "Suporte VIP")
+            • Dependia de apelido mutável
+            • Podia casar com o canal de outra empresa se o apelido fosse igual
+
+        Agora o `rowId` é `CANAL_{id}` e resolvemos por `id` + `empresa_id`.
         """
-        if not row:
+        if not row or not row.startswith(CANAL_ROW_PREFIX):
+            return None
+
+        try:
+            canal_id = int(row.removeprefix(CANAL_ROW_PREFIX))
+        except ValueError:
             return None
 
         return (
             self.db.execute(
                 select(CanalContratado).where(
-                    CanalContratado.empresa_id == self.empresa_id,
+                    CanalContratado.id == canal_id,
+                    CanalContratado.empresa_id == self.empresa_id,  # trava tenant
                     CanalContratado.ativo.is_(True),
-                    CanalContratado.apelido.ilike(f"%{row}%"),
                 )
             )
-            .scalars()
-            .first()
+            .scalar_one_or_none()
         )
 
     async def _entrar_departamento(
@@ -724,13 +567,18 @@ class BotService:
         """
         Entra no menu de um canal específico.
 
-        O `rowId` do hub carrega o sufixo do canal; dentro do canal as
-        opções passam a ser os itens do `Menu` correspondente.
+        🔧 FIX 2: `Menu` e `MenuItem` agora filtram por `empresa_id`.
+        Sem isso, mesmo que o `canal` esteja correto, um menu de outra
+        empresa poderia ser exibido caso houvesse inconsistência de dados
+        (defesa em profundidade).
         """
+
+        # ─── Menu do canal, SEMPRE do tenant ─────────────────────────────
         menu = (
             self.db.execute(
                 select(Menu).where(
                     Menu.canal_contratado_id == canal.id,
+                    Menu.empresa_id == self.empresa_id,      # 🔧 FIX 2
                     Menu.ativo.is_(True),
                 )
             )
@@ -747,10 +595,16 @@ class BotService:
             await self._transferir_atendente(ctx.telefone)
             return
 
+        # ─── Itens do menu, SEMPRE do tenant ─────────────────────────────
         itens = (
             self.db.execute(
                 select(MenuItem)
-                .where(MenuItem.menu_id == menu.id, MenuItem.ativo.is_(True))
+                .join(Menu, MenuItem.menu_id == Menu.id)     # 🔧 FIX 2
+                .where(
+                    MenuItem.menu_id == menu.id,
+                    Menu.empresa_id == self.empresa_id,      # 🔧 FIX 2
+                    MenuItem.ativo.is_(True),
+                )
                 .order_by(MenuItem.ordem)
             )
             .scalars()
@@ -786,14 +640,12 @@ class BotService:
         self._set_step(self.atendimento, BotStep.DEPTO_DINAMICO)
 
     async def _transferir_atendente(self, telefone: str) -> None:
-        """Encaminha a conversa para a fila humana."""
         self.atendimento.status = StatusAtendimento.EM_ATENDIMENTO.value
         self.db.commit()
         self._set_step(self.atendimento, BotStep.EM_ATENDIMENTO)
         logger.info("bot_service | Transferido para atendente | prot=%s", self.atendimento.protocolo)
 
     async def _voltar_hub(self, telefone: str) -> None:
-        """Limpa o contexto do canal e reenvia o menu principal."""
         for chave in ("canal_id", "menu_id"):
             self._set_ctx(self.atendimento, chave, None)
 
@@ -802,15 +654,10 @@ class BotService:
         self._set_step(self.atendimento, BotStep.AGUARDAR_HUB)
 
     # ═════════════════════════════════════════════════════════════════════
-    # SAÍDA — única porta para o provedor, via BaseMessageAdapter
+    # SAÍDA VIA ADAPTADOR
     # ═════════════════════════════════════════════════════════════════════
-    #
-    # Nenhum handler chama o provedor diretamente. Todos passam por aqui,
-    # o que garante que uma troca de provedor (Evolution → Meta → PABX)
-    # não exige alteração em nenhum handler.
 
     async def _enviar_texto(self, telefone: str, texto: str) -> Any:
-        """Envia texto pelo adaptador do canal."""
         try:
             return await self.adapter.send_text(
                 chat_id=telefone,
@@ -830,14 +677,6 @@ class BotService:
         rows: List[Dict[str, Any]],
         footer: Optional[str] = None,
     ) -> Any:
-        """
-        Envia um menu interativo pelo adaptador do canal.
-
-        O contrato do adaptador é `send_list(..., sections=...)`, mas o
-        Evolution API e o PABX recebem `rows`. A conversão para `sections`
-        fica nesta camada, então cada adaptador deals com o formato nativo
-        do seu provedor.
-        """
         sections = [{"title": title, "rows": rows}]
         try:
             return await self.adapter.send_list(
@@ -868,11 +707,13 @@ class BotService:
             .all()
         )
 
+        # 🔧 FIX 3: rowId passa a ser CANAL_{id} — imune a colisão de apelido
+        # e resistente a injeção de texto pelo cliente.
         rows = [
             {
                 "title": c.apelido or f"Canal {c.id}",
                 "description": "",
-                "rowId": (c.apelido or str(c.id)).upper().replace(" ", "_"),
+                "rowId": f"{CANAL_ROW_PREFIX}{c.id}",
             }
             for c in canais
         ]
@@ -892,7 +733,6 @@ class BotService:
         )
 
     async def _enviar_audio(self, telefone: str, texto: str) -> Any:
-        """Envia a mensagem como áudio (modo áudio do cliente)."""
         try:
             gerado = await audio_service.gerar_audio(texto)
         except Exception:
@@ -912,15 +752,13 @@ class BotService:
             return None
 
     # ═════════════════════════════════════════════════════════════════════
-    # MODO ÁUDIO — atalhos por frase, independentes do step
+    # MODO ÁUDIO
     # ═════════════════════════════════════════════════════════════════════
 
     def _pedido_ativar_audio(self, texto: str) -> bool:
-        """True se o cliente pediu para ouvir em vez de ler."""
         return self._normalizar(texto) in FRASES_ATIVAR_AUDIO
 
     def _pedido_desativar_audio(self, texto: str) -> bool:
-        """True se o cliente pediu para voltar ao modo texto."""
         return self._normalizar(texto) in FRASES_DESATIVAR_AUDIO
 
     async def _ativar_modo_audio(self, telefone: str) -> None:
@@ -932,11 +770,10 @@ class BotService:
         await self._enviar_texto(telefone, "Modo texto ativado.")
 
     # ═════════════════════════════════════════════════════════════════════
-    # TEXTO — templates
+    # TEXTOS
     # ═════════════════════════════════════════════════════════════════════
 
     def _mensagem_boas_vindas(self) -> str:
-        """Saudação inicial. Usa a configurada; senão, monta com a empresa."""
         configurada = getattr(settings, "BOT_MENSAGEM_BOAS_VINDAS", "") or ""
         if configurada:
             return configurada
@@ -948,7 +785,6 @@ class BotService:
         )
 
     def _texto_lgpd(self) -> str:
-        """Termo de privacidade exibido no aceite."""
         lgpd_url = getattr(settings, "LGPD_URL", "") or ""
         empresa = getattr(settings, "EMPRESA_NOME", "") or "a empresa"
 
@@ -962,20 +798,13 @@ class BotService:
         return texto
 
     # ═════════════════════════════════════════════════════════════════════
-    # ESTADO DO ATENDIMENTO — step e contexto persistidos
+    # ESTADO DO ATENDIMENTO (step / contexto)
     # ═════════════════════════════════════════════════════════════════════
 
     def _set_step(self, at: Atendimento, step: BotStep) -> None:
-        """Grava o step do atendimento. `_get_step` faz a leitura."""
         self._set_ctx(at, "step", step.value)
 
     def _get_step(self) -> BotStep:
-        """
-        Lê o step atual.
-
-        Um valor ausente ou desconhecido volta para BOOT: melhor recomeçar
-        o fluxo do que travar o cliente num step que não existe mais.
-        """
         bruto = self._get_ctx(self.atendimento, "step")
         try:
             return BotStep(bruto)
@@ -988,16 +817,6 @@ class BotService:
         chave: str,
         valor: Optional[str],
     ) -> None:
-        """
-        Upsert de uma chave no contexto do atendimento.
-
-        ─────────────────────────────────────────────────────────────────
-        POR QUE UPSERT E NÃO INSERT
-        ─────────────────────────────────────────────────────────────────
-        `_set_step` é chamado a cada transição e sempre na mesma chave.
-        Sem o upsert, a segunda chamada criaria linha duplicada e a leitura
-        passaria a depender da ordem de inserção.
-        """
         if valor is None:
             self.db.execute(
                 delete(AtendimentoContexto).where(
@@ -1027,7 +846,6 @@ class BotService:
         self.db.commit()
 
     def _get_ctx(self, at: Atendimento, chave: str) -> Optional[str]:
-        """Lê uma chave do contexto. `None` se nunca foi gravada."""
         return (
             self.db.execute(
                 select(AtendimentoContexto.valor).where(
@@ -1040,11 +858,10 @@ class BotService:
         )
 
     # ═════════════════════════════════════════════════════════════════════
-    # CACHE REDIS — atendimento ativo por (tenant, telefone)
+    # CACHE REDIS
     # ═════════════════════════════════════════════════════════════════════
 
     async def _cache_get(self, chave: str) -> Optional[int]:
-        """Lê do Redis. Falha de Redis degrada para None, nunca quebra o bot."""
         try:
             bruto = await self.redis.get(chave)
         except Exception:
@@ -1053,14 +870,12 @@ class BotService:
         return int(bruto) if bruto is not None else None
 
     async def _cache_set(self, chave: str, valor: int, ttl: int = CACHE_ATENDIMENTO_TTL) -> None:
-        """Grava no Redis com TTL. Falha de Redis é logada, não propagada."""
         try:
             await self.redis.set(chave, valor, ex=ttl)
         except Exception:
             logger.warning("bot_service | Cache indisponível | set %s", chave)
 
     async def _cache_del(self, chave: str) -> None:
-        """Remove do Redis. Falha de Redis é logada, não propagada."""
         try:
             await self.redis.delete(chave)
         except Exception:
@@ -1072,13 +887,6 @@ class BotService:
 
     @staticmethod
     def _normalizar(texto: Optional[str]) -> str:
-        """
-        Minúsculas, sem acento e sem pontuação.
-
-        "Não  Concordo!" e "nao concordo" precisam casar com a mesma
-        entrada do conjunto de frases; sem isso, o atalho de áudio e a
-        comparação do LGPD falhariam por causa de um acento.
-        """
         if not texto:
             return ""
         limpo = unicodedata.normalize("NFKD", str(texto))
@@ -1087,13 +895,4 @@ class BotService:
 
     @staticmethod
     def _gerar_protocolo() -> str:
-        """
-        Protocolo legível e ordenável por data.
-
-        `PROT-AAAAMMDD-XXXXXX`: o prefixo permite indexar e o sufixo
-        curto reduz a chance de colisão no dia.
-        """
         return f"PROT-{datetime.now(timezone.utc):%Y%m%d}-{uuid4().hex[:6].upper()}"
-
-
-       
