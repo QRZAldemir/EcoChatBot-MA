@@ -1,7 +1,37 @@
+# ==============================================================================
+# ARQUIVO.....: canal_service.py
+# AUTOR.......: Aldemir Queiroz
+# EMAIL.......: queiroz@almarcx.com.br
+# PROJETO.....: EcoChatBot-MA - Sistema Multi-Tenant de Atendimento
+# MÓDULO......: Serviço de Gestão de Canais Contratados
+# VERSÃO......: 2.1.1 (Correção de imports duplicados e tipagem robusta)
+# CRIADO EM...: 2026-10-07
+# ATUALIZADO..: 2026-10-09
+# LINGUAGEM...: Python 3.12+
+# FRAMEWORK...: FastAPI / SQLAlchemy 2.0 (Async)
+# ==============================================================================
+# DESCRIÇÃO...:
+# Camada de serviço responsável pelas regras de negócio dos canais de comunicação.
+#
+# FUNCIONALIDADE:
+#   - Orquestra a criação, leitura, atualização e desativação (soft delete) de canais.
+#   - Garante isolamento multi-tenant (filtro obrigatório por empresa_id).
+#   - Valida unicidade lógica (telefone_id + tipo) por empresa.
+#   - Serializa e desserializa credenciais (JSON) de forma transparente.
+#   - Implementa proteções anti-IDOR em todas as operações de leitura/escrita.
+#
+# RELACIONAMENTOS:
+#   - Depende de: app.models.canal_models.CanalContratado (Modelo de dados).
+#   - Depende de: app.schemas.canal_schemas (Validação de entrada/saída Pydantic).
+#   - Utilizado por: app.routers.canal_router (Endpoints da API REST).
+#   - Interage com: Banco de dados PostgreSQL via AsyncSession (Unit of Work).
+# ==============================================================================
 """
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EcoChatBot-MA · Canal Service — v2.1.0
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Serviço especializado em `CanalContratado`.
+
+Responsável por isolar as regras de negócio da camada de persistência.
+O serviço NÃO decide sobre a estrutura do banco, mas garante que todas as 
+operações respeitem as restrições de tenant e integridade dos dados.
 """
 
 from __future__ import annotations
@@ -9,11 +39,14 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
+from typing import get_args  # ✅ Tipagem robusta para Python 3.12+
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from canal_contratado_models import CanalContratado
+
+# ✅ CORREÇÃO: Importação única e absoluta do modelo (sem duplicidade)
+from app.models.canal_models import CanalContratado
 
 from app.exceptions.canal_exceptions import (
     AcessoNegadoError,
@@ -23,7 +56,6 @@ from app.exceptions.canal_exceptions import (
     CanalTipoInvalidoError,
     RecursoInvalidoError,
 )
-from app.models.canal_contratado_models import CanalContratado
 from app.schemas.canal_schemas import (
     CHAVE_IDENTIFICADOR,
     CanalContratadoCreate,
@@ -33,8 +65,8 @@ from app.schemas.canal_schemas import (
 
 logger = logging.getLogger(__name__)
 
-#: Lista canônica de tipos aceitos (espelha TipoCanal do schema).
-TIPOS_VALIDOS: frozenset[str] = frozenset(TipoCanal.__args__)
+# ✅ CORREÇÃO: Extração segura dos valores do TypeAlias/Literal
+TIPOS_VALIDOS: frozenset[str] = frozenset(get_args(TipoCanal))
 
 
 class CanalService:
@@ -61,12 +93,10 @@ class CanalService:
         """
         Converte `identificador` em `credenciais[CHAVE_IDENTIFICADOR[tipo]]`
         e serializa em JSON (Text no banco).
-
         Muta `dados` in-place.
         """
         tipo = dados.get("tipo")
         identificador = dados.pop("identificador", None)
-
         credenciais = dados.get("credenciais")
 
         if identificador is not None:
@@ -97,12 +127,12 @@ class CanalService:
         *,
         incluir_inativos: bool = False,
     ) -> CanalContratado:
-        """ Anti-IDOR: filtra obrigatoriamente por empresa_id."""
+        """Anti-IDOR: filtra obrigatoriamente por empresa_id."""
         self._validar_empresa_id(empresa_id)
 
         stmt = select(CanalContratado).where(
             CanalContratado.id == canal_id,
-            CanalContratado.empresa_id == empresa_id,   # 
+            CanalContratado.empresa_id == empresa_id,
             CanalContratado.deleted_at.is_(None),
         )
         if not incluir_inativos:
@@ -124,7 +154,7 @@ class CanalService:
         ignorar_canal_id: int | None = None,
     ) -> None:
         stmt = select(CanalContratado.id).where(
-            CanalContratado.empresa_id == empresa_id,       # 
+            CanalContratado.empresa_id == empresa_id,
             CanalContratado.telefone_id == telefone_id,
             CanalContratado.tipo == tipo,
             CanalContratado.deleted_at.is_(None),
@@ -148,7 +178,7 @@ class CanalService:
         self._validar_empresa_id(empresa_id)
 
         stmt = select(CanalContratado).where(
-            CanalContratado.empresa_id == empresa_id,   # 🔒
+            CanalContratado.empresa_id == empresa_id,
             CanalContratado.deleted_at.is_(None),
         )
         if apenas_ativos:
@@ -177,10 +207,9 @@ class CanalService:
         self._validar_empresa_id(empresa_id)
 
         dados = dto.model_dump(exclude_unset=True)
-        dados.pop("empresa_id", None)   # 🔒
-        dados.pop("cliente_id", None)   # 🔒
+        dados.pop("empresa_id", None)
+        dados.pop("cliente_id", None)
 
-        # Regra de negócio: canal SEM telefone → 403
         if not dados.get("telefone_id"):
             raise CanalSemTelefoneError(
                 "Todo canal precisa estar vinculado a um telefone."
@@ -223,7 +252,7 @@ class CanalService:
     ) -> CanalContratado:
         self._validar_empresa_id(empresa_id)
 
-        canal = await self._get_do_tenant(canal_id, empresa_id)  # 🔒
+        canal = await self._get_do_tenant(canal_id, empresa_id)
 
         dados = dto.model_dump(exclude_unset=True)
         dados.pop("empresa_id", None)
@@ -234,6 +263,7 @@ class CanalService:
 
         novo_telefone = dados.get("telefone_id", canal.telefone_id)
         novo_tipo = dados.get("tipo", canal.tipo)
+        
         if novo_telefone != canal.telefone_id or novo_tipo != canal.tipo:
             await self._validar_unicidade_tipo_telefone(
                 telefone_id=novo_telefone,
@@ -263,7 +293,7 @@ class CanalService:
         self._validar_empresa_id(empresa_id)
         canal = await self._get_do_tenant(
             canal_id, empresa_id, incluir_inativos=True,
-        )  # 🔒
+        )
 
         canal.ativo = False
         canal.deleted_at = self._agora()
@@ -278,7 +308,7 @@ class CanalService:
     async def contar_canais_ativos(self, empresa_id: int) -> int:
         self._validar_empresa_id(empresa_id)
         stmt = select(func.count(CanalContratado.id)).where(
-            CanalContratado.empresa_id == empresa_id,   # 🔒
+            CanalContratado.empresa_id == empresa_id,
             CanalContratado.ativo.is_(True),
             CanalContratado.deleted_at.is_(None),
         )
@@ -289,7 +319,7 @@ class CanalService:
         stmt = (
             select(CanalContratado.tipo, func.count(CanalContratado.id))
             .where(
-                CanalContratado.empresa_id == empresa_id,   # 🔒
+                CanalContratado.empresa_id == empresa_id,
                 CanalContratado.ativo.is_(True),
                 CanalContratado.deleted_at.is_(None),
             )
