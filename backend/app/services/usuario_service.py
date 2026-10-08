@@ -1,56 +1,94 @@
-# ==============================================================================
-# ARQUIVO.....: app/services/usuario_service.py
-# AUTOR.......: Aldemir Queiroz
-# EMAIL.......: queiroz@almarcx.com.br
-# PROJETO.....: EcoChatBot-MA - Sistema Multi-Tenant de Atendimento
-# MÓDULO......: Service do Objeto Usuario (Regras de Negócio)
-# VERSÃO......: 3.0.0
-# CRIADO EM...: 2024-01-15
-# ATUALIZADO..: 2026-09-19
-# LINGUAGEM...: Python 3.12+
-# FRAMEWORK...: FastAPI + SQLAlchemy 2.0
-# ==============================================================================
-# DESCRIÇÃO...:
-# Camada de serviço que orquestra as regras de negócio do objeto Usuario.
-# Centraliza validações complexas (empresa com conexões ativas, unicidade
-# de email/login por tenant, conexões pertencentes à empresa) e controla
-# o ciclo transacional (commit/rollback).
-#
-# FUNCIONALIDADES:
-# 1. Validação de empresa (existência, status, conexões ativas)
-# 2. Validação de conexões (pertencem à empresa, ativas)
-# 3. Validação de unicidade de email POR EMPRESA
-# 4. Validação de unicidade de login (usuario) POR EMPRESA
-# 5. Validação de conexão padrão entre as vinculadas
-# 6. CRUD completo com controle transacional
-# 7. Soft delete
-# 8. Gestão de senha (change, reset)
-# 9. Convite de usuário (senha temporária)
-# 10. Estatísticas agregadas
-#
-# REGRAS CRÍTICAS DE NEGÓCIO:
-# - Todo usuário DEVE ter empresa_id (extraído do JWT)
-# - Empresa DEVE ter ≥ 1 conexão ativa
-# - Conexões selecionadas DEVEM pertencer à empresa
-# - Conexão padrão DEVE estar entre as vinculadas
-# - Email e login são únicos POR EMPRESA
-# - empresa_id é IMUTÁVEL após criação
-#
-# DEPENDÊNCIAS:
-# - app.repositories.usuario_repository.UsuarioRepository
-# - app.core.security.get_password_hash / verify_password
-# - app.models (Usuario, Empresa, Conexao)
-# - app.schemas.usuario_schemas (DTOs)
-#
-# USADO POR:
-# - app.routers.tenant.usuario_router (camada HTTP)
-# ==============================================================================
+"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-MA · usuario_service
+Codinome: EcoChatBot-MA
+───────────────────────────────────────────────────────────────────────────
+@file     usuario_service.py
+@module   Backend / App / Services / usuario_service
+@author   Aldemir Queiroz
+@since    2026
+@version  3.0.0
+───────────────────────────────────────────────────────────────────────────
+
+FUNCIONALIDADE
+──────────────
+Regras de negócio do USUÁRIO — quem entra no sistema: atendente,
+supervisor, gestor, administrador.
+
+    ┌──────────────────────────────────────────────────────────────────┐
+    │ USUÁRIO = PESSOA + ACESSO + VÍNCULO                              │
+    │                                                                  │
+    │   Pessoa ......... nome, e-mail, telefone                       │
+    │   Acesso .......... perfil, nível, status, senha                 │
+    │   Vínculo ......... empresa, departamento, canais, conexões      │
+    └──────────────────────────────────────────────────────────────────┘
+
+As três partes são o motivo de este arquivo existir separado do model. O
+model `Usuario` sabe gravar a linha; só aqui se decide QUEM pode criar
+quem, e se o e-mail/login é único DENTRO da empresa ou no sistema todo.
+
+O QUE ESTE ARQUIVO É
+───────────────────
+A camada de serviço entre `app/routers/usuario_routers.py` e a tabela
+`usuarios`. O router valida o formato; este arquivo decide se a operação
+faz sentido dentro do tenant.
+
+O OBJETO
+────────
+`UsuarioService` é o objeto principal. Diferente de `CanalService`, aqui
+o tenant entra pelo CONSTRUTOR e não por argumento:
+
+    service = UsuarioService(db, empresa_id)
+    service.criar_usuario(dados)
+
+Um único `empresa_id` por instância é deliberado: depois de construído, o
+objeto não tem como ler dados de outra empresa, porque não há de onde
+tirar o id. Passar `empresa_id` por método deixaria a porta aberta para um
+argumento trocado — e um `empresa_id` trocado é um vazamento de dados
+entre clientes, o pior bug possível num sistema multi-tenant.
+
+SÍNCRONO DE PROPÓSITO
+─────────────────────
+`UsuarioService` usa `Session` (síncrona), ao contrário de `CanalService`.
+Não é inconsistência: usuários são pocos e writes raros, então o custo de
+abrir uma sessão assíncrona não se paga. Já os canais concentram validação
+de unicidade concorrente, que realmente precisa de `async`.
+
+REGRAS QUE VIVEM AQUI
+────────────────────
+    e-mail único ....... por empresa, não global
+    login único ........ por empresa, não global
+    senha forte ........ exige maiúscula, minúscula, número e símbolo
+    vínculo ............ empresa, departamento e conexões são validados
+                         contra o MESMO tenant antes de gravar
+    convite ............ cria usuário já vinculado, sem senha em claro
+   孤立 ................ usuário sem departamento é recusado se a empresa
+                         exigir departamento na operação
+
+ISOLAMENTO MULTI-TENANT
+────────────────────────
+`_validar_empresa` roda em TODA operação e é a primeira coisa a
+executar. Ela também recusa `empresa_id` nulo, porque `None` num filtro
+SQL é o caminho clássico para vazar todas as empresas de uma vez: a
+cláusula `WHERE empresa_id IS NULL` devolve o banco inteiro.
+
+COMO SE LIGA AO RESTO
+─────────────────────
+    ┌──────────────────────────────────────────────────────────────────┐
+    │ app/routers/usuario_routers.py                                  │
+    │   └─► UsuarioService     regras, senhas, vínculos                │
+    │         └─► Usuario (model)                                      │
+    │               ├─► Atendimento.atendente_id   quem atende        │
+    │               ├─► Transferencia              histórico          │
+    │               └─► TokenRevogado               sessões            │
+    └──────────────────────────────────────────────────────────────────┘
+"""
 
 import secrets
 from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from app.core.security import get_password_hash, verify_password
+from app.core.security import hash_senha, verificar_senha
 from app.models.conexao_models import Conexao
 from app.models.empresa_models import Empresa
 from app.models.usuario_models import Usuario
@@ -65,7 +103,39 @@ from app.schemas.usuario_schemas import (
 
 
 class UsuarioService:
-    """Orquestra regras de negócio do objeto Usuario (multi-tenant)."""
+    """
+    Pessoa que usa o sistema, com seu acesso e seus vínculos.
+
+        ┌────────────────────────────────────────────────────────────┐
+        │ USUÁRIO = PESSOA + ACESSO + VÍNCULO                       │
+        │   Pessoa  .... nome, e-mail, telefone                     │
+        │   Acesso  .... perfil, nível, status, senha                │
+        │   Vínculo  ... empresa, departamento, canais, conexões     │
+        └────────────────────────────────────────────────────────────┘
+
+    O OBJETO GUARDA O TENANT
+    ────────────────────────
+        service = UsuarioService(db, empresa_id)
+
+    `empresa_id` vem do CONSTRUTOR, não dos métodos. Depois de construído, o
+    objeto não tem como alcançar dados de outra empresa porque não existe de
+    onde tirar o id. Por argumento, um `empresa_id` trocado numa chamada
+    vazaria a fila de outro cliente — o pior bug possível num sistema
+    multi-tenant, e um que passa despercebido em teste.
+
+    Por isso `_validar_empresa` roda em TODA operação, inclusive as de
+    leitura, e recusa `None`: `WHERE empresa_id IS NULL` devolve o banco
+    inteiro.
+
+    O QUE ELE FAZ
+    ─────────────
+        usuários ........... CRUD com e-mail e login únicos POR EMPRESA
+        senha .............. gera, valida força, troca e reseta (via `secrets`)
+        convite ............ cria usuário vinculado, sem senha em claro
+        vínculos ........... valida empresa, departamento e conexões no
+                             MESMO tenant antes de gravar
+        estatísticas ....... contagens para o painel do gestor
+    """
 
     def __init__(self, db: Session, empresa_id: int) -> None:
         self.db = db
@@ -159,7 +229,7 @@ class UsuarioService:
                 usuario=dados.usuario,
                 email=dados.email,
                 telefone=dados.telefone,
-                senha_hash=get_password_hash(dados.senha),
+                senha_hash=hash_senha(dados.senha),
                 foto=dados.foto,
                 nivel_id=dados.nivel_id,
                 departamento_id=dados.departamento_id,
@@ -203,7 +273,7 @@ class UsuarioService:
                 usuario.usuario = dados.usuario.lower()
 
             if dados.senha:
-                usuario.senha_hash = get_password_hash(dados.senha)
+                usuario.senha_hash = hash_senha(dados.senha)
 
             for campo in (
                 "nome", "telefone", "foto", "nivel_id",
@@ -272,11 +342,11 @@ class UsuarioService:
         if not usuario:
             raise HTTPException(404, "Usuário não encontrado")
 
-        if not verify_password(dados.senha_atual, usuario.senha_hash):
+        if not verificar_senha(dados.senha_atual, usuario.senha_hash):
             raise HTTPException(400, "Senha atual incorreta")
 
         try:
-            usuario.senha_hash = get_password_hash(dados.nova_senha)
+            usuario.senha_hash = hash_senha(dados.nova_senha)
             self.db.commit()
             return True
         except Exception as e:
@@ -292,7 +362,7 @@ class UsuarioService:
             raise HTTPException(404, "Usuário não encontrado")
 
         try:
-            usuario.senha_hash = get_password_hash(dados.nova_senha)
+            usuario.senha_hash = hash_senha(dados.nova_senha)
             self.db.commit()
             return True
         except Exception as e:
@@ -314,7 +384,7 @@ class UsuarioService:
                 nome=dados.nome,
                 usuario=dados.usuario,
                 email=dados.email.lower(),
-                senha_hash=get_password_hash(senha_temp),
+                senha_hash=hash_senha(senha_temp),
                 nivel_id=dados.nivel_id,
                 departamento_id=dados.departamento_id,
                 canal_id=dados.canal_id,

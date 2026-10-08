@@ -91,19 +91,3 @@ class Conexao(TimestampMixin, TenantMixin, SoftDeleteMixin, Base):
     canal_contratado: Mapped["CanalContratado"] = relationship(back_populates="conexoes")
 
 
-__all__ = ["Conexao"]
-
-# backend/app/models/conexao_models.py (Exemplo)
-class Conexao(Base):
-    __tablename__ = "conexoes"
-    
-    id = Column(Integer, primary_key=True)
-    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True) # OBRIGATÓRIO
-    canal_id = Column(Integer, ForeignKey("canais.id"), nullable=False)
-    nome_instancia = Column(String(100), unique=True, nullable=False) # Ex: "evolution_empresa_x_whatsapp"
-    token_webhook = Column(String(255), unique=True, nullable=False) # Usado para validar a origem do webhook
-
-    # Relacionamentos
-    empresa = relationship("Empresa", back_populates="conexoes")
-    canal = relationship("Canal", back_populates="conexoes")
-    atendimentos = relationship("Atendimento", back_populates="conexao")

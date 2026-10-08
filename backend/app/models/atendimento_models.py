@@ -77,6 +77,7 @@ from app.models.enums import (
 from app.models.mixins import SoftDeleteMixin, TenantMixin, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.arquivo_models import Arquivo
     from app.models.atendimento_context_models import AtendimentoContexto
     from app.models.canal_models import Canal
     from app.models.chamada_pabx_models import ChamadaPABX
@@ -116,7 +117,7 @@ class Atendimento(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
         # Índice para o filtro por canal (atualizado para canal_id).
         Index(
             "ix_atendimentos_empresa_canal",
-            "empresa_id", "canal_id",
+            "empresa_id", "canal_contratado_id",
         ),
     )
 
@@ -133,8 +134,8 @@ class Atendimento(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     
     # A chave `canal_id` vincula este Atendimento ao Canal específico 
     # através do qual a conversa foi iniciada (ex: WhatsApp, Telegram, VoIP).
-    canal_id: Mapped[int] = mapped_column(
-        ForeignKey("canais.id", ondelete="RESTRICT"),
+    canal_contratado_id: Mapped[int] = mapped_column(
+        ForeignKey("canais_contratados.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
@@ -205,9 +206,18 @@ class Atendimento(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     # ─── Relacionamentos ──────────────────────────────────────────────────
     empresa: Mapped["Empresa"] = relationship()
     contato: Mapped["Contato"] = relationship(back_populates="atendimentos")
+
+    # Mídia do atendimento. O lado inverso de `Arquivo.atendimento`.
+    # Sem cascade: apagar o atendimento NÃO apaga o arquivo — a resposta que
+    # o cliente recebeu precisa continuar existindo para auditoria.
+    arquivos: Mapped[List["Arquivo"]] = relationship(
+        back_populates="atendimento",
+    )
     
     # Relação direta com o Canal através da chave `canal_id`.
-    canal: Mapped["Canal"] = relationship(back_populates="atendimentos")
+    canal_contratado: Mapped["CanalContratado"] = relationship(
+        back_populates="atendimentos"
+    )
     
     telefone: Mapped["Telefone | None"] = relationship()
     menu_item: Mapped["MenuItem | None"] = relationship()

@@ -1,4 +1,15 @@
 """
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-MA · relatorio_service
+Codinome: EcoChatBot-MA
+───────────────────────────────────────────────────────────────────────────
+@file     relatorio_service.py
+@module   Backend / app/services
+@author   Aldemir Queiroz
+@since    2026
+@version  1.0.0
+───────────────────────────────────────────────────────────────────────────
+
 =============================================================================
 ARQUIVO: backend/app/services/relatorio_service.py
 CAMADA:  Serviço (regras de negócio de relatório)
@@ -131,6 +142,27 @@ def _agora_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _como_utc(dt: datetime) -> datetime:
+    """
+    Normaliza um datetime para UTC com fuso.
+
+    ─────────────────────────────────────────────────────────────────────
+    POR QUE ISTO É NECESSÁRIO
+    ─────────────────────────────────────────────────────────────────────
+    A coluna `criacao` é `DateTime` SEM `timezone=True`, então o SQLAlchemy
+    devolve datetime *naive*. Já `_agora_utc()` devolve *aware*. Subtrair um
+    do outro levanta `TypeError: can't subtract offset-naive and
+    offset-aware datetimes` — e o relatório inteiro morre no primeiro
+    atendimento.
+
+    Tratar o naive como UTC é seguro porque é assim que a aplicação grava:
+    todo `datetime.now()` do serviço passa por UTC antes de persistir.
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def calcular_tempo_espera_min(
     criado_em: datetime,
     finalizado_em: datetime | None = None,
@@ -145,23 +177,39 @@ def calcular_tempo_espera_min(
         - Em aberto   -> agora - criado_em   (cálculo em tempo real)
 
     O parâmetro `agora` existe para permitir testes determinísticos.
+
+    ─────────────────────────────────────────────────────────────────────
+    POR QUE NUNCA DEVOLVER NEGATIVO
+    ─────────────────────────────────────────────────────────────────────
+    Relógio de servidor adiantado, ou dado digitado errado, produz
+    finalização anterior à criação. O resultado negativo é impossível de
+    explicar para um gestor ("esperou -5 minutos?"), então o piso é 0.
     """
     if criado_em is None:
         return None
     referencia = finalizado_em if finalizado_em else (agora or _agora_utc())
-    delta: timedelta = referencia - criado_em
-    return round(delta.total_seconds() / 60, 2)
+    delta: timedelta = _como_utc(referencia) - _como_utc(criado_em)
+    return round(max(0.0, delta.total_seconds() / 60), 2)
 
 
 def formatar_tempo_espera(minutos: float | None) -> str | None:
     """
     Converte minutos para o formato humano "Xh Ymin".
-    Espelha o `tempoEsperaFmt` já retornado pelo backend para o frontend.
+
+    ─────────────────────────────────────────────────────────────────────
+    POR QUE OMITE "0h"
+    ─────────────────────────────────────────────────────────────────────
+    Porque é o que o `fmtMin` do gráfico já faz (`h>0 ? ... : mn+'min'`).
+    Sem essa alinhagem, uma espera de 45 minutos aparecia "0h 45min" na
+    tabela e "45min" no tooltip do gráfico — o mesmo número com duas
+    grafias na mesma tela, na mesma reunião.
     """
     if minutos is None or minutos < 0:
         return None
     horas = int(minutos // 60)
     mins = int(minutos % 60)
+    if horas == 0:
+        return f"{mins}min"
     return f"{horas}h {mins}min"
 
 
@@ -466,6 +514,37 @@ class RelatorioService:
                 )
             return "".join(linhas) if linhas else "<tr><td colspan='9'>Nenhum registro.</td></tr>"
 
+        def _tabela_cenarios(cenarios: Iterable[dict]) -> str:
+            """
+            Monta as linhas da tabela de cenários no SERVIDOR.
+
+            ─────────────────────────────────────────────────────────────────────
+            POR QUE NÃO CONSTRUIR ISSO EM JAVASCRIPT
+            ─────────────────────────────────────────────────────────────────────
+            Porque este relatório é anexo de e-mail. Cliente de e-mail
+            remove `<script>` por padrão — um gráfico montado em JS
+            chegaria ao gestor em branco, sem aviso nenhum. A barra é CSS
+            puro dentro da célula, então sobrevive a e-mail, PDF e
+            navegador.
+
+            É a diferença entre "o relatório chegou" e "o relatório chegou
+            com um buraco onde deveria ter o número".
+            """
+            linhas = []
+            for c in cenarios:
+                pct = float(c["pct"])
+                nova = float(c["nova_taxa"])
+                delta = float(c["delta_pp"])
+                linhas.append(
+                    f"<tr><td><strong>+{pct:.0f}%</strong></td>"
+                    f"<td>{c['recuperados']}</td>"
+                    f"<td style='width:42%'>"
+                    f"<div class='bar'><div class='fill' style='width:{nova:.1f}%'></div></div>"
+                    f"<strong>{nova:.1f}%</strong></td>"
+                    f"<td>+{delta:.1f} p.p.</td></tr>"
+                )
+            return "".join(linhas) if linhas else "<tr><td colspan='4'>Nenhum cenário.</td></tr>"
+
         html = _TEMPLATE_AUDITORIA.format(
             periodo=periodo_label,
             gerado_em=datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
@@ -478,7 +557,7 @@ class RelatorioService:
             linhas_direcionado=_tabela(grupos["direcionado"], "direcionado"),
             linhas_robo=_tabela(grupos["robo"], "robo"),
             linhas_aguardando=_tabela(grupos["aguardando"], "aguardando"),
-            cenarios_json=json.dumps(indicadores["cenarios"], ensure_ascii=False),
+            linhas_cenarios=_tabela_cenarios(indicadores["cenarios"]),
         )
 
         caminho_saida.parent.mkdir(parents=True, exist_ok=True)
@@ -615,6 +694,10 @@ table{{width:100%;border-collapse:collapse;font-size:11.5px;}}
 th{{padding:8px;background:#faf9f8;font-size:10px;text-transform:uppercase;text-align:left;}}
 td{{padding:8px;border-bottom:1px solid #f0ece8;}}
 .respcol{{border:1px dashed #d6d3d1;border-radius:6px;padding:4px 6px;min-width:120px;display:inline-block;}}
+.hint{{font-size:11px;color:#78716c;margin:0 0 12px;}}
+.bar{{background:#f0ece8;border-radius:999px;height:9px;overflow:hidden;margin-bottom:4px;}}
+.fill{{background:linear-gradient(90deg,#2563eb,#15803d);height:100%;border-radius:999px;}}
+td[colspan]{{text-align:center;color:#a1a1aa;font-style:italic;}}
 </style></head><body>
 <div class="wrap">
   <div class="sec"><div class="sh"><h2>Indicadores Gerais</h2></div><div class="bd">
@@ -637,4 +720,24 @@ td{{padding:8px;border-bottom:1px solid #f0ece8;}}
     <tbody>{linhas_direcionado}</tbody></table>
   </div></div>
 
-  <div class="sec"><div class="sh
+  <div class="sec"><div class="sh"><h2>🤖 Tipo 3 — Robô Fechou</h2></div><div class="bd">
+    <table><thead><tr><th>Nome</th><th>Departamento</th><th>Telefone</th><th>Protocolo</th><th>Criado em</th><th>Iniciado por</th><th>Tempo</th><th>Responsável</th><th>Observações</th></tr></thead>
+    <tbody>{linhas_robo}</tbody></table>
+  </div></div>
+
+  <div class="sec"><div class="sh"><h2>🟡 Tipo 4 — Aguardando Resposta</h2></div><div class="bd">
+    <table><thead><tr><th>Nome</th><th>Departamento</th><th>Telefone</th><th>Protocolo</th><th>Criado em</th><th>Iniciado por</th><th>Tempo</th><th>Responsável</th><th>Observações</th></tr></thead>
+    <tbody>{linhas_aguardando}</tbody></table>
+  </div></div>
+
+  <div class="sec"><div class="sh"><h2>📈 Cenários de Recuperação</h2></div><div class="bd">
+    <p class="hint">Se o time recuperar parte dos atendimentos pendentes (críticos, direcionados, robô e aguardando), a taxa de sucesso chega a:</p>
+    <table><thead><tr><th>Recuperação</th><th>Atendimentos recuperados</th><th>Nova taxa de sucesso</th><th>Ganho</th></tr></thead>
+    <tbody>{linhas_cenarios}</tbody></table>
+  </div></div>
+
+  <p style="text-align:center;font-size:10px;color:#a1a1aa">Gerado em {gerado_em} · EcoChatBot-MA · Periodo: {periodo}</p>
+</div>
+</body></html>"""
+
+

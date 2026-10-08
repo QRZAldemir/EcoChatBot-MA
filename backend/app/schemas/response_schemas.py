@@ -24,8 +24,10 @@ REGRAS DE NEGÓCIO
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Generic, List, Optional, TypeVar, Union
 from pydantic import BaseModel, Field
+
+T = TypeVar("T")
 
 
 class ErrorResponseDetail(BaseModel):
@@ -55,16 +57,33 @@ class ErrorResponse(BaseModel):
     detail: ErrorResponseDetail
 
 
-class SuccessResponse(BaseModel):
+class SuccessResponse(BaseModel, Generic[T]):
     """
     Schema padrão para respostas de sucesso da API.
+
+    ─────────────────────────────────────────────────────────────────────
+    POR QUE GENÉRICO
+    ─────────────────────────────────────────────────────────────────────
+    Para poder ser usado como `response_model=SuccessResponse[Canal]`.
+
+    Sem o `[T]`, o FastAPI serializa o envelope mas joga o schema real
+    fora: o OpenAPI mostraria `dados` sem tipo e o Swagger aceitaria
+    qualquer objeto — a documentação mente sobre o que a rota devolve.
+
+    ─────────────────────────────────────────────────────────────────────
+    POR QUE `dados` E NÃO O NOME DO RECURSO
+    ─────────────────────────────────────────────────────────────────────
+    O envelope é o mesmo em toda a API. Se cada rota nomeasse o seu
+    (`canal`, `mensagens`, `registros`), o frontend teria um `if` por
+    endpoint. Com `dados`, uma tela nova consome qualquer rota sem
+    bespoke.
     """
     mensagem: str = Field(
         ...,
         description="Mensagem de sucesso",
         examples=["Recurso criado com sucesso"],
     )
-    dados: Optional[Any] = Field(
+    dados: Optional[T] = Field(
         default=None,
         description="Dados retornados pela operação",
     )

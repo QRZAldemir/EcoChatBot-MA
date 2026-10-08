@@ -23,7 +23,7 @@ REGRAS DE NEGÓCIO
 """
 
 from fastapi import HTTPException, status
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 
 class EcoChatBotException(Exception):

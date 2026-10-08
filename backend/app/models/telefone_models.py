@@ -122,7 +122,7 @@ class Telefone(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
 
     # ─── Relacionamentos ──────────────────────────────────────────────────
     empresa: Mapped["Empresa"] = relationship(back_populates="telefones")
-    canais: Mapped[List["CanalContratado"]] = relationship(
+    canais_contratados: Mapped[List["CanalContratado"]] = relationship(
         back_populates="telefone", cascade="all, delete-orphan"
     )
 

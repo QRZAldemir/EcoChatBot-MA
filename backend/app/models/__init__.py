@@ -1,58 +1,69 @@
 """
-================================================================================
-EcoChatBot-MA · Pacote de Models
-@author  Aldemir Queiroz
-@since   2026
-@version 3.0.0
-================================================================================
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-MA · Models · Índice do pacote
+Codinome: EcoChatBot-MA
+───────────────────────────────────────────────────────────────────────────
+@file     __init__.py
+@module   Backend / app/models
+@author   Aldemir Queiroz
+@since    2026
+@version  3.0.0
+───────────────────────────────────────────────────────────────────────────
 
-SUMÁRIO
--------
-[1] O QUE ESTE ARQUIVO É
-[2] CONJUNTO DE MODELS
-[3] TABELAS LEGADAS AINDA VIVAS
-[4] O QUE FOI REMOVIDO E POR QUÊ
-================================================================================
+FUNCIONALIDADE
+──────────────
+Ponto único de importação dos models do domínio. Este arquivo não cria
+entidades novas: ele reexporta as classes dos 24 módulos `*_models.py` do
+pacote e declara duas tabelas legadas que ainda escrevem no banco.
 
-[1] O QUE ESTE ARQUIVO É
------------------------
-    Ponto único de importação dos models. NÃO define mais nenhuma entidade do
-    domínio: todas moram nos módulos `*_models.py`. Este arquivo apenas
-    reexporta, para o código legado continuar importando de um lugar só.
+O QUE ESTE ARQUIVO É
+───────────────────
+O índice do pacote `app.models`. A lista `__all__` com 31 nomes é o contrato
+público: define o que `from app.models import X` aceita. Os serviços e
+routers importam por aqui; ninguém importa `atendimento_models` diretamente
+quando só quer a classe.
 
-        from app.models import Usuario, CanalContratado   # funciona
-        import app.models; app.models.Usuario              # funciona
+OS OBJETOS REEXPORTADOS
+───────────────────────
+Os 24 `from app.models.<modulo> import ...` trazem o conjunto canônico:
+Atendimento, AtendimentoContexto, Assinatura, Base, Campanha, CanalContratado,
+ChamadaPABX, Cliente, Conexao, Contato, ContatoCanal, Departamento, EmailLog,
+EmailTemplate, Empresa, InstanciaChatbot, Menu, MenuItem, ModeloMensagem,
+NivelUsuario, Pedido, PedidoItem, Roteiro, Telefone, TokenRevogado,
+Transferencia, Usuario e UsuarioCanal.
 
-[2] CONJUNTO DE MODELS
----------------------
-    O domínio canônico está em `app/models/*_models.py`. Cada arquivo traz
-    cabeçalho com FUNCIONALIDADE, EXEMPLO PRÁTICO, RELACIONAMENTO e
-    REGRAS DE NEGÓCIO. aplication usa SQLAlchemy 2.0 (Mapped/mapped_column).
+DUAS CLASSES DECLARADAS AQUI
+────────────────────────────
+    EmailEnviado    — tabela `emails_enviados`: histórico do e-mail avulso
+                      enviado pela central de e-mail. Colunas: contato_id,
+                      destinatario, assunto, corpo, status, erro_mensagem,
+                      enviado_em, criado_em.
+    CampanhaContato — tabela `campanha_contatos`: o status individual do
+                      disparo para cada destinatário de uma campanha.
+As duas usam o estilo antigo (`Column`), relationship unidirecional e nenhum
+mixin: foram preservadas porque `email_service` e `campanha_service` ainda as
+consomem como estão.
 
-[3] TABELAS LEGADAS AINDA VIVAS
--------------------------------
-    Três tabelas continuam em uso e por isso seguem declaradas aqui, com
-    relacionamento unidirecional, porque suas ligações antigas apontam para
-    colunas que não existem mais no conjunto canônico:
+POR QUE OS RE-EXPORTS EXISTEM
+─────────────────────────────
+Para quebrar o import circular. Os módulos de model referenciam uns aos
+outros em `relationship(back_populates=...)`, e os services importam o
+domínio inteiro de um lugar só. Concentrar aqui quebra o ciclo: o
+`app.models` é a folha, ninguém precisa voltar a ele.
 
-        Canal           ('canais')  — removido: ver [4]
-        MenuOpcao       ('menu_opcoes') — removido: ver [4]
-        EmailEnviado    ('emails_enviados') — e-mail avulso da central de e-mail
-        CampanhaContato ('campanha_contatos') — status por destinatário
-        Arquivo         ('arquivos') — mídia da biblioteca de chat
+O IMPORT DE `app.models` É OBRIGATÓRIO PARA O ALEMBIC
+─────────────────────────────────────────────────────
+`alembic/env.py` faz `import app.models` de propósito. Um model que existe no
+arquivo mas não foi importado não entra no `Base.metadata`, e o autogenerate
+então produz uma migration vazia — que apaga coluna em produção.
 
-[4] O QUE FOI REMOVIDO E POR QUÊ
---------------------------------
-    `Canal` — a tabela `canais` era o eixo do modelo antigo: `Usuario.canal_id`
-    e `Menu.canal_id` apontavam para ela, o que amarrava o atendente a UM
-    canal único e deixava o canal sem a dimensão do contrato. Hoje o canal é um
-    ITEM DO CONTRATO (`canais_contratados`) e o vínculo atendente↔canal é
-    N:M decidido pelo gestor (`usuarios_canais`). Manter `canais` obrigaria
-    ressuscitar as duas colunas que acabamos de remover.
-
-    `MenuOpcao` — substituída por `MenuItem` (`menu_itens`), que já é o modelo
-    canônico de opção de menu.
-================================================================================
+RELACIONAMENTO
+──────────────
+    ↓ importa        app/models/*_models.py (24 módulos canônicos)
+    ↓ consumido por   app/services/*, app/security.py, app/database.py,
+                     app/routers/tenant/atendimentos.py
+    ↓ exige          alembic/env.py (metadata completa), init_db.py
+    ↑ importa        app/models/base.py (Base) — a raiz do metadata
 """
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -81,6 +92,7 @@ from app.models.chamada_pabx_models import ChamadaPABX
 from app.models.cliente_models import Cliente
 from app.models.conexao_models import Conexao
 from app.models.contato_models import Contato, ContatoCanal
+from app.models.arquivo_models import Arquivo
 from app.models.departamento_models import Departamento
 from app.models.email_models import EmailLog, EmailTemplate
 from app.models.empresa_models import Empresa, InstanciaChatbot
@@ -133,21 +145,6 @@ class CampanhaContato(Base):
     contato = relationship("Contato")
 
 
-class Arquivo(Base):
-    """Biblioteca de mídia do chat — arquivos trocados nos atendimentos, reutilizáveis em respostas."""
-
-    __tablename__ = "arquivos"
-
-    id = Column(Integer, primary_key=True, index=True)
-    nome_original = Column(String(200), nullable=False)
-    nome_arquivo = Column(String(200), nullable=False)  # uploads/arquivos/
-    tipo_mime = Column(String(100))
-    tamanho_bytes = Column(Integer)
-    descricao = Column(String(300))
-    atendimento_id = Column(Integer, ForeignKey("atendimentos.id"), nullable=True)
-    criado_em = Column(DateTime, default=datetime.utcnow)
-
-    atendimento = relationship("Atendimento")
 
 
 __all__ = [

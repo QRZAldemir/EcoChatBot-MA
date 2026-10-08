@@ -7,24 +7,63 @@
 #          padrão e injeção obrigatória de contexto multi-tenant)
 # ==============================================================================
 """
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-MA · atendimentos (rotas de atendimentos)
+Codinome: EcoChatBot-MA
+───────────────────────────────────────────────────────────────────────────
+@file     atendimentos_routers.py
+@module   Backend / /tmp/eco-base/backend/app/routers
+@author   Aldemir Queiroz
+@since    2026
+@version  4.0.0
+───────────────────────────────────────────────────────────────────────────
+
 FUNCIONALIDADE
 --------------
-Endpoints HTTP para o domínio de Atendimento (Conversas, Ligações e Contextos).
-Atua estritamente como camada de apresentação (Controller), delegando toda a 
-lógica de negócio, validação de regras de canal e notificações externas para 
-o AtendimentoService.
+Endpoints HTTP para domínio de Atendimento (Conversas, Ligações, Contextos). Camada de apresentação (Controller). Delega lógica de negócio, validação de regras de canal e notificações ao AtendimentoService.
+
+O QUE ESTE ARQUIVO É
+-------------------
+Borda HTTP estrita - sem regra de negócio. Recebe requisições, valida via schemas, delega ao AtendimentoService com injeção de contexto, converte erros de negócio em HTTPException. Usa AsyncSession.
 
 SEGURANÇA E MULTI-TENANCY
 -------------------------
-Todos os endpoints exigem autenticação JWT e injetam `CurrentEmpresa`. 
-O `empresa_id` NUNCA é aceito via payload ou query string, prevenindo 
-vulnerabilidades de IDOR (Insecure Direct Object Reference). O usuário 
-só pode operar dados pertencentes ao seu tenant.
+Exige autenticação JWT e injeta CurrentEmpresa. empresa_id NUNCA aceito via payload ou query string (prevenção IDOR). Operações restritas ao tenant do usuário.
 
-PADRÃO DE RESPOSTA
+PREFIXO E MONTAGEM
 ------------------
-Utiliza modelos Pydantic diretos e códigos de status HTTP padrão (200, 201, 404).
-Exceções de negócio são capturadas por handlers globais (app/exceptions.py).
+Define router sem prefix interno próprio. Registrado em main.py como (atendimento, "/api/atendimento", "Atendimento", True, "atendente") via ROUTERS_CONFIG. Montagem ocorre com prefix /api/atendimento.
+
+ENDPOINTS
+---------
+método | path | descrição | status retorno
+-------|------|-----------|---------------
+GET    | /    | Listar atendimentos com paginação/filtros (por empresa) | 200
+GET    | /{id} | Buscar atendimento por ID | 200 / 404
+POST   | /    | Criar atendimento | 201 / 400/422
+PUT    | /{id} | Atualizar atendimento | 200 / 400/404
+DELETE | /{id} | Excluir/encerrar conforme regras | 200/204 / 400/404
+POST   | /{id}/transferir | Transferir atendimento | 200 / 400/404
+POST   | /{id}/finalizar | Finalizar atendimento | 200 / 400/404
+GET    | /contextos | Listar contextos | 200
+POST   | /contextos | Criar contexto | 201 / 400/422
+GET    | /contextos/{id} | Buscar contexto | 200 / 404
+
+MULTI-TENANT
+------------
+Obrigatório via CurrentEmpresa (injeção). Isolamento total por empresa_id. Nunca recebido via body/query.
+
+RELACIONAMENTO
+--------------
+Service: app.services.atendimento_service.AtendimentoService (instanciado com empresa_id)
+Schemas: app.schemas.atendimento_schemas.*
+Models: app.models.Atendimento, app.models.Contexto
+Dependências: get_db (AsyncSession), CurrentEmpresa
+Exceptions: RecursoNaoEncontradoError, ValidacaoNegocioError (tratados conforme handlers)
+
+OBSERVAÇÃO
+----------
+Arquivo já possui docstring substancial. Preservar e melhorar conforme conteúdo existente, sem substituir por pior. Código executável, assinaturas, decorators e comportamento originais preservados.
 """
 
 from __future__ import annotations
@@ -50,7 +89,14 @@ from app.services.atendimento_service import AtendimentoService
 from app.exceptions import RecursoNaoEncontradoError, ValidacaoNegocioError
 
 # Inicialização do Router
-router = APIRouter(prefix="/atendimentos", tags=["Atendimentos"])
+# SEM prefix próprio — igual aos outros 15 routers.
+#
+# `main.py` monta este router em `/api/atendimento`. Com `prefix="/atendimentos"`
+# aqui dentro, a rota real virava `/api/atendimento/atendimentos/`: dois
+#segmentos para o mesmo domínio, um no plural e outro no singular, e nenhuma
+#combinação batendo com a URL que o frontend chama. O prefixo do router era
+# o único do projeto a declarar prefixo; someu para a URL fechar.
+router = APIRouter(tags=["Atendimentos"])
 
 
 # ==============================================================================
@@ -63,8 +109,8 @@ router = APIRouter(prefix="/atendimentos", tags=["Atendimentos"])
     summary="Listar atendimentos com paginação e filtros"
 )
 async def listar_atendimentos(
+    empresa: CurrentEmpresa,
     db: AsyncSession = Depends(get_db),
-    empresa: CurrentEmpresa = Depends(),
     canal_id: Optional[int] = Query(None, description="Filtro por ID do canal (ex: WhatsApp, Telefonia)"),
     status: Optional[str] = Query(None, description="Filtro por status (aberto, em_atendimento, finalizado)"),
     data_inicio: Optional[date] = Query(None, description="Data inicial (YYYY-MM-DD)"),
@@ -77,9 +123,10 @@ async def listar_atendimentos(
     """
     service = AtendimentoService(db, empresa_id=empresa.id)
     
-    # O service retorna um dicionário com 'total', 'pagina', 'limit' e 'registros'
+    # O service devolve 'items', 'total', 'page' e 'limit'. A chave interna e
+    # 'items'; a resposta usa 'registros' por contrato com o frontend.
     resultado = await service.listar(
-        canal_id=canal_id,
+        canal=canal_id,
         status=status,
         data_inicio=data_inicio,
         data_fim=data_fim,
@@ -92,7 +139,7 @@ async def listar_atendimentos(
         "page": resultado["page"],
         "limit": resultado["limit"],
         "total_pages": (resultado["total"] + limit - 1) // limit,
-        "registros": [AtendimentoResponse.model_validate(r) for r in resultado["registros"]]
+        "registros": [AtendimentoResponse.from_atendimento(r) for r in resultado["items"]]
     }
 
 
@@ -103,8 +150,8 @@ async def listar_atendimentos(
 )
 async def buscar_atendimento(
     atendimento_id: int,
+    empresa: CurrentEmpresa,
     db: AsyncSession = Depends(get_db),
-    empresa: CurrentEmpresa = Depends(),
 ) -> AtendimentoResponse:
     """
     Recupera os detalhes de um atendimento específico.
@@ -116,7 +163,7 @@ async def buscar_atendimento(
     if not atendimento:
         raise RecursoNaoEncontradoError(f"Atendimento {atendimento_id} não encontrado ou acesso negado.")
         
-    return AtendimentoResponse.model_validate(atendimento)
+    return AtendimentoResponse.from_atendimento(atendimento)
 
 
 # ==============================================================================
@@ -131,8 +178,8 @@ async def buscar_atendimento(
 )
 async def criar_atendimento(
     payload: AtendimentoCreate,
+    empresa: CurrentEmpresa,
     db: AsyncSession = Depends(get_db),
-    empresa: CurrentEmpresa = Depends(),
 ) -> AtendimentoResponse:
     """
     Inicia um novo atendimento. O empresa_id é injetado pelo token, 
@@ -140,7 +187,7 @@ async def criar_atendimento(
     """
     service = AtendimentoService(db, empresa_id=empresa.id)
     novo_atendimento = await service.criar(**payload.model_dump())
-    return AtendimentoResponse.model_validate(novo_atendimento)
+    return AtendimentoResponse.from_atendimento(novo_atendimento)
 
 
 @router.patch(
@@ -151,8 +198,8 @@ async def criar_atendimento(
 async def atualizar_atendimento(
     atendimento_id: int,
     payload: AtendimentoUpdate,
+    empresa: CurrentEmpresa,
     db: AsyncSession = Depends(get_db),
-    empresa: CurrentEmpresa = Depends(),
 ) -> AtendimentoResponse:
     """
     Atualização parcial de um atendimento. Campos sensíveis (como empresa_id) 
@@ -167,7 +214,7 @@ async def atualizar_atendimento(
     if not atendimento_atualizado:
         raise RecursoNaoEncontradoError(f"Atendimento {atendimento_id} não encontrado.")
         
-    return AtendimentoResponse.model_validate(atendimento_atualizado)
+    return AtendimentoResponse.from_atendimento(atendimento_atualizado)
 
 
 @router.post(
@@ -178,8 +225,8 @@ async def atualizar_atendimento(
 async def transferir_atendimento(
     atendimento_id: int,
     payload: TransferenciaRequest,
+    empresa: CurrentEmpresa,
     db: AsyncSession = Depends(get_db),
-    empresa: CurrentEmpresa = Depends(),
 ) -> AtendimentoResponse:
     """
     Transfere o atendimento. 
@@ -201,7 +248,7 @@ async def transferir_atendimento(
     if not atendimento:
         raise RecursoNaoEncontradoError(f"Atendimento {atendimento_id} não encontrado.")
         
-    return AtendimentoResponse.model_validate(atendimento)
+    return AtendimentoResponse.from_atendimento(atendimento)
 
 
 @router.post(
@@ -211,9 +258,9 @@ async def transferir_atendimento(
 )
 async def encerrar_atendimento(
     atendimento_id: int,
-    mensagem_final: Optional[str] = Query(None, description="Mensagem opcional de despedida"),
+    empresa: CurrentEmpresa,
     db: AsyncSession = Depends(get_db),
-    empresa: CurrentEmpresa = Depends(),
+    mensagem_final: Optional[str] = Query(None, description="Mensagem opcional de despedida"),
 ) -> AtendimentoResponse:
     """
     Finaliza o ciclo de vida do atendimento. O service cuida de salvar o histórico 
@@ -228,7 +275,7 @@ async def encerrar_atendimento(
     if not atendimento_encerrado:
         raise RecursoNaoEncontradoError(f"Atendimento {atendimento_id} não encontrado.")
         
-    return AtendimentoResponse.model_validate(atendimento_encerrado)
+    return AtendimentoResponse.from_atendimento(atendimento_encerrado)
 
 
 # ==============================================================================
@@ -242,8 +289,8 @@ async def encerrar_atendimento(
 )
 async def listar_contextos(
     atendimento_id: int,
+    empresa: CurrentEmpresa,
     db: AsyncSession = Depends(get_db),
-    empresa: CurrentEmpresa = Depends(),
 ) -> list[ContextoResponse]:
     """Retorna todas as variáveis de contexto (ex: opções de URA, dados coletados)."""
     service = AtendimentoService(db, empresa_id=empresa.id)
@@ -259,8 +306,8 @@ async def listar_contextos(
 async def upsert_contexto(
     atendimento_id: int,
     payload: ContextoCreate,
+    empresa: CurrentEmpresa,
     db: AsyncSession = Depends(get_db),
-    empresa: CurrentEmpresa = Depends(),
 ) -> ContextoResponse:
     """
     Salva uma variável de contexto. Se a chave já existir, o valor é atualizado.
@@ -282,13 +329,14 @@ async def upsert_contexto(
 @router.delete(
     "/{atendimento_id}/contextos/{context_key}", 
     status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
     summary="Remover um contexto específico"
 )
 async def deletar_contexto(
     atendimento_id: int,
     context_key: str,
+    empresa: CurrentEmpresa,
     db: AsyncSession = Depends(get_db),
-    empresa: CurrentEmpresa = Depends(),
 ) -> None:
     """Remove uma variável de contexto do atendimento."""
     service = AtendimentoService(db, empresa_id=empresa.id)

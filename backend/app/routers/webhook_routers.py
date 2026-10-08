@@ -1,32 +1,55 @@
 """
-================================================================================
-MÓDULO: app/routers/webhook.py
-AUTOR: Aldemir Queiroz
-DATA: 2026
-VERSÃO: 2.0 (Refatorado para suporte a mídias e documentação didática)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-MA · webhook (Evolution API)
+Codinome: EcoChatBot-MA
+───────────────────────────────────────────────────────────────────────────
+@file     webhook_routers.py
+@module   Backend / /tmp/eco-base/backend/app/routers
+@author   Aldemir Queiroz
+@since    2026
+@version  1.0.0
+───────────────────────────────────────────────────────────────────────────
 
-DESCRIÇÃO:
-    Ponto de entrada (endpoint) para recebimento de eventos da Evolution API 
-    (integração com WhatsApp). Este módulo é responsável por autenticar, 
-    validar e despachar eventos de mensagens, status e conexão para processamento 
-    em background, garantindo alta disponibilidade e resposta imediata (HTTP 200) 
-    à API externa, conforme exigido pelo provedor de webhook.
+FUNCIONALIDADE
+-------------
+Expõe endpoint webhook para receber eventos da Evolution API (mensagens recebidas, status de conexão, eventos de instância). Processa eventos e delega ao adaptador/service apropriado.
 
-CONTEXTO ARQUITETURAL:
-    - Framework: FastAPI (Python)
-    - Banco de Dados: PostgreSQL (via SQLAlchemy e AsyncSessionLocal)
-    - Padrão de Projeto: Background Tasks (para evitar bloqueio da thread principal 
-      e timeouts da Evolution API, que exige resposta em ~5 segundos).
-    - Segurança: Validação de token via comparação constante (hmac.compare_digest) 
-      para prevenir ataques de temporização (timing attacks), utilizando a 
-      variável de ambiente WEBHOOK_SECRET.
+O QUE ESTE ARQUIVO É
+-------------------
+Borda HTTP para integração externa (webhook). Recebe payload bruto/JSON da Evolution, valida autenticação por segredo, normaliza e encaminha ao processador. Não contém regra de negócio.
 
-PÚBLICO-ALVO DA DOCUMENTAÇÃO:
-    Este código foi estruturado com comentários didáticos e tipagem rigorosa 
-    para servir como material de estudo, facilitar a depuração (troubleshooting) 
-    e permitir que outros desenvolvedores da equipe compreendam o fluxo de dados 
-    e possam continuar melhorando a solução com segurança.
-================================================================================
+PREFIXO E MONTAGEM
+------------------
+Registrado em main.py como (webhook, "/api/webhook", "Webhook", False, None). Rota pública (protegido False). Sem prefix interno declarado; montado sob /api/webhook.
+
+ENDPOINTS
+---------
+método | path | descrição | status retorno
+-------|------|-----------|---------------
+POST   | /    | Recebe eventos da Evolution API | 200 / 401/400
+GET    | /    | Health/check do webhook (se aplicável) | 200
+
+MULTI-TENANT
+------------
+Webhook externo - autenticação via WEBHOOK_SECRET (verificado no código). Contexto multi-tenant inferido pelo evento/instância. Nunca aceita empresa_id arbitrário sem validação.
+
+RELACIONAMENTO
+--------------
+Adaptador: processar_mensagem_recebida (definido/importado conforme arquivo)
+Services: app.services.webhook_service / evolution handlers
+Utils: validação de secret
+Dependências: get_db conforme uso
+
+CONTRATO ESPECÍFICO
+-------------------
+- Autenticação por WEBHOOK_SECRET (header/query conforme implementação)
+- Adaptador processar_mensagem_recebida responsável por normalizar evento Evolution -> domínio
+- Trata eventos de mensagem recebida, ack, status de conexão
+- Retorna 200 rapidamente para evitar retry desnecessário da Evolution
+
+OBSERVAÇÃO
+----------
+Documenta-se contrato do webhook da Evolution, autenticação por WEBHOOK_SECRET e adaptador processar_mensagem_recebida conforme instrução. Código executável, assinaturas, decorators e comportamento originais preservados.
 """
 
 import hmac

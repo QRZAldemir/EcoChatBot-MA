@@ -1,50 +1,81 @@
 """
-================================================================================
-MÓDULO: app/models/usuario_canal_models.py
-AUTOR: Aldemir Queiroz
-DATA: 2026-09-26
-VERSÃO: 0.1.0
-OBJETIVO: Vínculo entre o atendente e os canais que ele pode atender. Decide,
-          por dado, se o atendente atende UM canal ou VÁRIOS.
-PASTA: backend/app/models/
-================================================================================
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-MA · Models · UsuarioCanal
+Codinome: EcoChatBot-MA
+───────────────────────────────────────────────────────────────────────────
+@file     usuario_canal_models.py
+@module   Backend / app/models
+@author   Aldemir Queiroz
+@since    2026
+@version  0.1.0
+───────────────────────────────────────────────────────────────────────────
 
 FUNCIONALIDADE
 ──────────────
-    Vincula um `Usuario` a um `CanalContratado`. O gestor da empresa opera essa
-    configuração: um atendente pode estar restrito a um único canal ou atender
-    em vários. A mesma estrutura serve os dois casos — um atendente com um
-    único vínculo atende um canal; com vários vínculos, atende vários.
+Tabela de junção entre o atendente (`Usuario`) e o canal contratado
+(`CanalContratado`). É ela que decide, por dado, se a pessoa atende um
+canal só ou vários.
 
-EXEMPLO PRÁTICO
-───────────────
-    Gestor decide: atendente Ana atende SOMENTE WhatsApp
-        Vinculo(Ana, CanalContratado(whatsapp), principal=True)
+O QUE ESTE ARQUIVO É
+───────────────────
+A tabela que materializa a decisão do gestor. Um atendente restrito a um
+canal tem um vínculo; um atendente multicanal tem vários. A mesma estrutura
+serve os dois casos — não existe "tabela de canal único" e "tabela de canal
+vários", e é por isso que a pergunta "atende um ou vários?" tem resposta
+simples: quantos vínculos existem.
 
-    Gestor decide: atendente Bruno atende WhatsApp, Telegram e PABX
-        Vinculo(Bruno, CanalContratado(whatsapp), principal=True)
-        Vinculo(Bruno, CanalContratado(telegram), principal=False)
-        Vinculo(Bruno, CanalContratado(pabx),    principal=False)
+O OBJETO
+────────
+    UsuarioCanal — tabela `usuarios_canais`, herda `TimestampMixin` e `Base`:
+        id                    Integer, PK, indexada
+        usuario_id            FK usuarios.id, ON DELETE CASCADE, obrigatório
+        canal_contratado_id   FK canais_contratados.id, ON DELETE CASCADE,
+                             obrigatório
+        principal             Boolean, default=False — por qual canal o
+                             atendente é notificado primeiro
+        ativo                 Boolean, default=True — desativa o vínculo sem
+                             apagar o histórico
+        usuario               relationship(back_populates="vinculos_canal")
+        canal_contratado      relationship(back_populates="vinculos_usuario")
+    UniqueConstraint `uq_usuarios_canais_vinculo` sobre
+    (usuario_id, canal_contratado_id): um usuário não pode ter dois vínculos
+    para o mesmo canal.
 
-    `principal` indica por qual canal o atendente é notificado primeiro.
-    A restriction de "no máximo um principal por usuário" é do Service, não do
-    banco, porque o banco não sabe o que é "principal" sem regra de negócio.
+EXEMPLO DE DADOS
+────────────────
+    Ana atende só WhatsApp:
+        Vinculo(Ana, Canal(whatsapp), principal=True)
+    Bruno atende WhatsApp, Telegram e PABX:
+        Vinculo(Bruno, Canal(whatsapp), principal=True)
+        Vinculo(Bruno, Canal(telegram), principal=False)
+        Vinculo(Bruno, Canal(pabx),    principal=False)
+
+POR QUE `principal` NÃO GANHOU RESTRIÇÃO NO BANCO
+────────────────────────────────────────────────
+"Ao máximo um principal por usuário" é regra de negócio, e o banco não sabe
+o que é principal sem essa regra. Fica no service. No banco, `principal` é
+apenas uma flag que o gestor preencheu.
+
+POR QUE OS DOIS `ondelete` SÃO CASCADE
+─────────────────────────────────────
+Apagar o atendente ou cancelar o canal contratado tem que levar os vínculos
+junto: vínculo sem usuário nem canal é lixo. O histórico que NÃO pode sumir é
+o outro — `Atendimento` guarda o que aconteceu e não é apagado por aqui.
+
+POR QUE `ativo` E NÃO SÓ APAGAR
+──────────────────────────────
+`ativo=False` tira a pessoa da fila daquele canal imediatamente, sem
+destruir o passado: os atendimentos já registrados continuam apontando para
+o mesmo vínculo, e o relatório continua fechando.
 
 RELACIONAMENTO
 ──────────────
     Usuario (1) ── (N) UsuarioCanal ── (1) CanalContratado (1) ── (N) Telefone
-                                       │
-                                       └── (N) Atendimento
-                                              (originados nos canais do usuario)
-
-REGRAS DE NEGÓCIO
-─────────────────
-    • Unicidade: um usuário não pode ter dois vínculos para o MESMO canal
-    • Ao remover o vínculo, o histórico de atendimentos é preservado
-    • Desativar o vínculo (`ativo=False`) tira o atendente da fila daquele
-      canal sem apagar o passado
-================================================================================
+    UsuarioCanal ── origina ──> Atendimento
+    reexportado por app/models/__init__.py
+    referenciado em app/models/usuario_models.py e app/models/canal_models.py
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -85,8 +116,8 @@ class UsuarioCanal(TimestampMixin, Base):
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     usuario: Mapped["Usuario"] = relationship(back_populates="vinculos_canal")
-    canal: Mapped["CanalContratado"] = relationship(back_populates="vinculos_usuario")
+    canal_contratado: Mapped["CanalContratado"] = relationship(
+        back_populates="vinculos_usuario"
+    )
 
-# Deveria ser:
-from app.models.canal_contratado_models import CanalContratado   # 
 

@@ -1,20 +1,37 @@
 """
-================================================================================
-PONTO DE ENTRADA DA APLICAÇÃO (MAIN APP) - ECOCHAT MARCX API
-================================================================================
-Autor: Aldemir Queiroz da Silva
-Versão: 2.0.0 (Unificação completa: Dashboard, Segurança Avançada e CORS Multi-origem)
-Data de Criação: 03 de Julho de 2026
-Última Atualização: 18 de Setembro de 2026
-================================================================================
-FINALIDADE DO SCRIPT:
-Núcleo unificado da aplicação backend FastAPI que:
-1. Inicializa a API com metadados e documentação OpenAPI
-2. Configura segurança (CORS, headers de proteção)
-3. Registra todos os módulos de negócio (routers) com RBAC
-4. Integra o Dashboard Analítico como módulo nativo
-5. Expõe endpoints de monitoramento e health check
-================================================================================
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EcoChatBot-MA · Ponto de entrada da aplicação FastAPI
+Codinome: EcoChatBot-MA
+───────────────────────────────────────────────────────────────────────────
+@file     main.py
+@module   Backend / .
+@author   Aldemir Queiroz
+@since    2026
+@version  2.0.0
+───────────────────────────────────────────────────────────────────────────
+
+O QUE ESTE ARQUIVO É
+-------------------
+Arquivo principal (main.py) que instancia e configura a aplicação FastAPI.
+
+O OBJETO / O QUE ELE FAZ
+------------------------
+- Cria app FastAPI com metadados (title, description, version, docs/redoc/openapi)
+- Configura CORS a partir de FRONTEND_URLS
+- Middleware add_security_headers injeta headers de segurança
+- ROUTERS_CONFIG define configuração de registro (router, prefix, tag, protegido, nivel_minimo)
+- _deps_router() fabrica dependências (RBAC ou JWT)
+- Registra dinamicamente todos os routers
+- Endpoints: GET / (read_root), GET /health (health_check)
+- Execução direta com uvicorn em desenvolvimento
+
+POR QUE ...
+-----------
+Centraliza configuração da API e aplica segurança (CORS restritivo, headers de proteção). RBAC aplicado via dependências por rota.
+
+RELACIONAMENTO
+--------------
+- Importa routers de app.routers, security (exigir_nivel_minimo, obter_usuario_atual), usa FastAPI/CORSMiddleware/Depends/Request/Response
 """
 
 import os

@@ -22,7 +22,7 @@ from app.exceptions.canal_exceptions import (
     CanalTipoInvalidoError,
     RecursoInvalidoError,
 )
-from app.models.canal_contratado_models import CanalContratado
+from app.models.canal_models import CanalContratado
 from app.schemas.canal_schemas import (
     CHAVE_IDENTIFICADOR,
     CanalContratadoCreate,

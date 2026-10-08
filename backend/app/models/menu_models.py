@@ -78,8 +78,8 @@ class Menu(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     # A chave `canal_id` estabelece o vínculo direto entre este Menu e o 
     # Canal específico da plataforma. Se nulo, o menu é considerado o 
     # padrão (default) para a Empresa.
-    canal_id: Mapped[int | None] = mapped_column(
-        ForeignKey("canais.id", ondelete="CASCADE"), index=True
+    canal_contratado_id: Mapped[int | None] = mapped_column(
+        ForeignKey("canais_contratados.id", ondelete="CASCADE"), index=True
     )
 
     # ─── Apresentação ─────────────────────────────────────────────────────
@@ -100,7 +100,9 @@ class Menu(TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
 
     # ─── Relacionamentos ──────────────────────────────────────────────────
     # Relação direta com o Canal através da chave `canal_id`.
-    canal: Mapped["Canal | None"] = relationship(back_populates="menus")
+    canal_contratado: Mapped["CanalContratado | None"] = relationship(
+        back_populates="menus"
+    )
     itens: Mapped[List["MenuItem"]] = relationship(
         back_populates="menu",
         cascade="all, delete-orphan",

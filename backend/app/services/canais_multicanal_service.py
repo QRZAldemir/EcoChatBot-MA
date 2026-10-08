@@ -32,7 +32,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import LimiteCotaExcedidoError, RecursoInvalidoError
-from app.models.canal_contratado_models import CanalContratado
+from app.models.canal_models import CanalContratado
 from app.schemas.canal_schemas import CanalContratadoCreate
 from app.services.canal_service import CanalService
 

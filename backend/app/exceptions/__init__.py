@@ -46,6 +46,7 @@ from app.exceptions.base_exceptions import (
 from app.exceptions.canal_exceptions import (
     CanalException, CanalConfiguracaoInvalidaError, CanalNaoEncontradoError,
     CanalNomeDuplicadoError, CanalTipoInvalidoError, CanalWebhookError,
+    AcessoNegadoError, LimiteCotaExcedidoError,
 )
 
 # O projeto migrou a convenção de `*Exception` para `*Error` (ver
@@ -172,6 +173,21 @@ class RecursoNaoEncontradoException(EcoChatBotException):
             detail=detail,
             error_code='NOT_FOUND',
         )
+
+# Alias de compatibilidade.
+#
+# 14 módulos pedem `RecursoNaoEncontradoError`, nome que nunca foi
+# declarado — a classe real chama-se `RecursoNaoEncontradoException`.
+# Sem o alias um `except RecursoNaoEncontradoError` legado deixa de
+# capturar e a excecao vira 500 em vez de 404.
+RecursoNaoEncontradoError = RecursoNaoEncontradoException
+
+# Alias de compatibilidade.
+#
+# `atendimentos_routers.py` importa `ValidacaoNegocioError`, mas a classe real
+# chama-se `ValidacaoNegocioException`. Mesma razão do alias acima: sem ele,
+# o import do router inteiro quebra — e por consequência o app não sobe.
+ValidacaoNegocioError = ValidacaoNegocioException
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -342,7 +358,8 @@ __all__ = [
     'WebhookProcessamentoException', 'WebhookTenantNaoIdentificadoException',
     'WebhookCanalNaoIdentificadoException',
     # Nomes usados pelo código que nunca foram declarados (seção 10)
-    'NegocioException', 'ValidacaoNegocioException', 'RecursoInvalidoError',
+    'NegocioException', 'ValidacaoNegocioException', 'ValidacaoNegocioError',
+    'RecursoInvalidoError',
     'RecursoNaoEncontradoException', 'AtendimentoFinalizadoError',
     'AtendimentoNaoEncontradoError', 'NaoAutenticadoException',
 ]
