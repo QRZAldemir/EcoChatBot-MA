@@ -7,7 +7,7 @@ Codinome: EcoChatBot-MA
 @module   Backend / App / Exceptions / Canal
 @author   Aldemir Queiroz
 @since    2026
-@version  3.0.0
+@version  3.1.0 (Expandido para suportar LSP de Integração/Runtime)
 ───────────────────────────────────────────────────────────────────────────
 
 HIERARQUIA
@@ -15,16 +15,26 @@ HIERARQUIA
     Exception
       └── EcoChatBotError
             ├── RecursoNaoEncontradoError  (404)
-            ├── RecursoInvalidoError        (422)
-            ├── AcessoNegadoError           (403)
-            ├── LimiteCotaExcedidoError     (402)
-            └── CanalException (agrupador semântico)
-                  ├── CanalNaoEncontradoError
-                  ├── CanalNomeDuplicadoError
-                  ├── CanalTipoInvalidoError
-                  ├── CanalConfiguracaoInvalidaError
-                  ├── CanalWebhookError
-                  └── CanalSemTelefoneError
+            ├── RecursoInvalidoError       (422)
+            ├── AcessoNegadoError          (403)
+            ├── LimiteCotaExcedidoError    (402)
+            │
+            └── CanalException (agrupador semântico de CANAL)
+                  │
+                  ├── [SUB-DOMÍNIO: CRUD / GESTÃO]
+                  │     ├── CanalNaoEncontradoError
+                  │     ├── CanalNomeDuplicadoError
+                  │     ├── CanalTipoInvalidoError
+                  │     ├── CanalConfiguracaoInvalidaError
+                  │     ├── CanalWebhookError
+                  │     └── CanalSemTelefoneError (403)
+                  │
+                  └── [SUB-DOMÍNIO: INTEGRAÇÃO / RUNTIME (LSP)]
+                        └── CanalIntegracaoError (502 - Bad Gateway)
+                              ├── CanalEntregaFalhouError
+                              ├── CanalAutenticacaoFalhouError
+                              ├── CanalLimiteTaxaError (429)
+                              └── CanalMidiaNaoSuportadaError
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
@@ -39,9 +49,10 @@ class EcoChatBotError(Exception):
     http_status: int = 500
     codigo: str = "eco_erro_generico"
 
-    def __init__(self, mensagem: str, *, codigo: str | None = None) -> None:
+    def __init__(self, mensagem: str, *, codigo: str | None = None, detalhe: str | None = None) -> None:
         super().__init__(mensagem)
         self.mensagem = mensagem
+        self.detalhe = detalhe #  Adicionado para capturar o erro original da API externa
         if codigo:
             self.codigo = codigo
 
@@ -74,32 +85,28 @@ class LimiteCotaExcedidoError(EcoChatBotError):
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# ESPECÍFICAS DE CANAL
+# ESPECÍFICAS DE CANAL (AGRUPADOR)
 # ══════════════════════════════════════════════════════════════════════════
 class CanalException(EcoChatBotError):
     """Agrupador semântico para exceções de canal."""
     codigo = "canal_erro_generico"
 
 
+# ─── SUB-DOMÍNIO: CRUD / GESTÃO (O que você já tinha) ─────────────────
 class CanalNaoEncontradoError(RecursoNaoEncontradoError, CanalException):
     codigo = "canal_nao_encontrado"
-
 
 class CanalNomeDuplicadoError(RecursoInvalidoError, CanalException):
     codigo = "canal_nome_duplicado"
 
-
 class CanalTipoInvalidoError(RecursoInvalidoError, CanalException):
     codigo = "canal_tipo_invalido"
-
 
 class CanalConfiguracaoInvalidaError(RecursoInvalidoError, CanalException):
     codigo = "canal_configuracao_invalida"
 
-
 class CanalWebhookError(RecursoInvalidoError, CanalException):
     codigo = "canal_webhook_invalido"
-
 
 class CanalSemTelefoneError(RecursoInvalidoError, CanalException):
     """Canal sem `telefone_id` — recusa com 403 conforme regra de negócio."""
@@ -107,12 +114,60 @@ class CanalSemTelefoneError(RecursoInvalidoError, CanalException):
     codigo = "canal_sem_telefone"
 
 
+# ─── SUB-DOMÍNIO: INTEGRAÇÃO / RUNTIME (Novo - Para LSP dos Adaptadores) ─
+class CanalIntegracaoError(CanalException):
+    """
+    Base para falhas de comunicação com a API externa (Evolution, Telegram, etc).
+    Usado pelos Adaptadores (LSP) para garantir que o BotService trate 
+    todos os provedores de forma idêntica.
+    """
+    http_status = 502  # Bad Gateway (o provedor externo falhou)
+    codigo = "canal_integracao_erro"
+
+
+class CanalEntregaFalhouError(CanalIntegracaoError):
+    """
+    A API externa retornou erro de rede, timeout ou status >= 400.
+    (De-Para: ChannelDeliveryError)
+    """
+    codigo = "canal_entrega_falhou"
+
+
+class CanalAutenticacaoFalhouError(CanalIntegracaoError):
+    """
+    O token/apikey do provedor externo expirou ou é inválido (HTTP 401/403).
+    (De-Para: ChannelAuthError)
+    """
+    http_status = 401  # Unauthorized
+    codigo = "canal_autenticacao_falhou"
+
+
+class CanalLimiteTaxaError(CanalIntegracaoError):
+    """
+    O provedor externo retornou HTTP 429 (Too Many Requests).
+    (De-Para: ChannelRateLimitError)
+    """
+    http_status = 429
+    codigo = "canal_limite_taxa_excedido"
+
+
+class CanalMidiaNaoSuportadaError(CanalIntegracaoError):
+    """
+    O provedor externo não suporta o tipo de mídia (ex: enviar lista no PABX).
+    (De-Para: ChannelUnsupportedMediaError)
+    """
+    http_status = 415  # Unsupported Media Type
+    codigo = "canal_midia_nao_suportada"
+
+
 __all__ = [
+    # Base
     "EcoChatBotError",
     "RecursoNaoEncontradoError",
     "RecursoInvalidoError",
     "AcessoNegadoError",
     "LimiteCotaExcedidoError",
+    # Canal (CRUD)
     "CanalException",
     "CanalNaoEncontradoError",
     "CanalNomeDuplicadoError",
@@ -120,4 +175,10 @@ __all__ = [
     "CanalConfiguracaoInvalidaError",
     "CanalWebhookError",
     "CanalSemTelefoneError",
+    # Canal (Integração/Runtime - LSP)
+    "CanalIntegracaoError",
+    "CanalEntregaFalhouError",
+    "CanalAutenticacaoFalhouError",
+    "CanalLimiteTaxaError",
+    "CanalMidiaNaoSuportadaError",
 ]
