@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from canal_contratado_models import CanalContratado
 
 from app.exceptions.canal_exceptions import (
     AcessoNegadoError,

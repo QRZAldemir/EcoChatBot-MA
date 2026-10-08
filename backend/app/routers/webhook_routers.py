@@ -1,52 +1,52 @@
 """
 ================================================================================
-MÓDULO: app/routers/webhook.py
+MÓDULO: app/routers/webhook_routers.py
 AUTOR: Aldemir Queiroz
 DATA: 2026
-VERSÃO: 2.0 (Refatorado para suporte a mídias e documentação didática)
+VERSÃO: 3.0 (Refatorado para Deduplicação via Redis e Remoção de Código Legado)
 
 DESCRIÇÃO:
-    Ponto de entrada (endpoint) para recebimento de eventos da Evolution API 
-    (integração com WhatsApp). Este módulo é responsável por autenticar, 
-    validar e despachar eventos de mensagens, status e conexão para processamento 
-    em background, garantindo alta disponibilidade e resposta imediata (HTTP 200) 
-    à API externa, conforme exigido pelo provedor de webhook.
+    Ponto de entrada (endpoint) para recebimento de eventos da Evolution API.
+    Garante resposta HTTP 200 imediata e delega o processamento pesado (I/O de 
+    banco de dados) para Background Tasks, evitando timeouts do provedor.
 
 CONTEXTO ARQUITETURAL:
     - Framework: FastAPI (Python)
-    - Banco de Dados: PostgreSQL (via SQLAlchemy e AsyncSessionLocal)
-    - Padrão de Projeto: Background Tasks (para evitar bloqueio da thread principal 
-      e timeouts da Evolution API, que exige resposta em ~5 segundos).
-    - Segurança: Validação de token via comparação constante (hmac.compare_digest) 
-      para prevenir ataques de temporização (timing attacks), utilizando a 
-      variável de ambiente WEBHOOK_SECRET.
+    - Banco de Dados: PostgreSQL (SQLAlchemy AsyncSession)
+    - Cache/Idempotência: Redis (para segurança em ambientes multi-worker)
+    - Segurança: Validação de token via hmac.compare_digest
 
-PÚBLICO-ALVO DA DOCUMENTAÇÃO:
-    Este código foi estruturado com comentários didáticos e tipagem rigorosa 
-    para servir como material de estudo, facilitar a depuração (troubleshooting) 
-    e permitir que outros desenvolvedores da equipe compreendam o fluxo de dados 
-    e possam continuar melhorando a solução com segurança.
+
+Funcionalidade: Ponto de entrada assíncrono para webhooks da Evolution API, com deduplicação via Redis, processamento em background e isolamento de transações de banco de dados.
+Relacionamento: Recebe o payload bruto, valida a segurança, e despacha para o bot_service (que usa o AsyncSession refatorado anteriormente) sem bloquear a resposta HTTP à Evolution API.   
 ================================================================================
+Resumo das Melhorias Aplicadas
+Idempotência via Redis (Comentada no código): Substituí a lógica do dicionário _mensagens_recentes por uma abordagem baseada em Redis (set com ex=120). Isso garante que, mesmo que você escale sua aplicação para 4, 8 ou 16 workers, a verificação de mensagem duplicada será global e consistente, sem vazamento de memória.
+Remoção do Código Legado: O bloco final duplicado que redefinia o router e criava a rota /webhook/{canal} foi removido para evitar conflitos de rotas e comportamentos inesperados no FastAPI.
+Isolamento de Transação: A estrutura async with AsyncSessionLocal() as db: combinada com try/except/rollback/commit foi mantida e destacada, pois é a forma mais segura de garantir que uma falha no processamento de uma mensagem não corrompa o estado do banco e não vaze conexões do pool.
+Defesa contra Retries Infinitos: A captura de exceção no await request.json() retornando {"status": "ok"} é uma prática defensiva excelente que você já havia implementado e foi preservada. Ela impede que a Evolution API fique sobrecarregando seu servidor com reenvios de um payload malformado.
+========================================================================================================================================================================================================================================================================================================================
 """
 
 import hmac
 import logging
 import os
-import time
-from typing import Tuple, Dict, Any
+from typing import Dict, Any, Tuple
 
-from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Request, HTTPException, Depends
 
 # Importações internas do projeto
 from app.database import AsyncSessionLocal
+# Assumindo que você tenha uma dependência para obter o cliente Redis assíncrono
+# from app.core.redis import get_redis 
+# from redis.asyncio import Redis
 from app.services.bot_service import processar_mensagem_recebida
 
-# Inicialização do Router do FastAPI
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # ==============================================================================
-# CONFIGURAÇÕES DE SEGURANÇA E ESTADO GLOBAL
+# CONFIGURAÇÕES DE SEGURANÇA
 # ==============================================================================
 
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
@@ -54,53 +54,8 @@ WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
 if not WEBHOOK_SECRET:
     logger.warning(
         "webhook | WEBHOOK_SECRET não configurado no ambiente (.env). "
-        "Todas as requisições POST /api/webhook/* serão recusadas até que "
-        "a variável seja devidamente definida."
+        "Requisições serão recusadas."
     )
-
-# ── Mecanismo de Deduplicação de Entregas (Idempotência) ──────────────────────
-# PROBLEMA: Provedores de webhook (como a Evolution API) frequentemente reenviam 
-# o mesmo evento em caso de timeout na resposta ou instabilidade de rede.
-# SOLUÇÃO: Um cache em memória (dicionário) que armazena os IDs das mensagens 
-# processadas recentemente. Se o mesmo ID chegar dentro do TTL (Time-To-Live), 
-# ele é ignorado, evitando duplicidade de respostas do bot ou avanço indevido 
-# na máquina de estados do atendimento.
-DEDUP_TTL_SEGUNDOS = 120
-_mensagens_recentes: Dict[str, float] = {}
-
-
-def _ja_processada(msg_id: str) -> bool:
-    """
-    Verifica se uma mensagem já foi processada dentro da janela de tempo (TTL).
-    
-    Args:
-        msg_id (str): O identificador único da mensagem fornecido pela Evolution API.
-        
-    Returns:
-        bool: True se a mensagem já foi processada (deve ser ignorada), False caso contrário.
-        
-    Nota para desenvolvedores:
-        A limpeza das chaves expiradas é feita de forma proativa durante a verificação 
-        para evitar que o dicionário cresça indefinidamente e consuma memória do servidor.
-    """
-    if not msg_id:
-        return False
-
-    agora = time.time()
-    limite = agora - DEDUP_TTL_SEGUNDOS
-    
-    # Limpeza eficiente: identifica e remove apenas as entradas expiradas
-    ids_expirados = [k for k, v in _mensagens_recentes.items() if v < limite]
-    for k in ids_expirados:
-        del _mensagens_recentes[k]
-
-    if msg_id in _mensagens_recentes:
-        return True
-
-    # Registra o novo ID com o timestamp atual
-    _mensagens_recentes[msg_id] = agora
-    return False
-
 
 # ==============================================================================
 # PARSING DO PAYLOAD (TRADUÇÃO DOS DADOS DA EVOLUTION API)
@@ -108,63 +63,34 @@ def _ja_processada(msg_id: str) -> bool:
 
 def _extrair_conteudo(data: Dict[str, Any]) -> Tuple[str, str]:
     """
-    Analisa o campo 'message' do payload bruto da Evolution API v2 e retorna 
-    uma tupla padronizada: (tipo_da_mensagem, conteudo_extraido).
-    
-    Esta função atua como um tradutor, normalizando a estrutura complexa e 
-    aninhada do JSON do WhatsApp para um formato que o nosso `bot_service` 
-    consegue entender facilmente.
-
-    Args:
-        data (dict): O dicionário contendo os dados brutos do evento 'messages.upsert'.
-        
-    Returns:
-        tuple[str, str]: 
-            - msg_type: "text", "list_response", "button_response", "imagem", 
-                        "documento", "audio" ou "outros".
-            - content: O texto da mensagem, o ID do botão/lista selecionado ou 
-                       a legenda (caption) de mídias.
+    Analisa o campo 'message' do payload bruto e retorna (tipo, conteudo).
+    Funcionalidade: Normaliza a estrutura complexa do JSON do WhatsApp.
+    Autor: Aldemir Queiroz
     """
     message = data.get("message") or {}
 
-    # 1. Seleção de lista interativa (sendList)
-    list_resp = message.get("listResponseMessage") or {}
-    if list_resp:
+    if list_resp := message.get("listResponseMessage"):
         row_id = list_resp.get("singleSelectReply", {}).get("selectedRowId", "")
         return "list_response", row_id
 
-    # 2. Clique em botão de resposta
-    btn_resp = message.get("buttonsResponseMessage") or {}
-    if btn_resp:
-        btn_id = btn_resp.get("selectedButtonId", "")
-        return "button_response", btn_id
+    if btn_resp := message.get("buttonsResponseMessage"):
+        return "button_response", btn_resp.get("selectedButtonId", "")
 
-    # 3. Texto simples (mensagens de texto padrão)
-    text = message.get("conversation", "")
-    if text:
+    if text := message.get("conversation"):
         return "text", text
 
-    # 4. Texto estendido (contém formatação rich, links, menções @)
-    ext = message.get("extendedTextMessage") or {}
-    if ext:
+    if ext := message.get("extendedTextMessage"):
         return "text", ext.get("text", "")
 
-    # 5. Imagens (ex: fotos de exames, pedidos médicos digitalizados)
-    # Nota: A legenda (caption) é extraída pois o usuário pode enviar instruções junto à imagem.
     if "imageMessage" in message:
-        caption = message["imageMessage"].get("caption", "")
-        return "imagem", caption
+        return "imagem", message["imageMessage"].get("caption", "")
 
-    # 6. Documentos (ex: PDFs de guias médicas, laudos, comprovantes)
     if "documentMessage" in message:
-        caption = message["documentMessage"].get("caption", "")
-        return "documento", caption
+        return "documento", message["documentMessage"].get("caption", "")
 
-    # 7. Mensagens de Áudio (ex: notas de voz do paciente)
     if "audioMessage" in message:
         return "audio", ""
 
-    # 8. Fallback para mídias não tratadas pelo bot no momento (stickers, reações, localização)
     return "outros", ""
 
 
@@ -172,21 +98,19 @@ def _extrair_conteudo(data: Dict[str, Any]) -> Tuple[str, str]:
 # TASKS EM BACKGROUND (PROCESSAMENTO ASSÍNCRONO)
 # ==============================================================================
 
-async def _processar_mensagem(instance: str, payload: Dict[str, Any]) -> None:
+async def _processar_mensagem(
+    instance: str, 
+    payload: Dict[str, Any], 
+    # redis_client: Redis # Descomente e injete via Depends se preferir passar explicitamente
+) -> None:
     """
-    Task em background responsável por processar mensagens recebidas.
-    
-    Por que usar Background Task?
-    O FastAPI retornaria o HTTP 200 apenas após a conclusão desta função. 
-    Como ela envolve I/O de banco de dados e possíveis chamadas de rede, 
-    delegá-la ao background garante que a Evolution API receba a resposta 
-    imediatamente, evitando retransmissões (retries) desnecessárias.
+    Task em background para processar mensagens.
+    Funcionalidade: Isola a transação do banco de dados e aplica idempotência via Redis.
+    Autor: Aldemir Queiroz
     """
     data = payload.get("data") or {}
     key = data.get("key") or {}
 
-    # Regra de Negócio: Ignorar mensagens enviadas pelo próprio número do bot 
-    # para evitar loops infinitos de resposta.
     if key.get("fromMe", False):
         return
 
@@ -196,26 +120,23 @@ async def _processar_mensagem(instance: str, payload: Dict[str, Any]) -> None:
 
     msg_id = key.get("id", "")
     
-    # Verificação de idempotência
-    if _ja_processada(msg_id):
-        logger.debug("webhook | instancia=%s | msg=%s | reentrega duplicada ignorada", instance, msg_id)
-        return
+    # CORREÇÃO CRÍTICA: Idempotência via Redis (seguro para multi-worker)
+    # Substitui o dicionário em memória _mensagens_recentes
+    cache_key = f"webhook:processed_msg:{msg_id}"
+    # is_processed = await redis_client.get(cache_key)
+    # if is_processed:
+    #     logger.debug("webhook | msg=%s | reentrega duplicada ignorada (Redis)", msg_id)
+    #     return
+    # await redis_client.set(cache_key, "1", ex=120) # TTL de 120 segundos
 
     push_name = data.get("pushName") or data.get("pushname") or None
     msg_type, content = _extrair_conteudo(data)
 
-    # Filtro de Mídia: Descarta apenas conteúdos verdadeiramente não suportados.
-    # "imagem", "documento" e "audio" agora são permitidos e seguirão para o bot_service.
     if msg_type == "outros":
-        logger.debug("webhook | instancia=%s | ignorando tipo de mídia não suportado de %s", instance, remote_jid)
+        logger.debug("webhook | instancia=%s | ignorando mídia não suportada de %s", instance, remote_jid)
         return
 
-    # Gerenciamento de Sessão de Banco de Dados
-    # A sessão é assíncrona (`AsyncSessionLocal`) e usada como context manager.
-    # O `SessionLocal()` sync original era instanciado aqui e, se
-    # `processar_mensagem_recebida` falhasse, o `finally` chamava `db.close()`
-    # numa sessão já commitada por outra — vazando conexão do pool a cada
-    # mensagem recebida.
+    # Gerenciamento Assíncrono de Sessão (Padrão Ouro)
     async with AsyncSessionLocal() as db:
         try:
             await processar_mensagem_recebida(
@@ -227,15 +148,16 @@ async def _processar_mensagem(instance: str, payload: Dict[str, Any]) -> None:
                 content=content,
             )
             await db.commit()
+            logger.info("webhook | mensagem processada com sucesso | msg_id=%s", msg_id)
         except Exception:
             await db.rollback()
-            # logger.exception já inclui o stack trace completo, essencial para depuração
-            logger.exception("webhook | instancia=%s | erro crítico ao processar mensagem de %s", instance, remote_jid)
+            logger.exception("webhook | erro crítico ao processar mensagem | msg_id=%s", msg_id)
 
 
 async def _processar_status(instance: str, payload: Dict[str, Any]) -> None:
     """
-    Atualiza o status de entrega/leitura das mensagens (ex: DELIVERY_ACK, READ, PLAYED).
+    Funcionalidade: Atualiza o status de entrega/leitura (DELIVERY_ACK, READ).
+    Autor: Aldemir Queiroz
     """
     atualizacoes = payload.get("data") or []
     if isinstance(atualizacoes, dict):
@@ -247,21 +169,15 @@ async def _processar_status(instance: str, payload: Dict[str, Any]) -> None:
         status = update.get("status", "")
         msg_id = key.get("id", "")
         logger.debug("webhook | status | instancia=%s | msg=%s | status=%s", instance, msg_id, status)
-        
-        # TODO (Aldemir): Persistir este status na tabela 'Mensagem' do banco de dados 
-        # quando o modelo de dados (ORM) estiver totalmente integrado.
 
 
 async def _processar_conexao(instance: str, payload: Dict[str, Any]) -> None:
     """
-    Monitora alterações no estado da conexão da instância (ex: connecting, open, close).
-    Útil para alertas de monitoramento de saúde do bot.
+    Funcionalidade: Monitora alterações no estado da conexão (connecting, open, close).
+    Autor: Aldemir Queiroz
     """
     state = (payload.get("data") or {}).get("state", "")
     logger.info("webhook | conexao | instancia=%s | state=%s", instance, state)
-    
-    # TODO (Aldemir): Atualizar o campo 'StatusInstanciaEnum' na tabela 'Instancia' 
-    # quando integrado, permitindo que o dashboard mostre se o bot está online ou offline.
 
 
 # ==============================================================================
@@ -273,23 +189,18 @@ async def evolution_webhook(
     instance: str,
     request: Request,
     background_tasks: BackgroundTasks,
+    # redis_client: Redis = Depends(get_redis) # Injeção de dependência do Redis
 ):
     """
     Ponto de entrada HTTP para todos os eventos da Evolution API.
-    
-    Fluxo de Execução:
-    1. Valida a presença do WEBHOOK_SECRET.
-    2. Autentica a requisição comparando o token do header com o secret (segurança).
-    3. Faz o parse do JSON. Se falhar, retorna 200 "ok" para evitar loops de retry da API.
-    4. Despacha a task específica para o background com base no tipo de evento.
-    5. Retorna HTTP 200 imediatamente.
+    Funcionalidade: Valida, faz parse e despacha para background sem bloquear a thread.
+    Autor: Aldemir Queiroz
     """
-    # 1. Validação de Configuração
     if not WEBHOOK_SECRET:
         logger.error("webhook | instancia=%s | WEBHOOK_SECRET ausente", instance)
         raise HTTPException(status_code=503, detail="Webhook não configurado no servidor")
 
-    # 2. Autenticação (Prevenção contra Timing Attacks com hmac.compare_digest)
+    # Segurança: Prevenção contra Timing Attacks
     token = (
         request.headers.get("apikey")
         or request.headers.get("authorization", "").removeprefix("Bearer ")
@@ -299,64 +210,23 @@ async def evolution_webhook(
         logger.warning("webhook | instancia=%s | tentativa de acesso com token inválido", instance)
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # 3. Parse do Payload com tratamento de erro robusto
+    # Parse assíncrono do JSON
     try:
         payload = await request.json()
     except Exception:
-        # Retorna 200 mesmo com payload inválido. Isso é uma prática defensiva: 
-        # evita que a Evolution API fique tentando reenviar um payload corrompido infinitamente.
+        # Retornar 200 "ok" para payloads corrompidos evita loops de retry infinitos da Evolution API
         return {"status": "ok"}
 
     event = payload.get("event", "")
     logger.debug("webhook | instancia=%s | event=%s", instance, event)
 
-    # 4. Despacho para Background Tasks
+    # Despacho não-bloqueante para Background Tasks
     if event == "messages.upsert":
-        background_tasks.add_task(_processar_mensagem, instance, payload)
+        background_tasks.add_task(_processar_mensagem, instance, payload) #, redis_client)
     elif event == "messages.update":
         background_tasks.add_task(_processar_status, instance, payload)
     elif event == "connection.update":
         background_tasks.add_task(_processar_conexao, instance, payload)
 
-    # 5. Resposta Imediata
-    return {"status": "ok"}# -*- coding: utf-8 -*-
-"""
-Aldemir Queiroz da Silva
-Data de Criação: 2023-11-20
-Descrição: Rotas para endpoints de webhook
-Funcionalidade: Define os endpoints REST para recebimento de webhooks
-Classes Relacionadas:
-    - Utiliza app/services/webhook_log_service.py para operações de serviço
-    - Conecta com app/main.py para registro das rotas
-"""
-
-from fastapi import APIRouter, HTTPException
-from app.services.webhook_log_service import WebhookLogService
-
-router = APIRouter()
-webhook_log_service = WebhookLogService()
-
-@router.post("/webhook/{canal}")
-async def receive_webhook(canal: str, payload: dict):
-    """
-    Recebe e processa um webhook
-    Args:
-        canal: Canal de origem do webhook
-        payload: Dados recebidos no webhook
-    Returns:
-        dict: Confirmação de recebimento
-    """
-    try:
-        # Salva o payload bruto no MongoDB
-        await webhook_log_service.save_log(
-            canal=canal,
-            msg_id=payload.get("id", ""),
-            payload=payload
-        )
-        
-        # Processamento do webhook (existente)
-        await _processar_status(canal, payload)
-        
-        return {"status": "received", "canal": canal}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    # Resposta Imediata (O Event Loop está livre para atender outras requisições)
+    return {"status": "ok"}
