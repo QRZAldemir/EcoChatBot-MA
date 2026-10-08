@@ -97,12 +97,12 @@ class CanalService:
         *,
         incluir_inativos: bool = False,
     ) -> CanalContratado:
-        """🔒 Anti-IDOR: filtra obrigatoriamente por empresa_id."""
+        """ Anti-IDOR: filtra obrigatoriamente por empresa_id."""
         self._validar_empresa_id(empresa_id)
 
         stmt = select(CanalContratado).where(
             CanalContratado.id == canal_id,
-            CanalContratado.empresa_id == empresa_id,   # 🔒
+            CanalContratado.empresa_id == empresa_id,   # 
             CanalContratado.deleted_at.is_(None),
         )
         if not incluir_inativos:
@@ -124,7 +124,7 @@ class CanalService:
         ignorar_canal_id: int | None = None,
     ) -> None:
         stmt = select(CanalContratado.id).where(
-            CanalContratado.empresa_id == empresa_id,       # 🔒
+            CanalContratado.empresa_id == empresa_id,       # 
             CanalContratado.telefone_id == telefone_id,
             CanalContratado.tipo == tipo,
             CanalContratado.deleted_at.is_(None),

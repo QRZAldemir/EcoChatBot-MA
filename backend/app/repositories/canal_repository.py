@@ -51,6 +51,14 @@ from app.repositories.base_repository import BaseRepository
 from app.models.canal_models import CanalContratado
 from app.schemas.canal_schemas import CanalCreate
 
+async def get_by_id(db: AsyncSession, canal_id: int) -> CanalContratado | None:
+    """
+    Busca um canal contratado pelo ID de forma assíncrona.
+    """
+    stmt = select(CanalContratado).where(CanalContratado.id == canal_id)
+    result = await db.execute(stmt) #  Await na execução da query
+    return result.scalar_one_or_none() #  Extração síncrona do resultado já em memória
+    
 
 class CanalRepository(BaseRepository[CanalContratado]):
     """
