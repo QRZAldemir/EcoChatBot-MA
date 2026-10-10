@@ -3,29 +3,20 @@
 # AUTOR.......: (refatoração para estudo)
 # PROJETO.....: EcoChatBot-MA - Sistema Multi-Tenant de Atendimento
 # MÓDULO......: Parser de Webhook Meta Cloud API (Graph API)
-# VERSÃO......: 2.1.0 (Correção definitiva - loop infinito + rejeição de caption)
+# VERSÃO......: 2.1.1 (Correção definitiva - varredura completa do envelope)
 # LINGUAGEM...: Python 3.12+
 # ==============================================================================
 # DESCRIÇÃO...:
 # Parser responsável por interpretar o envelope JSON enviado pela Meta Cloud API
 # no endpoint de webhook do WhatsApp Business.
 #
-# PROBLEMA A CORRIGIR (BUG DE LOOP INFINITO COM EVENTOS "statuses"):
-#   A Meta envia, no MESMO envelope, notificações de entrega/leitura em
-#   entry[].changes[].value["statuses"]. Se o parser interpretar "statuses"
-#   como mensagem recebida, o bot responderá à própria notificação,
-#   gerando loop infinito.
-#
-# CORREÇÃO DEFINITIVA:
-#   - Varre TODOS os entries/changes (NUNCA retorna no primeiro change).
-#   - Qualquer change que contenha APENAS "statuses" é IGNORADO.
-#   - Retorna type="status" APENAS quando NÃO existem mensagens reais em
-#     nenhum change do envelope inteiro.
-#   - Só processa quando existir "messages" (prioriza mensagem real).
-#
-# OBS: Este script foca EXCLUSIVAMENTE na correção de parsing do webhook
-# da Meta Cloud API (tratamento de "statuses"). Não altera envio de caption
-# (isso deve ser tratado no adaptador que efetivamente envia mídia).
+# REGRA CRÍTICA (evitar loop infinito com statuses):
+#   - Varre TODOS os entries/changes. NUNCA retorna ao encontrar apenas "statuses".
+#   - Se existir QUALQUER "messages" não vazio em qualquer change -> retorna
+#     a primeira mensagem encontrada (type="message"). Prioriza mensagem real.
+#   - Se NÃO houver nenhuma mensagem válida após varrer TODO o envelope,
+#     mas houver pelo menos um change com APENAS "statuses" -> retorna type="status".
+#   - Caso contrário -> type="ignored".
 # ==============================================================================
 from __future__ import annotations
 
@@ -52,12 +43,15 @@ def parse_incoming_webhook(payload: dict[str, Any]) -> ParsedWebhookEvent:
     """
     Interpreta envelope JSON da Meta Cloud API.
 
-    REGRA CRÍTICA:
-    1. Se houver QUALQUER change com "messages" válido -> retorna a primeira
-       mensagem encontrada (processa como message). Nunca retorna "status".
-    2. Se NÃO houver mensagens, mas houver ao menos um change com APENAS
-       "statuses" (ou statuses presente) -> retorna type="status".
-    3. Caso contrário -> "ignored".
+    Regras:
+    1. Procura mensagens em TODO o envelope. Ao encontrar a primeira mensagem
+       válida (com 'from'), retorna imediatamente type="message".
+    2. Enquanto busca, se encontrar changes com APENAS "statuses", marca
+       saw_status_only (NÃO retorna). Isso evita perder mensagens que venham
+       depois no mesmo envelope.
+    3. Se varreu tudo e não encontrou nenhuma mensagem, mas viu pelo menos
+       um evento apenas de status -> retorna type="status".
+    4. Senão -> type="ignored".
     """
     if not isinstance(payload, dict):
         logger.warning("Webhook recebido não é um dict: %r", type(payload))
@@ -76,37 +70,35 @@ def parse_incoming_webhook(payload: dict[str, Any]) -> ParsedWebhookEvent:
             if not isinstance(value, dict):
                 continue
 
-            has_messages = bool(value.get("messages"))
-            has_statuses = bool(value.get("statuses"))
+            messages = value.get("messages") or []
+            statuses = value.get("statuses") or []
 
-            # MENSAGEM REAL existe -> processar imediatamente
-            if has_messages:
-                messages = value.get("messages") or []
-                if not messages:
-                    continue
+            # 1. Prioriza MENSAGEM REAL do cliente
+            if messages:
                 first_msg = messages[0]
-                chat_id = first_msg.get("from") if isinstance(first_msg, dict) else None
-                text = _extract_text(first_msg) if isinstance(first_msg, dict) else None
-                if not chat_id:
-                    logger.warning("Mensagem sem 'from' — ignorando este evento.")
-                    continue
-                return ParsedWebhookEvent(
-                    type="message",
-                    chat_id=chat_id,
-                    text=text,
-                    raw=payload,
-                )
+                if isinstance(first_msg, dict):
+                    chat_id = first_msg.get("from")
+                    if chat_id:
+                        text = _extract_text(first_msg)
+                        return ParsedWebhookEvent(
+                            type="message",
+                            chat_id=chat_id,
+                            text=text,
+                            raw=payload,
+                        )
+                # Mensagem sem 'from' -> ignora este change e continua varrendo
+                continue
 
-            # APENAS status -> marcar e continuar buscando mensagens
-            if has_statuses and not has_messages:
+            # 2. APENAS status (sem mensagens) -> marcar e NÃO retornar
+            if statuses and not messages:
                 saw_status_only = True
                 logger.debug(
-                    "Webhook de status recebido (entrega/leitura). "
-                    "Ignorado neste change; prosseguindo varredura do envelope."
+                    "Webhook de status (entrega/leitura) detectado; "
+                    "continuando varredura para buscar mensagens."
                 )
                 continue
 
-    # Fim da varredura: sem mensagens encontradas
+    # 3. Varreu todo o envelope sem encontrar nenhuma mensagem válida
     if saw_status_only:
         logger.debug("Envelope contém apenas notificações de status.")
         return ParsedWebhookEvent(type="status", raw=payload)
