@@ -106,32 +106,35 @@ def parse_incoming_webhook(payload: dict[str, Any]) -> ParsedWebhookEvent:
     # 2. Percorrer entries -> changes -> value
     #    (a Meta pode agrupar vários eventos no mesmo POST)
     # ----------------------------------------------------------------
+    saw_status = False
+
     for entry in entries:
         for change in (entry.get("changes") or []):
             value = change.get("value") or {}
 
             # --------------------------------------------------------
-            # 3. CORREÇÃO DO BUG: detectar 'statuses' ANTES de 'messages'
+            # 3. CORREÇÃO DO BUG: descartar eventos 'statuses'
             # --------------------------------------------------------
-            # A Meta envia "statuses" para notificar entrega/leitura.
-            # Esses eventos NÃO são mensagens de clientes.
-            # Se tratarmos como mensagem, o bot responde à própria
-            # notificação e entra em loop infinito.
-            #
-            # Regra:
-            #   - Se existir "statuses" e NÃO existir "messages" -> status
-            #   - Se existir "messages" -> mensagem (mesmo que também
-            #     exista "statuses" no mesmo value, priorizamos messages)
+            # Regra: "statuses" NUNCA é tratado como mensagem.
+            #   - change com "statuses" (e sem "messages") => descartado
+            #     do processamento; só é reportado como type="status" ao
+            #     final, caso não haja nenhuma mensagem real no envelope.
+            #   - change com "messages" => processa a mensagem do cliente.
+            # Assim, o bot nunca responde à própria notificação de
+            # entrega/leitura, evitando o loop infinito de auto-resposta.
             # --------------------------------------------------------
             has_statuses = "statuses" in value and value.get("statuses")
             has_messages = "messages" in value and value.get("messages")
 
-            if has_statuses and not has_messages:
+            status_change = has_statuses and not has_messages
+
+            if status_change:
+                saw_status = True
                 logger.debug(
                     "Webhook de status recebido (entrega/leitura). "
-                    "Ignorando para evitar loop infinito."
+                    "Descartado para evitar loop infinito."
                 )
-                return ParsedWebhookEvent(type="status", raw=payload)
+                continue
 
             # --------------------------------------------------------
             # 4. Processar mensagem real do cliente
@@ -143,7 +146,7 @@ def parse_incoming_webhook(payload: dict[str, Any]) -> ParsedWebhookEvent:
 
                 if not chat_id:
                     logger.warning("Mensagem sem 'from' — ignorando.")
-                    return ParsedWebhookEvent(type="ignored", raw=payload)
+                    continue
 
                 return ParsedWebhookEvent(
                     type="message",
@@ -153,8 +156,12 @@ def parse_incoming_webhook(payload: dict[str, Any]) -> ParsedWebhookEvent:
                 )
 
     # ----------------------------------------------------------------
-    # 5. Nenhum evento reconhecido
+    # 5. Sem mensagens: reportar status se houver notificação no envelope
     # ----------------------------------------------------------------
+    if saw_status:
+        logger.debug("Webhook com apenas notificações de status.")
+        return ParsedWebhookEvent(type="status", raw=payload)
+
     logger.debug("Webhook sem 'messages' nem 'statuses' reconhecíveis.")
     return ParsedWebhookEvent(type="ignored", raw=payload)
 

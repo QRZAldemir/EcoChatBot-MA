@@ -2,10 +2,32 @@
 """
 Módulo: meta_cloud_adapter.py
 
-Explicação:
-Adaptador para Meta Cloud API (WhatsApp Business Cloud).
-Implementa BaseMessageAdapter isolando a API do Meta da camada de negócio,
-permitindo polimorfismo com os demais provedores.
+EXPANÇÃO DA ESTRUTURA DE ADAPTERS:
+├── base_message_adapter.py  (BaseMessageAdapter - ABC)
+│   ├── define contrato: send_text, send_media, send_list, parse_webhook
+│   └── estabelece polimorfismo entre provedores
+└── providers/
+    ├── evolution_adapter.py   (herda BaseMessageAdapter)
+    ├── meta_cloud_adapter.py  (herda BaseMessageAdapter) ← ATUAL
+    ├── telegram_adapter.py    (herda BaseMessageAdapter)
+    └── pabx_voip_adapter.py   (herda BaseMessageAdapter)
+
+FUNCIONALIDADE:
+Adaptador concreto para Meta Cloud API (WhatsApp Business Cloud - Graph API v19.0).
+Responsável por normalizar envio de mensagens (texto, mídia, listas) e parsing
+de webhooks provenientes da Meta Cloud API.
+
+HERANÇA:
+Herda de BaseMessageAdapter (ABC) - implementa obrigatoriamente:
+- send_text(self, chat_id, text, **kwargs)
+- send_media(self, chat_id, media_url, media_type, caption, **kwargs)
+- send_list(self, chat_id, title, description, button_text, sections, footer, **kwargs)
+- parse_webhook(self, payload)
+
+PADRÃO ARQUITETURAL:
+Adapter Pattern - isola integração direta com Graph API, evitando acoplamento
+entre camada de negócio (bot_service) e provedor específico (Meta). Permite
+intercambialidade via AdapterFactory.
 """
 
 import logging
@@ -21,10 +43,24 @@ logger = logging.getLogger(__name__)
 
 class MetaCloudAdapter(BaseMessageAdapter):
     """
-    Adaptador para Meta Cloud API (WhatsApp Business Cloud API).
+    Adaptador Meta Cloud API (WhatsApp Business Cloud).
 
-    Responsabilidade única: abstrair as chamadas da Graph API do WhatsApp
-    Business para o contrato definido em BaseMessageAdapter.
+    HERANÇA: MetaCloudAdapter(BaseMessageAdapter)
+    Implementa contrato definido em BaseMessageAdapter.
+
+    ATRIBUTOS:
+    - _phone_number_id (str): ID do número WhatsApp Business (META_PHONE_NUMBER_ID)
+    - _access_token (str): Token de acesso permanente (META_ACCESS_TOKEN)
+    - _base_url (str): Base Graph API (default https://graph.facebook.com/v19.0)
+    - _client (httpx.AsyncClient): Cliente HTTP assíncrono (timeout 30s)
+
+    COMPORTAMENTO:
+    - send_text: POST /{phone_number_id}/messages com type=text
+    - send_media: POST /{phone_number_id}/messages com type=<media_type>
+                 • image/video/document: usa {"link": media_url}; caption apenas image/video
+                 • audio: faz upload prévio para /{phone_number_id}/media → {"id": media_id}
+    - send_list: POST /{phone_number_id}/messages com type=interactive (list)
+    - parse_webhook: extrai sender/chat_id/text a partir do envelope Meta Cloud
     """
 
     def __init__(
@@ -87,9 +123,22 @@ class MetaCloudAdapter(BaseMessageAdapter):
         """Envia mídia via Meta Cloud API."""
         url = f"{self._base_url}/{self._phone_number_id}/messages"
 
-        media_obj: Dict[str, Any] = {"link": media_url}
-        if caption and media_type in ("image", "video", "document"):
-            media_obj["caption"] = caption
+        # ------------------------------------------------------------------
+        # REGRAS DA GRAPH API (WhatsApp Business Cloud):
+        #   1. "caption" é aceito APENAS para image e video. Enviar caption
+        #      em document/audio retorna HTTP 400.
+        #   2. Áudio NÃO pode ser enviado por URL pública
+        #      ("audio": {"link": ...}). A Meta exige upload prévio em
+        #      POST /{phone_number_id}/media para gerar um media_id e só
+        #      então enviar ("audio": {"id": media_id}).
+        # ------------------------------------------------------------------
+        if media_type == "audio":
+            media_id = await self._upload_media(media_url)
+            media_obj: Dict[str, Any] = {"id": media_id}
+        else:
+            media_obj = {"link": media_url}
+            if caption and media_type in ("image", "video"):
+                media_obj["caption"] = caption
 
         payload = {
             "messaging_product": "whatsapp",
@@ -114,6 +163,62 @@ class MetaCloudAdapter(BaseMessageAdapter):
         except httpx.TimeoutException:
             logger.error("MetaCloudAdapter.send_media | timeout")
             raise
+
+    async def _upload_media(self, media_url: str) -> str:
+        """
+        Upload prévio para Meta Cloud API.
+
+        ROTINA INTERNA (privada): chamada exclusivamente em send_media quando
+        media_type == 'audio'.
+
+        FLUXO OBRIGATÓRIO (Graph API):
+        1. GET media_url → baixa arquivo (Content-Type + bytes)
+        2. POST /{phone_number_id}/media (multipart/form-data, campo 'file')
+           - headers: Authorization: Bearer <access_token> (sem Content-Type fixo)
+        3. Retorna {"id": "<media_id>"}
+        4. Usar {"audio": {"id": <media_id>}} em /{phone_number_id}/messages
+
+        MOTIVO DA NECESSIDADE:
+        A Meta Cloud API NÃO aceita envio de áudio via URL pública direta
+        ("audio": {"link": "..."}). É obrigatório gerar media_id via upload
+        prévio. Documentação Meta: "Upload media" + "Send audio using media ID".
+
+        PARÂMETROS:
+        - media_url (str): URL pública do arquivo de áudio (fornecida pelo app)
+
+        RETORNO:
+        - str: media_id gerado pela Graph API
+
+        EXCEÇÕES:
+        - httpx.HTTPStatusError: falha no download/upload
+        - RuntimeError: resposta sem campo 'id'
+        """
+        upload_url = f"{self._base_url}/{self._phone_number_id}/media"
+        # Sem Content-Type fixo: o httpx define o boundary multipart/form-data.
+        upload_headers = {
+            "Authorization": f"Bearer {self._access_token}",
+        }
+
+        download = await self._client.get(media_url)
+        download.raise_for_status()
+
+        file_name = media_url.rstrip("/").rsplit("/", 1)[-1] or "audio"
+        content_type = download.headers.get("content-type") or "application/octet-stream"
+
+        response = await self._client.post(
+            upload_url,
+            headers=upload_headers,
+            files={"file": (file_name, download.content, content_type)},
+        )
+        response.raise_for_status()
+
+        media_id = response.json().get("id")
+        if not media_id:
+            raise RuntimeError(
+                f"META | upload de mídia sem media_id no retorno: {response.text[:200]}"
+            )
+        logger.debug("META | mídia enviada com sucesso | media_id=%s", media_id)
+        return media_id
 
     async def send_list(
         self,
