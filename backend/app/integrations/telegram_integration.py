@@ -15,11 +15,11 @@ Funcionalidades:
 """
 
 import httpx
-from .base import BaseChannelIntegration
+from .base import BaseCanalAdapter
 from app.core.config import settings
 from typing import Dict, Any
 
-class TelegramIntegration(BaseChannelIntegration):
+class TelegramIntegration(BaseCanalAdapter):
     """Integração específica para o canal Telegram via Bot API."""
 
     def __init__(self):

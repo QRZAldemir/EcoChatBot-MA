@@ -15,11 +15,11 @@ Funcionalidades:
 """
 
 import http
-from .base import BaseChannelIntegration
+from .base import BaseCanalAdapter
 from app.core.config import settings
 from typing import Dict, Any
 
-class DiscordIntegration(BaseChannelIntegration):
+class DiscordIntegration(BaseCanalAdapter):
     """Integração específica para o canal Discord via API REST."""
 
     def __init__(self):

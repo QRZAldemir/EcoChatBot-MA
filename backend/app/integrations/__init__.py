@@ -32,13 +32,13 @@ Não foram criadas classes vazias para "fazer passar": o contrato delas
 (fontes, credenciais, webhooks) ainda não foi definido.
 """
 
-from .base import BaseChannelIntegration, BaseUtilityIntegration
+from .base import BaseCanalAdapter, validar_adapter
 from .discord_integration import DiscordIntegration
 from .telegram_integration import TelegramIntegration
 
 __all__ = [
-    "BaseChannelIntegration",
-    "BaseUtilityIntegration",
+    "BaseCanalAdapter",
+    "validar_adapter",
     "TelegramIntegration",
     "DiscordIntegration",
 ]
