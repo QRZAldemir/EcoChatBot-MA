@@ -230,25 +230,3 @@ async def evolution_webhook(
 
     # Resposta Imediata (O Event Loop está livre para atender outras requisições)
     return {"status": "ok"}
-    from fastapi import APIRouter, Request, HTTPException
-from app.integrations.meta.meta_cloud_webhook_parser import (
-    parse_incoming_webhook,
-    WebhookEventType,
-)
-from app.domain.services.message_orchestrator import MessageOrchestrator
-
-router = APIRouter()
-
-@router.post("/webhook/meta")
-async def meta_webhook(request: Request, orchestrator: MessageOrchestrator):
-    payload = await request.json()
-    events = parse_incoming_webhook(payload)
-
-    for event in events:
-        if event.type == WebhookEventType.MESSAGE:
-            await orchestrator.handle_incoming_message(event)
-        elif event.type == WebhookEventType.STATUS:
-            await orchestrator.update_delivery_status(event)
-        # WebhookEventType.IGNORED é descartado silenciosamente
-
-    return {"status": "ok"}
